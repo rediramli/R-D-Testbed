@@ -1,0 +1,55 @@
+# N2 capture service for the dashboard. Runs on the RAN host (FCT0173).
+# It only listens: tshark on SCTP port 38412, results kept in memory.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: n2-capture
+  namespace: fct-dash
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: n2-capture
+  template:
+    metadata:
+      labels:
+        app: n2-capture
+      annotations:
+        fct-dash/code-hash: "CODE_HASH"
+    spec:
+      hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
+      containers:
+      - name: capture
+        image: alpine:3.20
+        command: ["sh", "-c", "apk add --no-cache tshark python3 >/dev/null && exec python3 /app/capture.py"]
+        env:
+        - name: PORT
+          value: "8091"
+        - name: GNB_IP
+          value: 10.0.129.7
+        - name: PYTHONUNBUFFERED
+          value: "1"
+        readinessProbe:
+          httpGet:
+            path: /healthz
+            port: 8091
+          initialDelaySeconds: 10
+          periodSeconds: 5
+        resources:
+          requests: {cpu: 50m, memory: 64Mi}
+          limits: {cpu: "1", memory: 512Mi}
+        securityContext:
+          allowPrivilegeEscalation: false
+          capabilities:
+            add: ["NET_RAW", "NET_ADMIN"]
+        volumeMounts:
+        - name: app
+          mountPath: /app
+          readOnly: true
+      volumes:
+      - name: app
+        configMap:
+          name: n2-capture-app

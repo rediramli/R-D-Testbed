@@ -1,0 +1,720 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>FCT 5G Testbed</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Semi+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --bg: #E9EEF2;
+  --panel: #F8FAFB;
+  --ink: #18222D;
+  --muted: #5B6875;
+  --line: #A9B5C0;
+  --ok: #157A6E;
+  --warn: #B7791F;
+  --fault: #C23B22;
+  --unknown: #8A96A3;
+  --rf: #2B59C3;
+  --sans: "Barlow", system-ui, sans-serif;
+  --cond: "Barlow Semi Condensed", "Barlow", system-ui, sans-serif;
+  --mono: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.45 var(--sans); }
+header {
+  display: flex; flex-wrap: wrap; gap: 16px 32px; align-items: stretch; justify-content: space-between;
+  padding: 20px 28px 16px;
+}
+.title h1 { margin: 0; font: 700 30px/1.1 var(--cond); letter-spacing: .2px; }
+.title p { margin: 4px 0 0; color: var(--muted); }
+.radio {
+  display: flex; align-items: center; gap: 14px; padding: 10px 18px 10px 14px;
+  background: var(--panel); border-left: 6px solid var(--rf); border-radius: 4px; min-width: 300px;
+}
+.radio .mode { font: 700 24px/1 var(--cond); color: var(--rf); }
+.radio .note { color: var(--muted); font-size: 13px; line-height: 1.3; }
+.radio.live { border-left-color: var(--fault); }
+.radio.live .mode { color: var(--fault); }
+.summary {
+  display: flex; flex-wrap: wrap; gap: 6px 22px; align-items: baseline;
+  padding: 10px 28px; background: var(--panel); border-top: 1px solid #D5DCE2; border-bottom: 1px solid #D5DCE2;
+}
+.summary b { font: 600 17px var(--cond); }
+.summary .ok { color: var(--ok); } .summary .bad { color: var(--fault); } .summary .mid { color: var(--warn); }
+.summary .updated { margin-left: auto; color: var(--muted); font-size: 13px; }
+.summary .updated.stale { color: var(--fault); font-weight: 600; }
+.kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; padding: 14px 28px 0; }
+.kpi { display: flex; align-items: center; gap: 14px; background: var(--panel); border: 1px solid #D5DCE2; border-radius: 6px; padding: 10px 16px; }
+.kpi .v { font: 700 34px/1 var(--cond); font-variant-numeric: tabular-nums; min-width: 2.2ch; }
+.kpi .l { font: 600 14px/1.25 var(--sans); }
+.kpi .l small { display: block; font-weight: 400; font-size: 12px; color: var(--muted); }
+@media (max-width: 900px) { .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); padding: 12px 16px 0; } }
+.uecard rect { fill: var(--panel); stroke: #C7D0D8; }
+.uecard .h { font: 700 15px var(--cond); fill: var(--ink); }
+.uecard .k, .uecard .h { white-space: pre; }
+.uecard .k { font: 400 12.5px var(--sans); fill: var(--muted); }
+.uecard .k tspan.n { fill: var(--ink); font-weight: 600; }
+
+.tabs { display: flex; gap: 4px; margin-top: 12px; }
+.tab { background: transparent; border: 1px solid transparent; border-bottom: 3px solid transparent; border-radius: 4px 4px 0 0; padding: 6px 14px; font: 600 15px var(--sans); color: var(--muted); }
+.tab.on { color: var(--ink); border-bottom-color: var(--rf); background: var(--panel); }
+.uepage { padding: 14px 28px 28px; }
+.uebar { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; margin-bottom: 14px; }
+.uebar select { font: 600 14px var(--sans); padding: 5px 8px; border-radius: 4px; border: 1px solid #C7D0D8; background: var(--panel); }
+.seg { display: inline-flex; border: 1px solid #C7D0D8; border-radius: 4px; overflow: hidden; }
+.seg button { border: 0; border-radius: 0; background: var(--panel); }
+.seg button.on { background: var(--ink); color: #fff; }
+.btn { font: 600 14px var(--sans); color: var(--ink); background: #E3E9EE; border: 1px solid #C7D0D8; border-radius: 4px; padding: 6px 12px; text-decoration: none; }
+.uenote { color: var(--muted); font-size: 13px; }
+.uetiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 10px; margin-bottom: 16px; }
+.ut { background: var(--panel); border: 1px solid #D5DCE2; border-radius: 6px; padding: 10px 14px; }
+.ut .n { font: 600 13px var(--sans); color: var(--muted); }
+.ut .v { font: 700 28px/1.15 var(--cond); font-variant-numeric: tabular-nums; }
+.ut .v small { font: 600 13px var(--sans); color: var(--muted); margin-left: 3px; }
+.ut .r { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.charts { display: grid; grid-template-columns: repeat(auto-fill, minmax(380px, 1fr)); gap: 12px; }
+.chart { background: var(--panel); border: 1px solid #D5DCE2; border-radius: 6px; padding: 10px 12px 6px; }
+.chart h3 { margin: 0; font: 700 17px var(--cond); display: flex; gap: 12px; align-items: baseline; flex-wrap: wrap; }
+.chart h3 small { font: 400 12px var(--sans); color: var(--muted); }
+.chart .lg { margin-left: auto; display: flex; gap: 12px; font: 600 12px var(--sans); color: var(--ink); }
+.chart .lg i { display: inline-block; width: 14px; height: 3px; border-radius: 2px; vertical-align: middle; margin-right: 5px; }
+.chart svg { width: 100%; height: auto; display: block; }
+.chart .grid { stroke: #E1E6EA; stroke-width: 1; }
+.chart .axis { font: 400 11px var(--sans); fill: var(--muted); }
+.chart .ln { fill: none; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
+.chart .xh { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 3 3; }
+.chart .empty { font: 400 13px var(--sans); fill: var(--muted); }
+.tip { position: fixed; pointer-events: none; background: var(--ink); color: #fff; font: 12px/1.45 var(--sans); padding: 6px 9px; border-radius: 4px; z-index: 6; white-space: nowrap; }
+@media (max-width: 700px) { .uepage { padding: 12px 12px 20px; } .charts { grid-template-columns: 1fr; } }
+
+.ctl { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; margin: 12px 28px 0; padding: 10px 14px; background: var(--panel); border: 1px solid #D5DCE2; border-radius: 6px; }
+.ctl-t { font: 700 17px var(--cond); }
+.unlock { display: flex; gap: 6px; }
+.unlock input { font: 14px var(--sans); padding: 5px 8px; border: 1px solid #C7D0D8; border-radius: 4px; width: 160px; }
+.ctl .grp { display: flex; align-items: center; gap: 4px; }
+.ctl .grp span { font: 600 13px var(--sans); color: var(--muted); margin-right: 4px; }
+.ctl button:disabled { opacity: .45; cursor: not-allowed; }
+.ctl button.active { background: var(--ink); color: #fff; border-color: var(--ink); }
+.ctl-msg { font-size: 13px; color: var(--muted); }
+.ctl-msg.bad { color: var(--fault); } .ctl-msg.ok { color: var(--ok); }
+@media (max-width: 700px) { .ctl { margin: 12px 16px 0; } }
+.errors { margin: 12px 28px 0; }
+.errors div { padding: 8px 12px; background: #F6E3DF; color: #7A1F0E; border-left: 4px solid var(--fault); margin-bottom: 6px; border-radius: 3px; }
+main { padding: 8px 20px 28px; display: grid; grid-template-columns: minmax(0, 1fr) 640px; gap: 18px; align-items: start; }
+@media (max-width: 1640px) { main { grid-template-columns: minmax(0, 1fr); } }
+.topo-wrap { min-width: 0; }
+svg#topo { width: 100%; height: auto; display: block; max-width: 1320px; margin: 0 auto; }
+.flow { background: var(--panel); border: 1px solid #D5DCE2; border-radius: 6px; display: flex; flex-direction: column; max-height: calc(100vh - 190px); min-height: 360px; }
+.flow-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 14px; padding: 12px 16px; border-bottom: 1px solid #D5DCE2; }
+.flow-head h2 { margin: 0; font: 700 20px var(--cond); }
+.flow-state { flex: 1; color: var(--muted); font-size: 13px; }
+.flow-state.ok { color: var(--ok); } .flow-state.bad { color: var(--fault); }
+.flow-scroll { overflow: auto; flex: 1; }
+.flow table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.flow td.m { overflow-wrap: anywhere; }
+.flow th { position: sticky; top: 0; background: #EEF2F5; text-align: left; font: 600 13px var(--sans); color: var(--muted); padding: 7px 10px; }
+.flow td { padding: 6px 10px; border-top: 1px solid #E3E8EC; vertical-align: top; }
+.flow td.t { font-variant-numeric: tabular-nums; color: var(--muted); white-space: nowrap; }
+.flow td.d { white-space: nowrap; font-weight: 600; }
+.flow td.d.ul { color: var(--rf); } .flow td.d.dl { color: var(--ok); }
+.flow td.i { font-weight: 600; color: var(--muted); }
+.flow tr.uu td.i { color: #8A4FBF; }
+.flow tr.uu td:first-child { box-shadow: inset 3px 0 0 #8A4FBF; }
+.flow td.p { color: var(--muted); white-space: nowrap; }
+.flow td.m b { font-weight: 600; }
+.flow tr.milestone td { background: #EAF1FB; }
+.flow tr.bad td { background: #F6E3DF; }
+.flow-empty { margin: 0; padding: 18px 16px; color: var(--muted); }
+@media (prefers-reduced-motion: no-preference) { .flow tr.new td { animation: flash 1.2s ease-out; } }
+@keyframes flash { from { background: #FFF3C4; } }
+.wire { fill: none; stroke: var(--line); stroke-width: 1.6; }
+.wire.dash { stroke-dasharray: 5 5; }
+.wire.radio { stroke: var(--rf); stroke-dasharray: 3 6; stroke-width: 2.2; stroke-linecap: round; }
+.ifname { font: 500 12px var(--sans); fill: var(--muted); }
+.section { font: 600 14px var(--cond); fill: var(--muted); }
+.tile { cursor: pointer; outline: none; }
+.tile rect.body { fill: var(--panel); stroke: #C7D0D8; stroke-width: 1; }
+.tile:hover rect.body, .tile:focus rect.body { stroke: var(--ink); stroke-width: 1.6; }
+.tile .name { font: 700 18px var(--cond); fill: var(--ink); }
+.tile .status { font: 600 13px var(--sans); }
+.tile .meta { font: 400 12px var(--sans); fill: var(--muted); }
+.tile.small .name { font-size: 14px; }
+.dn rect { fill: none; stroke: var(--line); stroke-dasharray: 4 4; }
+.dn text { fill: var(--muted); }
+/* Log drawer */
+aside {
+  position: fixed; top: 0; right: 0; bottom: 0; width: min(640px, 100vw);
+  background: var(--panel); box-shadow: -2px 0 0 #C7D0D8; display: none; flex-direction: column; z-index: 5;
+}
+aside.open { display: flex; }
+aside .bar { display: flex; gap: 10px; align-items: center; padding: 14px 18px; border-bottom: 1px solid #D5DCE2; }
+aside .bar h2 { margin: 0; font: 700 20px var(--cond); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+aside .bar small { display: block; font: 400 13px var(--sans); color: var(--muted); }
+button {
+  font: 600 14px var(--sans); color: var(--ink); background: #E3E9EE; border: 1px solid #C7D0D8;
+  border-radius: 4px; padding: 6px 12px; cursor: pointer;
+}
+button:hover { background: #D6DEE5; }
+button:focus-visible, .tile:focus-visible { outline: 3px solid var(--rf); outline-offset: 2px; }
+aside pre {
+  flex: 1; margin: 0; padding: 14px 18px; overflow: auto; font: 12px/1.5 var(--mono);
+  white-space: pre-wrap; word-break: break-all; background: #FDFEFE;
+}
+@media (max-width: 700px) {
+  header { padding: 14px 16px; } .summary { padding: 10px 16px; } main { padding: 8px 6px 20px; }
+  .radio { min-width: 0; width: 100%; }
+  .topo-wrap { overflow-x: auto; } svg#topo { min-width: 900px; } .flow { max-height: 70vh; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .tile rect.bar { transition: fill .4s; }
+}
+</style>
+</head>
+<body>
+<header>
+  <div class="title">
+    <h1>FCT 5G Testbed</h1>
+    <p>Open5GS core on FCT0172, OAI RAN on FCT0173. Select any function to read its log.</p>
+    <nav class="tabs" aria-label="Pages">
+      <button class="tab on" data-page="overview" aria-current="page">Overview</button>
+      <button class="tab" data-page="ue">UE KPIs</button>
+    </nav>
+  </div>
+  <div class="radio" id="radio">
+    <div class="mode" id="radioMode">Radio: …</div>
+    <div class="note" id="radioNote">Set on the server only.</div>
+  </div>
+</header>
+<div class="summary" id="summary"><span>Waiting for the first update…</span></div>
+<div class="kpis" id="kpis">
+  <div class="kpi"><span class="v" id="kGnb">–</span><span class="l">gNBs connected<small>reported by the AMF</small></span></div>
+  <div class="kpi"><span class="v" id="kUe">–</span><span class="l">UEs connected<small>reported by the AMF</small></span></div>
+  <div class="kpi"><span class="v" id="kDl">–</span><span class="l">Downlink, Mbit/s<small id="kDlNote">MAC goodput</small></span></div>
+  <div class="kpi"><span class="v" id="kUl">–</span><span class="l">Uplink, Mbit/s<small id="kUlNote">MAC goodput</small></span></div>
+</div>
+<div class="ctl" id="ctl">
+  <span class="ctl-t">Controls</span>
+  <form id="unlock" class="unlock">
+    <input id="adminKey" type="password" placeholder="Admin password" autocomplete="current-password" aria-label="Admin password">
+    <button type="submit">Unlock</button>
+  </form>
+  <button id="lockBtn" type="button" hidden>Lock</button>
+  <div class="grp"><span>gNB</span><button data-a="gnb-start" disabled>Start</button><button data-a="gnb-stop" disabled>Stop</button></div>
+  <div class="grp"><span>UE</span><button data-a="ue-start" disabled>Start</button><button data-a="ue-stop" disabled>Stop</button></div>
+  <div class="grp"><span>Speed test</span><button data-a="speed-dl" disabled>Downlink</button><button data-a="speed-ul" disabled>Uplink</button><button data-a="speed-stop" disabled>Stop</button></div>
+  <span id="ctlMsg" class="ctl-msg" role="status"></span>
+</div>
+<div class="errors" id="errors"></div>
+<main id="overview">
+<div class="topo-wrap">
+<svg id="topo" viewBox="0 0 1120 560" role="img" aria-label="Topology of the 5G core and RAN with the state of each function">
+  <g id="wires"></g>
+  <g id="tiles"></g>
+  <g id="uecard" class="uecard"></g>
+</svg>
+</div>
+<section class="flow" aria-label="5G SA message flow">
+  <div class="flow-head">
+    <h2>5G SA message flow</h2>
+    <span id="flowState" class="flow-state">Connecting to the N2 capture…</span>
+    <button id="flowOrder" type="button" title="Change the reading order">Newest first</button>
+    <button id="flowClear" title="Hide earlier messages; new ones keep appearing">Clear view</button>
+  </div>
+  <div class="flow-scroll">
+    <table>
+      <thead><tr><th>Time</th><th>Link</th><th>Direction</th><th>Protocol</th><th>Message</th></tr></thead>
+      <tbody id="flowBody"></tbody>
+    </table>
+    <p id="flowEmpty" class="flow-empty">No messages yet. Start the gNB to see NG Setup here.</p>
+  </div>
+</section>
+</main>
+<section id="ue" class="uepage" hidden>
+  <div class="uebar">
+    <label>UE <select id="ueSel"></select></label>
+    <div class="seg" role="group" aria-label="Time window">
+      <button data-w="120">2 min</button><button data-w="300" class="on">5 min</button><button data-w="900">15 min</button>
+    </div>
+    <a id="csv" class="btn" href="api/history.csv" download>Download CSV</a>
+    <span id="ueNote" class="uenote"></span>
+  </div>
+  <div class="uetiles" id="ueTiles"></div>
+  <div class="charts" id="charts"></div>
+  <div id="tip" class="tip" hidden></div>
+</section>
+<aside id="drawer" aria-label="Pod log">
+  <div class="bar">
+    <h2 id="logTitle">Log<small id="logSub"></small></h2>
+    <button id="logRefresh">Refresh</button>
+    <button id="logClose">Close</button>
+  </div>
+  <pre id="logBody"></pre>
+</aside>
+<script>
+const W = 124, H = 74;
+// Layout: one entry per network function we expect to see.
+const NODES = [
+  // Control plane on the service-based interface
+  {role: "nrf", label: "NRF", c: "core", x: 316, y: 36, bus: "down"},
+  {role: "scp", label: "SCP", c: "core", x: 450, y: 36, bus: "down"},
+  {role: "ausf", label: "AUSF", c: "core", x: 584, y: 36, bus: "down"},
+  {role: "udm", label: "UDM", c: "core", x: 718, y: 36, bus: "down"},
+  {role: "udr", label: "UDR", c: "core", x: 852, y: 36, bus: "down"},
+  {role: "pcf", label: "PCF", c: "core", x: 986, y: 36, bus: "down"},
+  {role: "amf", label: "AMF", c: "core", x: 316, y: 166, bus: "up"},
+  {role: "smf", label: "SMF", c: "core", x: 584, y: 166, bus: "up"},
+  {role: "nssf", label: "NSSF", c: "core", x: 718, y: 166, bus: "up"},
+  {role: "mongodb", label: "MongoDB", c: "core", x: 852, y: 166},
+  {role: "bsf", label: "BSF", c: "core", x: 986, y: 166, bus: "up"},
+  {role: "upf", label: "UPF", c: "core", x: 584, y: 320},
+  // RAN
+  {role: "gnb", label: "gNB", c: "ran", x: 40, y: 320},
+  {role: "ue", label: "UE", c: "ran", x: 40, y: 470},
+  // 4G EPC, deployed alongside the 5G core
+  {role: "mme", label: "MME", c: "core", x: 584, y: 478, small: true},
+  {role: "hss", label: "HSS", c: "core", x: 690, y: 478, small: true},
+  {role: "pcrf", label: "PCRF", c: "core", x: 796, y: 478, small: true},
+  {role: "sgwc", label: "SGW-C", c: "core", x: 902, y: 478, small: true},
+  {role: "sgwu", label: "SGW-U", c: "core", x: 1008, y: 478, small: true},
+];
+const SMALL_W = 100, SMALL_H = 52;
+const COLORS = {running: "var(--ok)", starting: "var(--warn)", stopping: "var(--warn)",
+                failed: "var(--fault)", missing: "var(--fault)", unknown: "var(--unknown)", off: "var(--unknown)"};
+const WORDS = {running: "Running", starting: "Starting", stopping: "Stopping",
+               failed: "Failed", missing: "Stopped", unknown: "Unknown", off: "Off"};
+const NS = "http://www.w3.org/2000/svg";
+const $ = id => document.getElementById(id);
+function el(tag, attrs, text) {
+  const e = document.createElementNS(NS, tag);
+  for (const k in attrs) e.setAttribute(k, attrs[k]);
+  if (text !== undefined) e.textContent = text;
+  return e;
+}
+function path(d, cls) { return el("path", {d, class: "wire " + (cls || "")}); }
+function label(x, y, t, anchor) { return el("text", {x, y, class: "ifname", "text-anchor": anchor || "start"}, t); }
+
+function drawWires() {
+  const g = $("wires");
+  // SBI bus
+  g.append(path("M300 134 H1110"), label(300, 127, "SBI"));
+  for (const n of NODES.filter(n => n.bus)) {
+    const cx = n.x + W / 2;
+    g.append(n.bus === "down" ? path(`M${cx} ${n.y + H} V134`) : path(`M${cx} 134 V${n.y}`));
+  }
+  // MongoDB holds the UDR and PCF data
+  g.append(path("M914 166 V110", "dash"));
+  // N4 SMF-UPF, N6 UPF-data network
+  g.append(path("M646 240 V320"), label(654, 286, "N4"));
+  g.append(path("M708 357 H852"), label(780, 349, "N6", "middle"));
+  // N2 gNB-AMF, N3 gNB-UPF
+  g.append(path("M164 345 H378 V240"), label(270, 337, "N2", "middle"));
+  g.append(path("M164 375 H584"), label(374, 367, "N3", "middle"));
+  // Radio link UE-gNB
+  g.append(path("M102 470 V394", "radio"), label(112, 438, "Radio (rfsim)"));
+  // Data network
+  const dn = el("g", {class: "dn"});
+  dn.append(el("rect", {x: 852, y: 320, width: 258, height: 74, rx: 6}),
+            el("text", {x: 868, y: 350, style: "font:700 17px var(--cond)"}, "Data network fctoai"),
+            el("text", {x: 868, y: 372, style: "font:12px var(--sans)"}, "UE pool 10.45.0.0/16"));
+  g.append(dn);
+  // Section names
+  g.append(el("text", {x: 316, y: 24, class: "section"}, "Core, Open5GS on FCT0172"),
+           el("text", {x: 40, y: 306, class: "section"}, "RAN, OAI on FCT0173"),
+           el("text", {x: 584, y: 468, class: "section"}, "4G EPC, also deployed"));
+}
+
+function drawTiles() {
+  const g = $("tiles");
+  for (const n of NODES) {
+    const w = n.small ? SMALL_W : W, h = n.small ? SMALL_H : H;
+    const t = el("g", {class: "tile" + (n.small ? " small" : ""), tabindex: 0, role: "button", id: "t-" + n.role});
+    t.append(el("rect", {class: "body", x: n.x, y: n.y, width: w, height: h, rx: 6}),
+             el("rect", {class: "bar", x: n.x, y: n.y, width: 6, height: h, rx: 2, fill: COLORS.unknown}),
+             el("text", {class: "name", x: n.x + 16, y: n.y + (n.small ? 21 : 25), style: n.label.length > 6 ? "font-size:15px" : ""}, n.label),
+             el("text", {class: "status", x: n.x + 16, y: n.y + (n.small ? 40 : 45), fill: COLORS.unknown}, WORDS.unknown));
+    if (!n.small) t.append(el("text", {class: "meta", x: n.x + 16, y: n.y + 63}, ""),
+                           el("text", {class: "meta up", x: n.x + w - 10, y: n.y + 24, "text-anchor": "end"}, ""));
+    t.append(el("title", {}, n.label));
+    t.addEventListener("click", () => openLog(n));
+    t.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openLog(n); } });
+    g.append(t);
+  }
+}
+
+let latest = null;
+function podFor(n) {
+  return latest && latest.pods.find(p => p.cluster === n.c && p.role === n.role);
+}
+function age(iso) {
+  if (!iso) return "";
+  const s = (Date.now() - Date.parse(iso)) / 1000;
+  if (s < 3600) return Math.max(1, Math.round(s / 60)) + " min";
+  if (s < 86400) return Math.round(s / 3600) + " h";
+  return Math.round(s / 86400) + " d";
+}
+
+function render(data) {
+  latest = data;
+  const live = data.radioMode !== "rfsim";
+  $("radio").classList.toggle("live", live);
+  $("radioMode").textContent = "Radio: " + data.radioMode;
+  $("radioNote").innerHTML = live
+    ? "Radio hardware may transmit.<br>Changed on the server only."
+    : "Software radio, no RF emission.<br>Changed on the server only.";
+  $("errors").innerHTML = "";
+  for (const [c, msg] of Object.entries(data.errors || {})) {
+    const d = document.createElement("div");
+    d.textContent = (c === "core" ? "Core cluster (FCT0172)" : "RAN cluster (FCT0173)") + ": " + msg;
+    $("errors").append(d);
+  }
+  let coreUp = 0, coreAll = 0;
+  for (const n of NODES) {
+    const p = podFor(n);
+    const clusterDown = data.errors && data.errors[n.c];
+    const dep = {gnb: "oai-gnb", ue: "oai-nr-ue"}[n.role];
+    const tg = dep && data.controls && data.controls.targets && data.controls.targets[dep];
+    const state = clusterDown ? "unknown" : (p ? p.state : (tg && tg.want === 0 ? "off" : "missing"));
+    const t = $("t-" + n.role);
+    t.querySelector("rect.bar").setAttribute("fill", COLORS[state]);
+    const st = t.querySelector(".status");
+    st.setAttribute("fill", COLORS[state]);
+    st.textContent = (p && p.reason && state !== "running") ? p.reason : WORDS[state];
+    const meta = t.querySelector(".meta");
+    if (meta) meta.textContent = p ? (p.ip || "no IP") : "";
+    const up = t.querySelector(".up");
+    if (up) up.textContent = p && n.label.length <= 6 ? age(p.started) : "";
+    t.querySelector("title").textContent = p
+      ? `${p.pod}\nnode ${p.node}\nrestarts ${p.restarts}\nselect to read the log`
+      : `${n.label}: no pod found`;
+    if (n.c === "core" && !n.small) { coreAll++; if (state === "running") coreUp++; }
+  }
+  const s = $("summary");
+  s.innerHTML = "";
+  const part = (text, cls) => { const b = document.createElement("b"); b.textContent = text; b.className = cls; s.append(b); };
+  part(`5G core: ${coreUp} of ${coreAll} running`, coreUp === coreAll ? "ok" : "bad");
+  for (const r of ["gnb", "ue"]) {
+    const n = NODES.find(n => n.role === r), p = podFor(n);
+    const ok = p && p.state === "running";
+    const tg2 = data.controls && data.controls.targets && data.controls.targets[{gnb: "oai-gnb", ue: "oai-nr-ue"}[r]];
+    const off = !p && tg2 && tg2.want === 0;
+    part(`${n.label}: ${p ? WORDS[p.state] : (off ? "off" : "not deployed")}`, ok ? "ok" : (p ? "mid" : (off ? "" : "bad")));
+  }
+  const u = document.createElement("span");
+  u.className = "updated"; u.id = "updated";
+  u.dataset.t = Date.parse(data.time);
+  s.append(u);
+  renderRan(data);
+  renderControls(data.controls);
+  tick();
+}
+function tick() {
+  const u = $("updated"); if (!u) return;
+  const ago = Math.round((Date.now() - Number(u.dataset.t)) / 1000);
+  u.textContent = `Updated ${new Date(Number(u.dataset.t)).toLocaleTimeString()}` + (ago > 10 ? `, ${ago} s ago: dashboard cannot reach its backend` : "");
+  u.classList.toggle("stale", ago > 10);
+}
+
+async function poll() {
+  try {
+    const r = await fetch("api/state", {cache: "no-store"});
+    if (r.ok) render(await r.json());
+  } catch (e) { /* the stale marker shows the gap */ }
+}
+
+// Log drawer
+let logNode = null;
+async function openLog(n) {
+  logNode = n;
+  const p = podFor(n);
+  $("drawer").classList.add("open");
+  $("logTitle").firstChild.textContent = n.label + " log";
+  $("logSub").textContent = p ? p.pod : "no pod running";
+  $("logBody").textContent = p ? "Loading…" : "There is no pod for this function, so there is no log to show.";
+  if (!p) return;
+  try {
+    const r = await fetch(`api/logs?cluster=${p.cluster}&pod=${encodeURIComponent(p.pod)}&lines=200`);
+    $("logBody").textContent = await r.text() || "(the log is empty)";
+    $("logBody").scrollTop = $("logBody").scrollHeight;
+  } catch (e) { $("logBody").textContent = "Could not reach the dashboard backend."; }
+}
+$("logRefresh").onclick = () => logNode && openLog(logNode);
+$("logClose").onclick = () => $("drawer").classList.remove("open");
+document.addEventListener("keydown", e => { if (e.key === "Escape") $("drawer").classList.remove("open"); });
+
+
+
+// D4: counts, rates and the UE card
+function fmt(v, d) { return v === null || v === undefined || isNaN(v) ? "–" : Number(v).toFixed(d); }
+function renderRan(data) {
+  const ran = data.ran || {};
+  const stats = ran.ueStats || [];
+  const sum = k => stats.reduce((a, u) => a + (u[k] || 0), 0);
+  $("kGnb").textContent = ran.gnbs ?? "–";
+  $("kUe").textContent = ran.ues ?? "–";
+  $("kDl").textContent = stats.length ? fmt(sum("goodputDl"), 1) : "–";
+  $("kUl").textContent = stats.length ? fmt(sum("goodputUl"), 1) : "–";
+  const note = data.radioMode === "rfsim" ? "MAC goodput, simulated time" : "MAC goodput";
+  $("kDlNote").textContent = note; $("kUlNote").textContent = note;
+  const g = $("uecard"); g.innerHTML = "";
+  if (!stats.length) return;
+  const u = stats[stats.length - 1], x = 196, y = 444;
+  const line = (ty, parts) => {
+    const t = el("text", {x: x + 14, y: ty, class: "k"});
+    parts.forEach(([label, val]) => { t.append(document.createTextNode(label + " ")); const n = el("tspan", {class: "n"}, val + "   "); t.append(n); });
+    return t;
+  };
+  g.append(path(`M164 507 H${x}`),
+    el("rect", {x, y, width: 370, height: 104, rx: 6}),
+    el("text", {x: x + 14, y: y + 22, class: "h"}, `RNTI 0x${u.rnti}` + (ran.lastImsi ? `   IMSI ${ran.lastImsi}` : "") + (stats.length > 1 ? `   (+${stats.length - 1} more)` : "")),
+    line(y + 44, [["RSRP", fmt(u.rsrp, 0) + " dBm"], ["CQI", fmt(u.cqi, 0)], ["RI", fmt(u.ri, 0)], ["PH", fmt(u.ph, 0) + " dB"]]),
+    line(y + 64, [["MCS DL", fmt(u.mcsDl, 0)], ["UL", fmt(u.mcsUl, 0)], ["BLER DL", fmt(u.blerDl * 100, 1) + "%"], ["UL", fmt(u.blerUl * 100, 1) + "%"]]),
+    line(y + 84, [["Goodput DL", fmt(u.goodputDl, 1)], ["UL", fmt(u.goodputUl, 1) + " Mbit/s"], ["SNR UL", fmt(u.snrPusch, 1) + " dB"]]));
+}
+
+// 5G SA message flow: N2 from packet capture, Uu from gNB/UE logs
+let flowLast = 0, uuLast = 0, flowHideT = 0, flowRows = [], uuRows = [], flowNewestFirst = false;
+try { flowNewestFirst = localStorage.getItem("fctFlowNewestFirst") === "1"; } catch (e) {}
+const MILESTONE = /NGSetup(Request|Response)|Registration (request|accept|complete)|PDUSessionResourceSetup(Request|Response)|InitialContextSetupResponse|Msg1|RRCSetupComplete/;
+const BAD = /reject|Failure|failure|Error Indication|UEContextRelease/;
+function fmtTime(t) {
+  const d = new Date(t * 1000);
+  return d.toLocaleTimeString([], {hour12: false}) + "." + String(d.getMilliseconds()).padStart(3, "0");
+}
+const DIRS = {N2: {ul: "gNB → AMF", dl: "AMF → gNB"}, Uu: {ul: "UE → gNB", dl: "gNB → UE"}};
+function renderFlow(newKeys) {
+  const body = $("flowBody");
+  const sc = document.querySelector(".flow-scroll");
+  const atEnd = sc.scrollHeight - sc.scrollTop - sc.clientHeight < 40;
+  let rows = flowRows.concat(uuRows).filter(m => m.t > flowHideT).sort((a, b) => a.t - b.t).slice(-300);
+  if (flowNewestFirst) rows = rows.reverse();
+  body.innerHTML = "";
+  for (const m of rows) {
+    const tr = document.createElement("tr");
+    const iface = m.iface || "N2";
+    if (iface === "Uu") tr.classList.add("uu");
+    if (MILESTONE.test(m.msg)) tr.classList.add("milestone");
+    if (BAD.test(m.msg)) tr.classList.add("bad");
+    if (newKeys.has(iface + m.seq)) tr.classList.add("new");
+    const [ngap, ...nas] = iface === "N2" ? m.msg.split(", ") : [m.msg];
+    const td = (cls, text) => { const c = document.createElement("td"); c.className = cls; c.textContent = text; return c; };
+    const msg = td("m", ngap);
+    if (nas.length) { msg.append(", "); const b = document.createElement("b"); b.textContent = nas.join(", "); msg.append(b); }
+    tr.append(td("t", fmtTime(m.t)), td("i", iface), td("d " + m.dir, DIRS[iface][m.dir]), td("p", m.proto), msg);
+    body.append(tr);
+  }
+  $("flowEmpty").style.display = rows.length ? "none" : "block";
+  if (flowNewestFirst) sc.scrollTop = 0; else if (atEnd || newKeys.size === 0) sc.scrollTop = sc.scrollHeight;
+}
+function setOrder(newest) {
+  flowNewestFirst = newest;
+  $("flowOrder").textContent = newest ? "Oldest first" : "Newest first";
+  try { localStorage.setItem("fctFlowNewestFirst", newest ? "1" : "0"); } catch (e) {}
+  renderFlow(new Set());
+}
+async function pollFlow() {
+  const fresh = new Set();
+  try {
+    const r = await fetch(`api/flow?after=${flowLast}`, {cache: "no-store"});
+    const d = await r.json();
+    if (!r.ok || d.error) throw new Error(d.error || r.status);
+    if (d.last < flowLast) { flowRows = []; flowLast = 0; }
+    for (const m of d.messages) { flowRows.push(m); fresh.add("N2" + m.seq); flowLast = Math.max(flowLast, m.seq); }
+    if (flowRows.length > 1000) flowRows = flowRows.slice(-1000);
+    const st = $("flowState");
+    st.textContent = d.status && d.status.running ? "N2 from packet capture, Uu from gNB and UE logs" : "N2 capture stopped: " + ((d.status && d.status.error) || "unknown reason");
+    st.className = "flow-state " + (d.status && d.status.running ? "ok" : "bad");
+  } catch (e) {
+    const st = $("flowState");
+    st.textContent = "No contact with the N2 capture: " + e.message;
+    st.className = "flow-state bad";
+  }
+  try {
+    const r = await fetch(`api/uu?after=${uuLast}`, {cache: "no-store"});
+    if (r.ok) {
+      const d = await r.json();
+      if (d.last < uuLast) { uuRows = []; uuLast = 0; }
+      for (const m of d.events) { uuRows.push(m); fresh.add("Uu" + m.seq); uuLast = Math.max(uuLast, m.seq); }
+      if (uuRows.length > 500) uuRows = uuRows.slice(-500);
+    }
+  } catch (e) { /* Uu rows are optional; N2 status shows backend loss */ }
+  if (fresh.size || !$("flowBody").children.length) renderFlow(fresh);
+}
+$("flowClear").onclick = () => { flowHideT = Date.now() / 1000; renderFlow(new Set()); };
+$("flowOrder").onclick = () => setOrder(!flowNewestFirst);
+$("flowOrder").textContent = flowNewestFirst ? "Oldest first" : "Newest first";
+pollFlow();
+setInterval(pollFlow, 1000);
+
+
+
+// D6: controls
+let adminKey = "";
+try { adminKey = sessionStorage.getItem("fctAdminKey") || ""; } catch (e) {}
+function ctlMsg(text, cls) { const m = $("ctlMsg"); m.textContent = text; m.className = "ctl-msg " + (cls || ""); }
+function renderControls(c) {
+  const unlocked = !!adminKey && c && c.enabled;
+  $("unlock").hidden = !!adminKey || !(c && c.enabled);
+  $("lockBtn").hidden = !adminKey;
+  const t = (c && c.targets) || {};
+  const on = n => t[n] && t[n].want > 0;
+  document.querySelectorAll(".ctl button[data-a]").forEach(b => {
+    b.disabled = !unlocked;
+    const a = b.dataset.a;
+    b.classList.toggle("active", (a === "gnb-start" && on("oai-gnb")) || (a === "ue-start" && on("oai-nr-ue")) ||
+      (a === "speed-dl" && on("speedtest-dl")) || (a === "speed-ul" && on("speedtest-ul")));
+  });
+  if (c && !c.enabled && !$("ctlMsg").textContent) ctlMsg(c.reason || "Controls are off");
+}
+async function control(action) {
+  ctlMsg("Working…");
+  try {
+    const r = await fetch("api/control", {method: "POST", headers: {"Content-Type": "application/json", "X-Admin-Key": adminKey}, body: JSON.stringify({action})});
+    const d = await r.json();
+    if (r.status === 401) { adminKey = ""; try { sessionStorage.removeItem("fctAdminKey"); } catch (e) {} }
+    ctlMsg(d.msg, d.ok ? "ok" : "bad");
+    poll();
+    return d.ok;
+  } catch (e) { ctlMsg("No contact with the dashboard backend.", "bad"); return false; }
+}
+$("unlock").onsubmit = async e => {
+  e.preventDefault();
+  adminKey = $("adminKey").value; $("adminKey").value = "";
+  if (await control("check")) { try { sessionStorage.setItem("fctAdminKey", adminKey); } catch (e) {} }
+  else adminKey = "";
+  renderControls(latest && latest.controls);
+};
+$("lockBtn").onclick = () => { adminKey = ""; try { sessionStorage.removeItem("fctAdminKey"); } catch (e) {} ctlMsg("Controls locked"); renderControls(latest && latest.controls); };
+document.querySelectorAll(".ctl button[data-a]").forEach(b => b.onclick = () => control(b.dataset.a));
+
+// D5: UE KPI page
+const SERIES = {a: "#2a78d6", b: "#eb6834"};
+const CHARTS = [
+  {id: "rsrp", t: "RSRP", u: "dBm", s: [["rsrp", "RSRP", "a"]], span: 10},
+  {id: "ph", t: "Power headroom", u: "dB", s: [["ph", "PH", "a"]]},
+  {id: "cqi", t: "CQI", u: "", s: [["cqi", "CQI", "a"]], min: 0, max: 15},
+  {id: "snr", t: "SNR at the gNB", u: "dB", s: [["snrPucch", "PUCCH", "a"], ["snrPusch", "PUSCH", "b"]], span: 10},
+  {id: "mcs", t: "MCS", u: "index", s: [["mcsDl", "DL", "a"], ["mcsUl", "UL", "b"]], min: 0, max: 28},
+  {id: "bler", t: "BLER", u: "%", s: [["blerDl", "DL", "a", 100], ["blerUl", "UL", "b", 100]], min: 0},
+  {id: "gp", t: "Goodput", u: "Mbit/s", s: [["goodputDl", "DL", "a"], ["goodputUl", "UL", "b"]], min: 0, max: 10},
+  {id: "rssi", t: "RSSI at the gNB", u: "dBm", s: [["rssiDl", "PUCCH", "a"], ["rssiUl", "PUSCH", "b"]], span: 10},
+];
+const TILES = [
+  ["RSRP", "rsrp", "dBm", 0], ["Power headroom", "ph", "dB", 0], ["CQI", "cqi", "", 0],
+  ["SNR PUSCH", "snrPusch", "dB", 1], ["SNR PUCCH", "snrPucch", "dB", 1],
+  ["MCS DL", "mcsDl", "", 0], ["MCS UL", "mcsUl", "", 0],
+  ["BLER DL", "blerDl", "%", 2, 100], ["BLER UL", "blerUl", "%", 2, 100],
+  ["Goodput DL", "goodputDl", "Mbit/s", 1], ["Goodput UL", "goodputUl", "Mbit/s", 1],
+];
+let ueWin = 300, ueRnti = "", ueTimer = null, ueData = null;
+function niceRange(lo, hi, fixedMin, fixedMax, minSpan) {
+  if (minSpan && isFinite(lo) && isFinite(hi) && hi - lo < minSpan) { const m = (lo + hi) / 2; lo = m - minSpan / 2; hi = m + minSpan / 2; }
+  if (fixedMin !== undefined) lo = Math.min(lo, fixedMin);
+  if (fixedMax !== undefined) hi = Math.max(hi, fixedMax);
+  if (!isFinite(lo) || !isFinite(hi)) { lo = 0; hi = 1; }
+  if (hi - lo < 1e-9) { lo -= 1; hi += 1; }
+  const step = Math.pow(10, Math.floor(Math.log10((hi - lo) / 3)));
+  const st = [1, 2, 2.5, 5, 10].map(k => k * step).find(k => (hi - lo) / k <= 4);
+  lo = fixedMin !== undefined ? fixedMin : Math.floor(lo / st) * st;
+  hi = Math.ceil(hi / st) * st;
+  const ticks = []; for (let v = lo; v <= hi + st / 2; v += st) ticks.push(+v.toFixed(6));
+  return {lo, hi: Math.max(hi, ticks[ticks.length - 1]), ticks, dec: Math.max(0, -Math.floor(Math.log10(st)))};
+}
+function hhmmss(t) { return new Date(t * 1000).toLocaleTimeString([], {hour12: false}); }
+function drawChart(c, rows, t1) {
+  const Wc = 520, Hc = 190, L = 46, R = 12, T = 10, B = 24, t0 = t1 - ueWin;
+  const vals = [];
+  for (const [k, , , m] of c.s) for (const r of rows) if (r[k] !== null && r[k] !== undefined) vals.push(r[k] * (m || 1));
+  const yr = niceRange(Math.min(...vals), Math.max(...vals), c.min, c.max, c.span);
+  const X = t => L + (t - t0) / (t1 - t0) * (Wc - L - R), Y = v => T + (1 - (v - yr.lo) / (yr.hi - yr.lo)) * (Hc - T - B);
+  const svg = el("svg", {viewBox: `0 0 ${Wc} ${Hc}`, role: "img", "aria-label": `${c.t} over the last ${ueWin / 60} minutes`});
+  for (const v of yr.ticks) svg.append(el("line", {class: "grid", x1: L, x2: Wc - R, y1: Y(v), y2: Y(v)}), el("text", {class: "axis", x: L - 6, y: Y(v) + 4, "text-anchor": "end"}, v.toFixed(yr.dec)));
+  for (let i = 0; i <= 4; i++) { const t = t0 + i * ueWin / 4; svg.append(el("text", {class: "axis", x: X(t), y: Hc - 6, "text-anchor": i === 0 ? "start" : i === 4 ? "end" : "middle"}, hhmmss(t))); }
+  if (!vals.length) svg.append(el("text", {class: "empty", x: Wc / 2, y: Hc / 2, "text-anchor": "middle"}, "No samples in this window"));
+  for (const [k, , col, m] of c.s) {
+    let d = "", prev = null;
+    for (const r of rows) {
+      const v = r[k]; if (v === null || v === undefined) { prev = null; continue; }
+      const gap = prev === null || r.t - prev > 3;
+      d += `${gap ? "M" : "L"}${X(r.t).toFixed(1)} ${Y(v * (m || 1)).toFixed(1)}`; prev = r.t;
+    }
+    svg.append(el("path", {class: "ln", d, stroke: SERIES[col]}));
+  }
+  const xh = el("line", {class: "xh", y1: T, y2: Hc - B, visibility: "hidden"});
+  const hit = el("rect", {x: L, y: T, width: Wc - L - R, height: Hc - T - B, fill: "transparent"});
+  svg.append(xh, hit);
+  hit.addEventListener("mousemove", e => {
+    if (!rows.length) return;
+    const bb = svg.getBoundingClientRect(), tx = t0 + ((e.clientX - bb.left) * Wc / bb.width - L) / (Wc - L - R) * ueWin;
+    let best = rows[0]; for (const r of rows) if (Math.abs(r.t - tx) < Math.abs(best.t - tx)) best = r;
+    xh.setAttribute("x1", X(best.t)); xh.setAttribute("x2", X(best.t)); xh.setAttribute("visibility", "visible");
+    const tip = $("tip"); tip.hidden = false;
+    tip.innerHTML = `<b>${hhmmss(best.t)}</b><br>` + c.s.map(([k, lab, col, m]) => `<span style="color:${SERIES[col]}">■</span> ${lab}: ${best[k] === null || best[k] === undefined ? "–" : fmt(best[k] * (m || 1), 2)} ${c.u}`).join("<br>");
+    tip.style.left = Math.min(e.clientX + 14, innerWidth - 180) + "px"; tip.style.top = (e.clientY + 12) + "px";
+  });
+  hit.addEventListener("mouseleave", () => { xh.setAttribute("visibility", "hidden"); $("tip").hidden = true; });
+  return svg;
+}
+function renderUe() {
+  const d = ueData; if (!d) return;
+  const sel = $("ueSel"), cur = d.rnti || "";
+  sel.innerHTML = d.rntis.length ? "" : "<option value=''>No UE seen yet</option>";
+  for (const r of d.rntis) { const o = document.createElement("option"); o.value = r; o.textContent = "RNTI 0x" + r; o.selected = r === cur; sel.append(o); }
+  $("csv").href = `api/history.csv?seconds=${ueWin}` + (cur ? `&rnti=${cur}` : "");
+  $("ueNote").textContent = latest && latest.radioMode === "rfsim" ? "Radio mode rfsim: values come from the software channel model; goodput is in simulated time." : "";
+  const rows = d.rows, t1 = Date.now() / 1000;
+  const tl = $("ueTiles"); tl.innerHTML = "";
+  for (const [name, k, unit, dec, m] of TILES) {
+    const v = rows.map(r => r[k]).filter(x => x !== null && x !== undefined).map(x => x * (m || 1));
+    const div = document.createElement("div"); div.className = "ut";
+    const last = v.length ? v[v.length - 1] : null;
+    const avg = v.length ? v.reduce((a, b) => a + b, 0) / v.length : null;
+    div.innerHTML = `<div class="n">${name}</div><div class="v">${fmt(last, dec)}<small>${unit}</small></div>` +
+      `<div class="r">min ${fmt(v.length ? Math.min(...v) : null, dec)}, max ${fmt(v.length ? Math.max(...v) : null, dec)}, avg ${fmt(avg, dec)}</div>`;
+    tl.append(div);
+  }
+  const ch = $("charts"); ch.innerHTML = "";
+  for (const c of CHARTS) {
+    const box = document.createElement("div"); box.className = "chart";
+    const h = document.createElement("h3"); h.textContent = c.t;
+    const sm = document.createElement("small"); sm.textContent = c.u; h.append(sm);
+    if (c.s.length > 1) {
+      const lg = document.createElement("span"); lg.className = "lg";
+      for (const [, lab, col] of c.s) { const it = document.createElement("span"); it.innerHTML = `<i style="background:${SERIES[col]}"></i>${lab}`; lg.append(it); }
+      h.append(lg);
+    }
+    box.append(h, drawChart(c, rows, t1)); ch.append(box);
+  }
+}
+async function pollUe() {
+  try {
+    const r = await fetch(`api/history?seconds=${ueWin}` + (ueRnti ? `&rnti=${ueRnti}` : ""), {cache: "no-store"});
+    if (r.ok) { ueData = await r.json(); renderUe(); }
+  } catch (e) { /* the stale marker on the overview shows backend loss */ }
+}
+$("ueSel").onchange = e => { ueRnti = e.target.value; pollUe(); };
+document.querySelectorAll(".seg button").forEach(b => b.onclick = () => {
+  document.querySelectorAll(".seg button").forEach(x => x.classList.toggle("on", x === b));
+  ueWin = Number(b.dataset.w); pollUe();
+});
+function showPage(p) {
+  document.querySelectorAll(".tab").forEach(t => { const on = t.dataset.page === p; t.classList.toggle("on", on); on ? t.setAttribute("aria-current", "page") : t.removeAttribute("aria-current"); });
+  $("overview").hidden = p !== "overview"; $("ue").hidden = p !== "ue";
+  clearInterval(ueTimer);
+  if (p === "ue") { pollUe(); ueTimer = setInterval(pollUe, 2000); }
+  history.replaceState(null, "", p === "ue" ? "#ue" : "#");
+}
+document.querySelectorAll(".tab").forEach(t => t.onclick = () => showPage(t.dataset.page));
+if (location.hash === "#ue") showPage("ue");
+
+drawWires();
+drawTiles();
+poll();
+setInterval(poll, 3000);
+setInterval(tick, 1000);
+</script>
+</body>
+</html>

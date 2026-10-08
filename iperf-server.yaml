@@ -1,0 +1,24 @@
+# Speed-test servers on the UPF host (core cluster), bound to the UE pool gateway.
+# Each iperf3 runs under a watchdog (5 s of 0-byte intervals, or an open connection
+# with no progress for 10 s, restarts it), so a UE lost mid-test never leaves the
+# server answering "busy". Nothing else on FCT0172 may listen on 5201/5202.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: iperf-server
+  namespace: fct-dash
+spec:
+  replicas: 1
+  strategy: {type: Recreate}   # hostNetwork: the old pod must free ports 5201/5202 first
+  selector: {matchLabels: {app: iperf-server}}
+  template:
+    metadata: {labels: {app: iperf-server}}
+    spec:
+      hostNetwork: true
+      containers:
+      - name: dl
+        image: alpine:3.20
+        command: ["sh", "-c", "apk add --no-cache iperf3 >/dev/null\niperf3 --version | head -1\n# run IPERF3_ARGS... : loop iperf3 forever under a watchdog that restarts it when\n#  (a) it reports 5 one-second intervals in a row with 0 bytes (peer vanished mid-test), or\n#  (b) a connection on the test port is open but the log has not moved for 10 s\n#      (peer vanished during test setup, before any interval was reported).\nrun(){\n  L=/tmp/iperf-$$.log\n  PORT=5201; prev=\"\"; for a in \"$@\"; do [ \"$prev\" = \"-p\" ] && PORT=$a; prev=$a; done\n  HEX=$(printf '%04X' $PORT)\n  while true; do\n    : > $L\n    iperf3 \"$@\" -i 1 --forceflush --logfile $L & P=$!\n    tail -f $L & T=$!\n    last=0; still=0\n    while kill -0 $P 2>/dev/null; do\n      sleep 1\n      size=$(wc -c < $L)\n      # count seconds without log progress, but only while a connection on the test port is open\n      if [ \"$size\" = \"$last\" ] && cat /proc/net/tcp /proc/net/tcp6 2>/dev/null | grep -qE \":$HEX [0-9A-F]+:[0-9A-F]+ 01 |:[0-9A-F]+ [0-9A-F]+:$HEX 01 \"; then\n        still=$((still+1)); else still=0; fi\n      last=$size; why=\"\"\n      [ \"$(tail -n 5 $L | grep -c ' 0.00 Bytes')\" -ge 5 ] && why=\"5 s without data\"\n      [ $still -ge 10 ] && why=\"connection open but no progress for 10 s\"\n      if [ -n \"$why\" ]; then\n        echo \"watchdog: $why, restarting iperf3\"; kill $P; sleep 1; kill -9 $P 2>/dev/null\n      fi\n    done\n    wait $P 2>/dev/null; sleep 1; kill $T 2>/dev/null   # let tail print the summary first\n  done\n}\nrun -s -1 -p 5201 -B 10.45.0.1 --rcv-timeout 5000 --snd-timeout 5000\n"]
+      - name: ul
+        image: alpine:3.20
+        command: ["sh", "-c", "apk add --no-cache iperf3 >/dev/null\niperf3 --version | head -1\n# run IPERF3_ARGS... : loop iperf3 forever under a watchdog that restarts it when\n#  (a) it reports 5 one-second intervals in a row with 0 bytes (peer vanished mid-test), or\n#  (b) a connection on the test port is open but the log has not moved for 10 s\n#      (peer vanished during test setup, before any interval was reported).\nrun(){\n  L=/tmp/iperf-$$.log\n  PORT=5201; prev=\"\"; for a in \"$@\"; do [ \"$prev\" = \"-p\" ] && PORT=$a; prev=$a; done\n  HEX=$(printf '%04X' $PORT)\n  while true; do\n    : > $L\n    iperf3 \"$@\" -i 1 --forceflush --logfile $L & P=$!\n    tail -f $L & T=$!\n    last=0; still=0\n    while kill -0 $P 2>/dev/null; do\n      sleep 1\n      size=$(wc -c < $L)\n      # count seconds without log progress, but only while a connection on the test port is open\n      if [ \"$size\" = \"$last\" ] && cat /proc/net/tcp /proc/net/tcp6 2>/dev/null | grep -qE \":$HEX [0-9A-F]+:[0-9A-F]+ 01 |:[0-9A-F]+ [0-9A-F]+:$HEX 01 \"; then\n        still=$((still+1)); else still=0; fi\n      last=$size; why=\"\"\n      [ \"$(tail -n 5 $L | grep -c ' 0.00 Bytes')\" -ge 5 ] && why=\"5 s without data\"\n      [ $still -ge 10 ] && why=\"connection open but no progress for 10 s\"\n      if [ -n \"$why\" ]; then\n        echo \"watchdog: $why, restarting iperf3\"; kill $P; sleep 1; kill -9 $P 2>/dev/null\n      fi\n    done\n    wait $P 2>/dev/null; sleep 1; kill $T 2>/dev/null   # let tail print the summary first\n  done\n}\nrun -s -1 -p 5202 -B 10.45.0.1 --rcv-timeout 5000 --snd-timeout 5000\n"]
