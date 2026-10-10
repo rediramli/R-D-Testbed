@@ -38,7 +38,24 @@ Goodput is reported in simulated time. rfsim runs about 1.88x faster than real t
 | `uu-check.sh` | Checks that Uu events appear in order before InitialUEMessage |
 | `iperf-regress.sh` | Regression test: kill the UE mid speed test, require recovery without restarting the server |
 | `exp-noise.sh` | Experiment: downlink AWGN sweep through the OAI telnet `channelmod` module |
+## Downlink noise presets (measured)
 
+Chosen with `exp-noise.sh` v5 (AWGN on the UE receive path, OAI `channelmod`, DL speed test running).
+Confirmation run 2026-10-09 (`run-20261009T151305Z`): each level held 6 x 10 s, first sample discarded,
+same RNTI throughout, always in-sync, no link loss. Result: PASS.
+
+| Preset | `noise_power_dB` | CQI | DL MCS | DL BLER | MAC goodput DL |
+|---|---|---|---|---|---|
+| Clean | -11 | 14 | 26 (all 5 samples) | 0 | ~84 Mbit/s |
+| Moderate | -6.5 | 9 | 15 (all 5 samples) | 0 | ~39.7 Mbit/s |
+| Poor | -3 | 5 | 6 (all 5 samples) | 0 | ~14.3 Mbit/s |
+| Off | -100 | 15 | 28 | ~0 | ~78-86 Mbit/s |
+
+Notes:
+- The gNB uses the 64QAM MCS table (MCS 28 on new transmissions; in the 256QAM table, index 28 is reserved; TS 38.214 Tables 5.1.3.1-1/-2).
+- -11 dB sits on the CQI 14/15 boundary: an earlier single-sample sweep read CQI 15 / MCS 27 there.
+- With no DL traffic the gNB reports MCS 0, goodput 0 and a decaying BLER; that is the idle state, not a link problem.
+- The sweep reached -2 dB (CQI 4, MCS 4, ~10 Mbit/s) without link loss; the loss threshold is lower and not yet measured.
 ## Install
 
 ```bash
