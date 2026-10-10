@@ -38,6 +38,7 @@ Goodput is reported in simulated time. rfsim runs about 1.88x faster than real t
 | `uu-check.sh` | Checks that Uu events appear in order before InitialUEMessage |
 | `iperf-regress.sh` | Regression test: kill the UE mid speed test, require recovery without restarting the server |
 | `exp-noise.sh` | Experiment: downlink AWGN sweep through the OAI telnet `channelmod` module |
+   | `ue-chanmod.sh` | Noise presets stage A: OAI channel model (AWGN) and telnet on 127.0.0.1:9090 on the baseline UE. Runs on FCT0173: preview, apply, check (includes lab0), rollback |
 ## Downlink noise presets (measured)
 
 Chosen with `exp-noise.sh` v5 (AWGN on the UE receive path, OAI `channelmod`, DL speed test running).
@@ -56,6 +57,8 @@ Notes:
 - -11 dB sits on the CQI 14/15 boundary: an earlier single-sample sweep read CQI 15 / MCS 27 there.
 - With no DL traffic the gNB reports MCS 0, goodput 0 and a decaying BLER; that is the idle state, not a link problem.
 - The sweep reached -2 dB (CQI 4, MCS 4, ~10 Mbit/s) without link loss; the loss threshold is lower and not yet measured.
+ - Since 2026-10-10 the baseline UE runs with the channel model (AWGN, -100 dB) and a telnet server on 127.0.0.1:9090 (`ue-chanmod.sh`). The change is in `~/fct-testbed/ran/oai-nr-ue-deploy.json`, which `lab0-run.sh` applies, plus the ConfigMap `oai-ue-chanmod`; `ue.conf` is unchanged. Gates after the change: lab0 T0.4-T0.7, `d6-test.sh`, `iperf-regress.sh` and `uu-check.sh` all PASS.
+   - Do not run `exp-noise.sh` v5 on this baseline: it adds the channel-model arguments a second time. A v6 that uses the baseline UE's telnet is pending.
 ## Install
 
 ```bash
@@ -76,3 +79,4 @@ Then open `http://10.0.129.2:30880`.
 
 - **iperf3 "server is busy".** Ubuntu's `iperf3.service` was listening on `*:5201` on the core host, so every DL test ran against it, and it stayed stuck when a client vanished. Disable it with `sudo systemctl disable --now iperf3`. Every iperf3 process here runs under a watchdog that restarts it after 5 s of 0-byte intervals, or after 10 s without progress while a connection is open.
 - **Stale NRF registrations in Open5GS.** NFs register with pod IPs. When an NF restarts, its consumers keep the old address. Restart consumers in dependency order (SMF, then AMF).
+-  **lab0 re-creates the UE from its source file.** `lab0-run.sh` runs `kubectl apply -f ran/oai-nr-ue-deploy.json`, so a change made only to the live Deployment is undone at the next lab0 run (the first attempt of `ue-chanmod.sh` crashed the UE this way: "cannot open include file"). Change the source file and run lab0 as part of the test.
