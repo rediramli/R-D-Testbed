@@ -58,7 +58,7 @@ Notes:
 - With no DL traffic the gNB reports MCS 0, goodput 0 and a decaying BLER; that is the idle state, not a link problem.
 - The sweep reached -2 dB (CQI 4, MCS 4, ~10 Mbit/s) without link loss; the loss threshold is lower and not yet measured.
  - Since 2026-10-10 the baseline UE runs with the channel model (AWGN, -100 dB) and a telnet server on 127.0.0.1:9090 (`ue-chanmod.sh`). The change is in `~/fct-testbed/ran/oai-nr-ue-deploy.json`, which `lab0-run.sh` applies, plus the ConfigMap `oai-ue-chanmod`; `ue.conf` is unchanged. Gates after the change: lab0 T0.4-T0.7, `d6-test.sh`, `iperf-regress.sh` and `uu-check.sh` all PASS.
-   - Do not run `exp-noise.sh` v5 on this baseline: it adds the channel-model arguments a second time. A v6 that uses the baseline UE's telnet is pending.
+- `exp-noise.sh` v6 runs on the baseline UE through its telnet (no second UE) and re-reads `noise: -100` when it restores. Re-run of the confirmation sweep on the baseline UE (`run-20261010T144928Z`): PASS, same MCS per preset (-11: 26-27, -6.5: 15, -3: 6). v5 must not be used any more.
 ## Install
 
 ```bash
