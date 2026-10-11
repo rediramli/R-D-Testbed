@@ -39,6 +39,8 @@ Goodput is reported in simulated time. rfsim runs about 1.88x faster than real t
 | `iperf-regress.sh` | Regression test: kill the UE mid speed test, require recovery without restarting the server |
 | `exp-noise.sh` | Experiment: downlink AWGN sweep through the OAI telnet `channelmod` module |
    | `ue-chanmod.sh` | Noise presets stage A: OAI channel model (AWGN) and telnet on 127.0.0.1:9090 on the baseline UE. Runs on FCT0173: preview, apply, check (includes lab0), rollback |
+      | `noise-relay.py`, `noise-relay.yaml` | Noise relay on the RAN host (10.0.129.7:8092, host network): sets the UE channel model to one of four fixed presets (off/clean/moderate/poor) through the UE telnet on 127.0.0.1:9090; changes need a shared token |
+   | `noise-relay.sh` | Install and test the noise relay on FCT0173: preview, install, test, remove |
 ## Downlink noise presets (measured)
 
 Chosen with `exp-noise.sh` v5 (AWGN on the UE receive path, OAI `channelmod`, DL speed test running).
@@ -59,6 +61,7 @@ Notes:
 - The sweep reached -2 dB (CQI 4, MCS 4, ~10 Mbit/s) without link loss; the loss threshold is lower and not yet measured.
  - Since 2026-10-10 the baseline UE runs with the channel model (AWGN, -100 dB) and a telnet server on 127.0.0.1:9090 (`ue-chanmod.sh`). The change is in `~/fct-testbed/ran/oai-nr-ue-deploy.json`, which `lab0-run.sh` applies, plus the ConfigMap `oai-ue-chanmod`; `ue.conf` is unchanged. Gates after the change: lab0 T0.4-T0.7, `d6-test.sh`, `iperf-regress.sh` and `uu-check.sh` all PASS.
 - `exp-noise.sh` v6 runs on the baseline UE through its telnet (no second UE) and re-reads `noise: -100` when it restores. Re-run of the confirmation sweep on the baseline UE (`run-20261010T144928Z`): PASS, same MCS per preset (-11: 26-27, -6.5: 15, -3: 6). v5 must not be used any more.
+-    Noise relay (stage B, 2026-10-11): `GET http://10.0.129.7:8092/noise` shows the active preset; `POST /noise {"preset": ...}` with header `X-Relay-Token` sets one. Only the four preset names are accepted. The token is the Secret `noise-relay-token` (namespace `fct-dash`, FCT0173). `noise-relay.sh` MODE=test: PASS (refusals, command injection, moderate gives DL MCS 15, back to off); gates d6, uu-check, iperf-regress PASS.
 ## Install
 
 ```bash
@@ -74,6 +77,7 @@ Then open `http://10.0.129.2:30880`.
 - The controller account can only patch the scale of four named Deployments. It cannot create or delete pods.
 - The admin password lives in a Kubernetes Secret and is never written to this repository.
 - No SIM keys (K/OPc) or other credentials are stored here.
+- The noise relay accepts only the preset names off/clean/moderate/poor, checks a token in constant time, builds the telnet command from a fixed table, and has no Kubernetes API access.
 
 ## Lessons learned
 
