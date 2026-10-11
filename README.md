@@ -18,7 +18,7 @@ Radio configuration: n78, 40 MHz (106 PRB), 30 kHz SCS, TDD 7 DL / 3 UL slots pe
 - **Overview**: topology (SBI bus, N2/N3/N4/N6) with live status of every core NF, the gNB and the UE; tiles for connected gNBs and UEs and DL/UL MAC goodput.
 - **5G SA message flow**: N2 NGAP/NAS captured on the gNB host with tshark, plus Uu events (SSB found, SIB1, RA Msg1–Msg4, RRCSetupComplete) parsed from the gNB and UE logs, in chronological order.
 - **UE KPIs**: CQI, MCS, BLER, SNR, RSRP/RSSI and DL/UL goodput from the gNB MAC statistics, sampled once per second, 2/5/15 min windows, CSV export.
-- **Controls** (admin password, rfsim mode only): gNB Start/Stop, UE Start/Stop, DL/UL speed test.
+- **Controls** (admin password, rfsim mode only): gNB Start/Stop, UE Start/Stop, DL/UL speed test, and **DL channel** presets Off / Clean / Moderate / Poor (AWGN on the UE receiver through the noise relay; the active preset is shown next to the buttons).
 
 Goodput is reported in simulated time. rfsim runs about 1.88x faster than real time, so wall-clock tools such as iperf3 report higher numbers than the MAC goodput.
 
@@ -46,6 +46,7 @@ Goodput is reported in simulated time. rfsim runs about 1.88x faster than real t
 Chosen with `exp-noise.sh` v5 (AWGN on the UE receive path, OAI `channelmod`, DL speed test running).
 Confirmation run 2026-10-09 (`run-20261009T151305Z`): each level held 6 x 10 s, first sample discarded,
 same RNTI throughout, always in-sync, no link loss. Result: PASS.
+- Dashboard (stage C, 2026-10-11, installer v0.8.0): the Controls bar has DL channel buttons. The dashboard calls the relay with the token from the Secret `fct-dash-noise` (copied by the installer). `d6-test.sh` step 6b sets Moderate through the dashboard (DL MCS 15 +/- 3), then Off (MCS >= 24). Relay v3 answers GET from memory and applies a preset in about 1 s. Do not press the buttons while `noise-relay.sh` or `d6-test.sh` is running: they use the same UE.
 
 | Preset | `noise_power_dB` | CQI | DL MCS | DL BLER | MAC goodput DL |
 |---|---|---|---|---|---|
@@ -84,3 +85,4 @@ Then open `http://10.0.129.2:30880`.
 - **iperf3 "server is busy".** Ubuntu's `iperf3.service` was listening on `*:5201` on the core host, so every DL test ran against it, and it stayed stuck when a client vanished. Disable it with `sudo systemctl disable --now iperf3`. Every iperf3 process here runs under a watchdog that restarts it after 5 s of 0-byte intervals, or after 10 s without progress while a connection is open.
 - **Stale NRF registrations in Open5GS.** NFs register with pod IPs. When an NF restarts, its consumers keep the old address. Restart consumers in dependency order (SMF, then AMF).
 -  **lab0 re-creates the UE from its source file.** `lab0-run.sh` runs `kubectl apply -f ran/oai-nr-ue-deploy.json`, so a change made only to the live Deployment is undone at the next lab0 run (the first attempt of `ue-chanmod.sh` crashed the UE this way: "cannot open include file"). Change the source file and run lab0 as part of the test.
+- **Relay latency.** The first relay used two telnet sessions with fixed waits per change and a background reader on the same lock, so a change could take more than 8 s and the dashboard timed out although the noise had been applied. Relay v3 uses one session that stops reading as soon as the report is complete; the relay test now fails if a change takes 5 s or more.
