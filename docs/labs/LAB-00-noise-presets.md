@@ -1,4 +1,4 @@
-# N1: Downlink noise presets and dashboard control
+# LAB-0: Downlink noise presets and dashboard control
 
 Status: **done** (2026-10-08 to 2026-10-11). Commits `6a37bdc` to `dba4729` on `main`.
 
