@@ -1,0 +1,65 @@
+# Noise relay for the dashboard (noise presets, stage B). Runs on the RAN host (FCT0173).
+# Host network, so it can reach the UE's OAI telnet on 127.0.0.1:9090; it listens only on
+# the lab IP 10.0.129.7:8092. No Kubernetes API access (no service account token).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: noise-relay
+  namespace: fct-dash
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: noise-relay
+  template:
+    metadata:
+      labels:
+        app: noise-relay
+      annotations:
+        fct-dash/code-hash: "CODE_HASH"
+    spec:
+      hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
+      automountServiceAccountToken: false
+      containers:
+      - name: relay
+        image: alpine:3.20
+        command: ["sh", "-c", "apk add --no-cache python3 >/dev/null && exec python3 /app/noise-relay.py"]
+        env:
+        - name: RELAY_BIND
+          value: 10.0.129.7
+        - name: RELAY_PORT
+          value: "8092"
+        - name: PYTHONUNBUFFERED
+          value: "1"
+        readinessProbe:
+          httpGet:
+            host: 10.0.129.7
+            path: /healthz
+            port: 8092
+          initialDelaySeconds: 10
+          periodSeconds: 5
+        resources:
+          requests: {cpu: 10m, memory: 32Mi}
+          limits: {cpu: 200m, memory: 128Mi}
+        securityContext:
+          allowPrivilegeEscalation: false
+        volumeMounts:
+        - name: app
+          mountPath: /app
+          readOnly: true
+        - name: token
+          mountPath: /etc/noise-relay
+          readOnly: true
+      volumes:
+      - name: app
+        configMap:
+          name: noise-relay-app
+      - name: token
+        secret:
+          secretName: noise-relay-token
+          items:
+          - key: token
+            path: token
