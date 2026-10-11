@@ -38,6 +38,8 @@ Goodput is reported in simulated time. rfsim runs about 1.88x faster than real t
 | `uu-check.sh` | Checks that Uu events appear in order before InitialUEMessage |
 | `iperf-regress.sh` | Regression test: kill the UE mid speed test, require recovery without restarting the server |
 | `exp-noise.sh` | Experiment: downlink AWGN sweep through the OAI telnet `channelmod` module |
+| `exp-noise-timeline.sh` | LAB-0: switch the DL presets through the relay during a DL speed test; samples CQI, MCS, BLER, goodput, UE SINR with switch times; checks each phase (PASS/FAIL) |
+| `plot-noise-timeline.py` | LAB-0: annotated timeline graph from `exp-noise-timeline.sh` output (`docs/labs/img/`) |
    | `ue-chanmod.sh` | Noise presets stage A: OAI channel model (AWGN) and telnet on 127.0.0.1:9090 on the baseline UE. Runs on FCT0173: preview, apply, check (includes lab0), rollback |
       | `noise-relay.py`, `noise-relay.yaml` | Noise relay on the RAN host (10.0.129.7:8092, host network): sets the UE channel model to one of four fixed presets (off/clean/moderate/poor) through the UE telnet on 127.0.0.1:9090; changes need a shared token |
    | `noise-relay.sh` | Install and test the noise relay on FCT0173: preview, install, test, remove |

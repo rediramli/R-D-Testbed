@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Create the "lab" label, the LAB-1..LAB-14 issues and the summary issue for the noise presets
-# (N1, already done; it is created and closed). Uses the GitHub CLI with YOUR login:
+# (LAB-0, already done; it is created and closed). Uses the GitHub CLI with YOUR login:
 #   gh auth login            # once
 #   bash tools/create-lab-issues.sh
 # Safe to run twice: an issue whose title already exists is skipped.
@@ -15,7 +15,7 @@ mk(){  # mk TITLE LABELS BODY [close]
   if grep -qxF "$1" <<< "$EXISTING"; then echo "skip (exists): $1"; return; fi
   url=$(gh issue create --repo "$REPO" --title "$1" --label "$2" --body "$3")
   echo "created: $url"
-  [ "${4:-}" = close ] && gh issue close "$url" --reason completed --comment "Done on main; see docs/labs/NOISE-presets.md." >/dev/null && echo "  closed"
+  [ "${4:-}" = close ] && gh issue close "$url" --reason completed --comment "Done on main; see docs/labs/LAB-00-noise-presets.md." >/dev/null && echo "  closed"
 }
 
 body(){  # body GOAL REF FEASIBILITY PLAN HYPOTHESIS
@@ -43,10 +43,10 @@ $5
 EOF
 }
 
-mk "N1: DL noise presets and dashboard control (done)" "lab" "$(cat <<'EOF'
+mk "LAB-0: DL noise presets and dashboard control" "lab" "$(cat <<'EOF'
 Done on main (commits 6a37bdc..dba4729). Presets: Clean -11 dB (MCS 26), Moderate -6.5 dB (MCS 15), Poor -3 dB (MCS 6), Off -100 dB.
 Dashboard v0.8.0 has DL channel buttons through the noise relay. All tests and regression gates PASS.
-Details: docs/labs/NOISE-presets.md
+Details: docs/labs/LAB-00-noise-presets.md
 EOF
 )" close
 

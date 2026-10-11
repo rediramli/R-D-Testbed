@@ -18,7 +18,7 @@ Every result is proven by a scripted test with PASS output and by the four regre
 
 | # | Experiment | rfsim | Status | Results |
 |---|---|---|---|---|
-| N1 | DL noise presets (Clean / Moderate / Poor) and dashboard control | yes | Done | [NOISE-presets.md](NOISE-presets.md) |
+| 0 | DL noise presets (Clean / Moderate / Poor) and dashboard control | yes | Done | [LAB-00-noise-presets.md](LAB-00-noise-presets.md) |
 | 1 | Changing the 5G NR bandwidth | yes | Planned | |
 | 2 | Changing the 5G NR central frequency carrier | yes (configuration only) | Planned | |
 | 3 | Changing the 5G NR TDD slot configuration | yes | Planned | |
