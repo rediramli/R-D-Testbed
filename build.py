@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Build fct-dash-install.sh: one file that deploys the capture service on
 FCT0173 and the dashboard on FCT0172. Run from REDLAB."""
-files = {n: open(n).read() for n in ("app.py", "index.html", "fct-dash.yaml", "capture.py", "n2-capture.yaml", "ran-control.yaml", "iperf-server.yaml")}
+files = {n: open(n).read() for n in ("app.py", "index.html", "fct-dash.yaml", "capture.py", "n2-capture.yaml", "ran-control.yaml", "iperf-server.yaml",
+                                     "noise-relay.py", "noise-relay.yaml")}
 for body in files.values():
     assert "FILEEOF" not in body
 
@@ -26,6 +27,20 @@ kubectl apply -f ran-control.yaml
 kubectl auth can-i patch deployments/oai-gnb --subresource=scale -n default --as=system:serviceaccount:fct-dash:fct-dash-controller | sed 's/^/  may scale oai-gnb: /'
 kubectl auth can-i create pods -n default --as=system:serviceaccount:fct-dash:fct-dash-controller | sed 's/^/  may create pods (must be no): /'
 kubectl auth can-i patch deployments/ocudu-gnb --subresource=scale -n default --as=system:serviceaccount:fct-dash:fct-dash-controller | sed 's/^/  may scale anything else (must be no): /' 
+echo "== RAN 4. Noise relay (preset names only, token, listens on 10.0.129.7:8092)"
+if ss -ltn 2>/dev/null | grep -q ":8092 " && ! kubectl -n fct-dash get deploy noise-relay >/dev/null 2>&1; then
+  echo "STOP: port 8092 on FCT0173 is used by something else"; ss -ltnp | grep ":8092 "; exit 1
+fi
+if ! kubectl -n fct-dash get secret noise-relay-token >/dev/null 2>&1; then
+  T=$(mktemp); chmod 600 "$T"; head -c 32 /dev/urandom | base64 | tr -d '/+=\n' > "$T"
+  kubectl -n fct-dash create secret generic noise-relay-token --from-file=token="$T" >/dev/null; rm -f "$T"
+  echo "  token Secret created (value not shown)"
+fi
+kubectl -n fct-dash create configmap noise-relay-app --from-file=noise-relay.py --dry-run=client -o yaml | kubectl apply -f -
+NHASH=$(sha256sum noise-relay.py | cut -c1-12)
+sed "s/CODE_HASH/$NHASH/" noise-relay.yaml | kubectl apply -f -
+kubectl -n fct-dash rollout status deploy/noise-relay --timeout=180s
+echo -n "Noise relay: "; curl -s -m 5 http://10.0.129.7:8092/noise; echo
 git init -q 2>/dev/null || true
 git add -A && git -c user.name="Redi" -c user.email="redi@fct-lab" commit -qm "n2-capture $HASH" || true
 '''
@@ -53,19 +68,19 @@ git init -q 2>/dev/null || true
 git add -A && git -c user.name="Redi" -c user.email="redi@fct-lab" commit -qm "fct-dash $HASH: D2-D6 + Uu events" || true
 echo "== CORE 3. Self-test"
 sleep 4
-curl -s localhost:30880/api/state | python3 -c "import json,sys; d=json.load(sys.stdin); print('state errors:', d['errors'] or 'none', '| pods:', len(d['pods']))"
+curl -s localhost:30880/api/state | python3 -c "import json,sys; d=json.load(sys.stdin); print('state errors:', d['errors'] or 'none', '| pods:', len(d['pods']), '| noise:', d.get('controls', {}).get('noise'))"
 curl -s "localhost:30880/api/flow?after=0" | python3 -c "import json,sys; d=json.load(sys.stdin); print('flow:', d.get('error') or ('capture running=%s, messages=%d' % (d['status']['running'], len(d['messages']))))"
 '''
 
 script = f'''#!/usr/bin/env bash
-# FCT 5G testbed dashboard installer v0.7.3 (D2-D6, Uu events, message flow oldest first, iperf3 watchdog v2).
+# FCT 5G testbed dashboard installer v0.8.0 (D2-D6, Uu events, message flow, iperf3 watchdog v2, DL noise presets).
 # Run on REDLAB:  bash fct-dash-install.sh
 set -euo pipefail
 TMP=$(mktemp -d); trap 'rm -rf "$TMP"' EXIT
 mkdir -p "$TMP/ran" "$TMP/core"
 
-{embed("capture.py")}{embed("n2-capture.yaml")}{embed("ran-control.yaml")}{embed("app.py")}{embed("index.html")}{embed("fct-dash.yaml")}{embed("iperf-server.yaml")}
-mv "$TMP/capture.py" "$TMP/n2-capture.yaml" "$TMP/ran-control.yaml" "$TMP/ran/"
+{embed("capture.py")}{embed("n2-capture.yaml")}{embed("ran-control.yaml")}{embed("noise-relay.py")}{embed("noise-relay.yaml")}{embed("app.py")}{embed("index.html")}{embed("fct-dash.yaml")}{embed("iperf-server.yaml")}
+mv "$TMP/capture.py" "$TMP/n2-capture.yaml" "$TMP/ran-control.yaml" "$TMP/noise-relay.py" "$TMP/noise-relay.yaml" "$TMP/ran/"
 mv "$TMP/app.py" "$TMP/index.html" "$TMP/fct-dash.yaml" "$TMP/iperf-server.yaml" "$TMP/core/"
 
 echo "### RAN side: FCT0173"
@@ -77,6 +92,9 @@ echo "### Controller token: RAN -> core secret"
 sleep 2
 ssh fct0173 "kubectl -n fct-dash get secret fct-dash-controller-token -o jsonpath='{{.data.token}}' | base64 -d" | \
   ssh fct0172 'umask 077; cat > /tmp/ctl-token && kubectl -n fct-dash create secret generic fct-dash-ctl --from-file=token=/tmp/ctl-token --dry-run=client -o yaml | kubectl apply -f - && rm -f /tmp/ctl-token'
+echo "### Noise relay token: RAN -> core secret"
+ssh fct0173 "kubectl -n fct-dash get secret noise-relay-token -o jsonpath='{{.data.token}}' | base64 -d" | \
+  ssh fct0172 'umask 077; cat > /tmp/noise-token && kubectl -n fct-dash create secret generic fct-dash-noise --from-file=token=/tmp/noise-token --dry-run=client -o yaml | kubectl apply -f - && rm -f /tmp/noise-token'
 if ! ssh fct0172 'kubectl -n fct-dash get secret fct-dash-admin >/dev/null 2>&1' || [ "${{RESET_ADMIN:-0}}" = 1 ]; then
   read -r -s -p "Choose the dashboard admin password: " PW; echo
   [ -n "$PW" ] || {{ echo "Empty password, stopping"; exit 1; }}

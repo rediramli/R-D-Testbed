@@ -100,6 +100,7 @@ header {
 .ctl button:disabled { opacity: .45; cursor: not-allowed; }
 .ctl button.active { background: var(--ink); color: #fff; border-color: var(--ink); }
 .ctl-msg { font-size: 13px; color: var(--muted); }
+.ctl-note { font-size: 12px; color: var(--muted); margin-left: 4px; }
 .ctl-msg.bad { color: var(--fault); } .ctl-msg.ok { color: var(--ok); }
 @media (max-width: 700px) { .ctl { margin: 12px 16px 0; } }
 .errors { margin: 12px 28px 0; }
@@ -206,6 +207,7 @@ aside pre {
   <div class="grp"><span>gNB</span><button data-a="gnb-start" disabled>Start</button><button data-a="gnb-stop" disabled>Stop</button></div>
   <div class="grp"><span>UE</span><button data-a="ue-start" disabled>Start</button><button data-a="ue-stop" disabled>Stop</button></div>
   <div class="grp"><span>Speed test</span><button data-a="speed-dl" disabled>Downlink</button><button data-a="speed-ul" disabled>Uplink</button><button data-a="speed-stop" disabled>Stop</button></div>
+  <div class="grp" title="AWGN on the UE receiver (rfsim channel model). Clean about MCS 26, Moderate about MCS 15, Poor about MCS 6 under DL load."><span>DL channel</span><button data-a="noise-off" disabled>Off</button><button data-a="noise-clean" disabled>Clean</button><button data-a="noise-moderate" disabled>Moderate</button><button data-a="noise-poor" disabled>Poor</button><small id="noiseNow" class="ctl-note"></small></div>
   <span id="ctlMsg" class="ctl-msg" role="status"></span>
 </div>
 <div class="errors" id="errors"></div>
@@ -561,12 +563,18 @@ function renderControls(c) {
   $("lockBtn").hidden = !adminKey;
   const t = (c && c.targets) || {};
   const on = n => t[n] && t[n].want > 0;
+  const nz = (c && c.noise) || {};
   document.querySelectorAll(".ctl button[data-a]").forEach(b => {
-    b.disabled = !unlocked;
     const a = b.dataset.a;
+    const isNoise = a.startsWith("noise-");
+    b.disabled = !unlocked || (isNoise && !nz.available);
     b.classList.toggle("active", (a === "gnb-start" && on("oai-gnb")) || (a === "ue-start" && on("oai-nr-ue")) ||
-      (a === "speed-dl" && on("speedtest-dl")) || (a === "speed-ul" && on("speedtest-ul")));
+      (a === "speed-dl" && on("speedtest-dl")) || (a === "speed-ul" && on("speedtest-ul")) ||
+      (isNoise && nz.available && a === "noise-" + nz.preset));
   });
+  $("noiseNow").textContent = nz.available
+    ? (typeof nz.noiseDb === "number" ? `${nz.preset}, ${nz.noiseDb} dB` : nz.preset || "")
+    : (nz.reason || "");
   if (c && !c.enabled && !$("ctlMsg").textContent) ctlMsg(c.reason || "Controls are off");
 }
 async function control(action) {

@@ -7,7 +7,8 @@ exactly one thing: set the UE channel model (model 0, AWGN) to one of four
 fixed presets through the OAI telnet server on 127.0.0.1:9090.
 
   GET  /healthz          -> "ok"
-  GET  /noise            -> {"preset": ..., "noiseDb": ..., "presets": {...}}   (no token needed)
+  GET  /noise            -> {"preset": ..., "noiseDb": ..., "ageS": ..., "presets": {...}}   (no token needed)
+                            answered from memory; a background thread re-reads the UE every 5 s
   POST /noise            -> body {"preset": "off|clean|moderate|poor"}, header X-Relay-Token
 
 No other input reaches the telnet server: the command text is built only from
@@ -19,6 +20,7 @@ import json
 import os
 import re
 import socket
+import sys
 import threading
 import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
@@ -30,45 +32,82 @@ TELNET = ("127.0.0.1", 9090)
 # Measured 2026-10-09/10 (README, "Downlink noise presets"): noise_power_dB of model 0.
 PRESETS = {"off": -100.0, "clean": -11.0, "moderate": -6.5, "poor": -3.0}
 MAX_BODY = 256
-LOCK = threading.Lock()
+REFRESH_S = 5
+LOCK = threading.Lock()                      # one telnet session at a time
+CACHE = {"state": None, "error": "not read yet", "t": 0.0}
 NOISE_RE = re.compile(r"model 0 rfsimu_channel_enB0 type AWGN:.*?noise:\s*(-?[\d.]+)", re.S)
 
 
-def telnet(command):
-    """Send one command to the OAI telnet server, return its text output."""
+def telnet(*commands):
+    """Run the commands one after the other in ONE OAI telnet session and return
+    everything printed after the last one. Earlier commands get at most 0.5 s for
+    their reply; the last one is read until the channel-model report (NOISE_RE)
+    has arrived and the server is quiet for 0.2 s, at most 4 s. A request takes
+    about 1 s instead of fixed sleeps."""
     with socket.create_connection(TELNET, 3) as s:
-        s.settimeout(1)
+        s.settimeout(0.2)
 
-        def drain():
-            out = b""
-            try:
-                while True:
+        def read(max_s, want_report):
+            out, end = b"", time.time() + max_s
+            while time.time() < end:
+                try:
                     d = s.recv(65536)
-                    if not d:
-                        break
-                    out += d
-            except OSError:
-                pass
+                except socket.timeout:
+                    if not want_report and out:
+                        break              # some reply and then quiet: next command
+                    if want_report and NOISE_RE.search(out.decode(errors="replace")):
+                        break              # report complete and the server is quiet
+                    continue
+                if not d:
+                    break
+                out += d
             return out.decode(errors="replace")
 
-        time.sleep(0.4)
-        drain()
-        s.sendall((command + "\n").encode())
-        time.sleep(0.8)
-        return drain()
+        read(0.5, False)                   # banner / prompt, if any
+        out = ""
+        for i, c in enumerate(commands):
+            s.sendall((c + "\n").encode())
+            last = i == len(commands) - 1
+            out = read(4.0 if last else 0.5, last)
+        return out
 
 
-def read_noise():
-    m = NOISE_RE.search(telnet("channelmod show current"))
+def parse_noise(text):
+    m = NOISE_RE.search(text)
     if not m:
         raise RuntimeError("channel model 0 (AWGN) not reported by the UE")
     return float(m.group(1))
 
 
-def state():
-    noise = read_noise()
+def read_noise():
+    return parse_noise(telnet("channelmod show current"))
+
+
+def remember(noise):
     preset = next((k for k, v in PRESETS.items() if abs(v - noise) < 0.01), "custom")
-    return {"preset": preset, "noiseDb": noise, "presets": PRESETS}
+    st = {"preset": preset, "noiseDb": noise, "presets": PRESETS}
+    CACHE.update(state=st, error=None, t=time.time())
+    return st
+
+
+def state():
+    """Read the UE now (caller holds LOCK) and remember the answer."""
+    try:
+        return remember(read_noise())
+    except (OSError, RuntimeError) as e:
+        CACHE.update(state=None, error=str(e), t=time.time())
+        raise
+
+
+def refresher():
+    """Keep the cached state fresh, so GET /noise answers at once without touching the UE."""
+    while True:
+        try:
+            with LOCK:
+                state()
+        except (OSError, RuntimeError):
+            pass
+        time.sleep(REFRESH_S)
 
 
 def token_ok(given):
@@ -97,11 +136,10 @@ class Handler(BaseHTTPRequestHandler):
             return self.send(200, "ok")
         if self.path != "/noise":
             return self.send(404, {"error": "not found"})
-        try:
-            with LOCK:
-                return self.send(200, state())
-        except (OSError, RuntimeError) as e:
-            return self.send(503, {"error": f"UE telnet not available: {e}"})
+        st, err, t = CACHE["state"], CACHE["error"], CACHE["t"]
+        if st is None:
+            return self.send(503, {"error": f"UE telnet not available: {err}"})
+        return self.send(200, {**st, "ageS": round(time.time() - t, 1)})
 
     def do_POST(self):
         if self.path != "/noise":
@@ -124,8 +162,8 @@ class Handler(BaseHTTPRequestHandler):
         value = PRESETS[preset]
         try:
             with LOCK:
-                telnet(f"channelmod modify 0 noise_power_dB {value:g}")
-                st = state()
+                out = telnet(f"channelmod modify 0 noise_power_dB {value:g}", "channelmod show current")
+                st = remember(parse_noise(out))
         except (OSError, RuntimeError) as e:
             return self.send(503, {"error": f"UE telnet not available: {e}"})
         if abs(st["noiseDb"] - value) >= 0.01:
@@ -134,6 +172,16 @@ class Handler(BaseHTTPRequestHandler):
         return self.send(200, st)
 
 
+class Server(ThreadingHTTPServer):
+    daemon_threads = True
+
+    def handle_error(self, request, client_address):
+        if isinstance(sys.exc_info()[1], (BrokenPipeError, ConnectionResetError)):
+            return                      # the client hung up; nothing to report
+        super().handle_error(request, client_address)
+
+
 if __name__ == "__main__":
     print(f"noise relay on {BIND}:{PORT}, presets {PRESETS}", flush=True)
-    ThreadingHTTPServer((BIND, PORT), Handler).serve_forever()
+    threading.Thread(target=refresher, daemon=True).start()
+    Server((BIND, PORT), Handler).serve_forever()

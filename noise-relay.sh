@@ -48,14 +48,17 @@ test)
   TOKEN=$(kubectl -n $NS get secret noise-relay-token -o jsonpath='{.data.token}' | base64 -d)
   B=$(mktemp); trap 'rm -f "$B"' EXIT
   post(){  # post TOKEN BODY -> HTTP code; body in $B
-    curl -s -m 10 -o "$B" -w '%{http_code}' -X POST "$URL/noise" -H "Content-Type: application/json" -H "X-Relay-Token: $1" --data-binary "$2"; }
+    : > "$B"; curl -s -m 10 -o "$B" -w '%{http_code}' -X POST "$URL/noise" -H "Content-Type: application/json" -H "X-Relay-Token: $1" --data-binary "$2"; }
   noise(){ curl -s -m 10 "$URL/noise" | python3 -c 'import json,sys; print(json.load(sys.stdin)["noiseDb"])' 2>/dev/null; }
   restore(){ post "$TOKEN" '{"preset":"off"}' >/dev/null; kubectl scale deploy speedtest-dl --replicas=0 >/dev/null; }
   trap 'restore; rm -f "$B"' EXIT
 
-  echo "== 1. Relay is up and reports the UE channel model"
+  echo "== 1. Relay is up and reports the UE channel model (do not use the dashboard buttons during this test)"
   [ "$(curl -s -m 5 $URL/healthz)" = '"ok"' ] && ok "healthz" || bad "healthz not answering on $URL"
+  c=$(post "$TOKEN" '{"preset":"off"}'); [ "$c" = 200 ] && ok "start from a known state: off -> 200" || bad "reset to off -> $c"
   n=$(noise); [ "$n" = "-100.0" ] && ok "GET /noise: -100 dB (off)" || bad "GET /noise: '$n' (want -100.0)"
+  t=$(curl -s -o /dev/null -w '%{time_total}' -m 5 "$URL/noise")
+  awk "BEGIN{exit !($t < 0.5)}" && ok "GET /noise answers in ${t}s (from memory)" || bad "GET /noise took ${t}s (want < 0.5 s)"
 
   echo "== 2. Listens only on the lab IP"
   L=$(ss -Htln "( sport = :$PORT )" | awk '{print $4}' | sort -u | tr '\n' ' ')
@@ -73,7 +76,9 @@ test)
   n=$(noise); [ "$n" = "-100.0" ] && ok "noise still -100 dB after refusals" || bad "noise changed to '$n'"
 
   echo "== 4. Moderate preset takes effect on the link"
-  c=$(post "$TOKEN" '{"preset":"moderate"}'); [ "$c" = 200 ] && ok "moderate -> 200" || bad "moderate -> $c ($(cat "$B"))"
+  t0=$(date +%s.%N); c=$(post "$TOKEN" '{"preset":"moderate"}'); dt=$(awk "BEGIN{printf \"%.1f\", $(date +%s.%N) - $t0}")
+  [ "$c" = 200 ] && ok "moderate -> 200" || bad "moderate -> $c ($(cat "$B"))"
+  awk "BEGIN{exit !($dt < 5)}" && ok "POST took ${dt}s (< 5 s; the dashboard waits 12 s)" || bad "POST took ${dt}s (want < 5 s)"
   n=$(noise); [ "$n" = "-6.5" ] && ok "GET /noise: -6.5 dB" || bad "GET /noise: '$n' (want -6.5)"
   kubectl scale deploy speedtest-ul --replicas=0 >/dev/null; kubectl scale deploy speedtest-dl --replicas=1 >/dev/null
   mcs=""; for _ in $(seq 1 30); do sleep 2

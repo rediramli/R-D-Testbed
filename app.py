@@ -203,7 +203,8 @@ class State:
 
     def _controls(self):
         """Replica state of the deployments the dashboard may scale."""
-        res = {"enabled": CONTROL.enabled, "reason": CONTROL.reason, "radioMode": RADIO_MODE, "targets": {}}
+        res = {"enabled": CONTROL.enabled, "reason": CONTROL.reason, "radioMode": RADIO_MODE, "targets": {},
+               "noise": CONTROL.noise_state()}
         cl, ns, err = self.clusters["ran"]
         if err:
             return res
@@ -287,11 +288,15 @@ def mock_state():
                         "blerUl": 0.0, "mcsUl": 28, "nprbUl": 106, "snrPusch": 22.6, "rssiUl": -42.0,
                         "goodputDl": 90.2, "goodputUl": 2.98}]}
     ctl = {"enabled": True, "reason": None, "radioMode": RADIO_MODE,
-           "targets": {t: {"want": n, "ready": n} for t, n in CONTROL.mock.items()}} if "CONTROL" in globals() else {}
+           "targets": {t: {"want": n, "ready": n} for t, n in CONTROL.mock.items()},
+           "noise": CONTROL.noise_state()} if "CONTROL" in globals() else {}
     return {"time": now_iso(), "radioMode": RADIO_MODE, "pods": pods, "errors": {}, "ran": ran, "controls": ctl}
 
 
 CAPTURE_URL = os.environ.get("CAPTURE_URL", "http://10.0.129.7:8091").rstrip("/")
+# Noise relay on the RAN host (stage B). It accepts only these preset names.
+NOISE_URL = os.environ.get("NOISE_URL", "http://10.0.129.7:8092").rstrip("/")
+NOISE_PRESETS = ("off", "clean", "moderate", "poor")
 MOCK_FLOW = [
     ("ul", "NGAP", "NGSetupRequest"), ("dl", "NGAP", "NGSetupResponse"),
     ("ul", "NGAP/NAS-5GS", "InitialUEMessage, Registration request"),
@@ -394,6 +399,8 @@ class Control:
     def __init__(self):
         self.token_file = os.environ.get("CTL_TOKEN_FILE", "/etc/fct-dash/ctl/token")
         self.admin_file = os.environ.get("ADMIN_KEY_FILE", "/etc/fct-dash/admin/password")
+        self.noise_token_file = os.environ.get("NOISE_TOKEN_FILE", "/etc/fct-dash/noise/token")
+        self.mock_noise = "off"
         self.log = collections.deque(maxlen=50)
         self.lock = threading.Lock()
         self.enabled, self.reason = False, None
@@ -430,6 +437,47 @@ class Control:
         cl.patch(f"/apis/apps/v1/namespaces/{ns}/deployments/{name}/scale",
                  {"spec": {"replicas": n}}, token_file=self.token_file)
 
+    def noise_state(self):
+        """Current downlink noise preset as reported by the relay (no token needed to read)."""
+        if MOCK:
+            return {"preset": self.mock_noise, "available": True}
+        if not os.path.exists(self.noise_token_file):
+            return {"available": False, "reason": "Noise relay token not installed"}
+        try:
+            with urllib.request.urlopen(f"{NOISE_URL}/noise", timeout=1.5) as r:
+                d = json.loads(r.read())
+            return {"available": True, "preset": d.get("preset"), "noiseDb": d.get("noiseDb")}
+        except urllib.error.HTTPError as e:
+            return {"available": False, "reason": "UE channel model not reachable (is the UE running?)" if e.code == 503
+                    else f"Noise relay answered {e.code}"}
+        except Exception as e:
+            return {"available": False, "reason": "Noise relay: " + describe_error(e)}
+
+    def set_noise(self, preset):
+        """Ask the relay for one of the fixed presets. Returns (ok, message)."""
+        if preset not in NOISE_PRESETS:
+            raise ValueError("unknown preset")
+        if MOCK:
+            self.mock_noise = preset
+            return True, f"Downlink channel set to {preset}."
+        try:
+            with open(self.noise_token_file) as f:
+                token = f.read().strip()
+        except OSError:
+            return False, "Noise relay token not installed."
+        req = urllib.request.Request(f"{NOISE_URL}/noise", data=json.dumps({"preset": preset}).encode(), method="POST",
+                                     headers={"Content-Type": "application/json", "X-Relay-Token": token})
+        try:
+            with urllib.request.urlopen(req, timeout=12) as r:
+                d = json.loads(r.read())
+        except urllib.error.HTTPError as e:
+            return False, {401: "Noise relay refused the dashboard token.",
+                           503: "The UE channel model is not reachable; is the UE running?"}.get(
+                               e.code, f"Noise relay answered {e.code}.")
+        except Exception as e:
+            return False, "Noise relay not reachable: " + describe_error(e)
+        return True, f"Downlink channel set to {d.get('preset')} ({d.get('noiseDb'):g} dB noise)."
+
     def act(self, action):
         """Run one named action. Returns a sentence for the operator."""
         ready = lambda role: any(p["cluster"] == "ran" and p["role"] == role and p["state"] == "running"
@@ -443,6 +491,16 @@ class Control:
             "speed-ul": [("speedtest-dl", 0), ("speedtest-ul", 1)],
             "speed-stop": [("speedtest-dl", 0), ("speedtest-ul", 0)],
         }
+        if action.startswith("noise-"):
+            if not MOCK and not ready("ue"):
+                return False, "Start the UE first; the noise is applied to its receiver."
+            with self.lock:
+                ok, msg = self.set_noise(action[len("noise-"):])
+                if ok:
+                    self.log.append({"t": now_iso(), "action": action})
+            if ok:
+                print(f"{now_iso()} CONTROL {action}", flush=True)
+            return ok, msg
         if action not in steps:
             raise ValueError("unknown action")
         if not MOCK:
@@ -554,7 +612,7 @@ CONTROL = Control()
 
 
 class Handler(BaseHTTPRequestHandler):
-    server_version = "fct-dash/0.2"
+    server_version = "fct-dash/0.3"
 
     def log_message(self, fmt, *args):  # quiet access log
         pass
@@ -575,6 +633,8 @@ class Handler(BaseHTTPRequestHandler):
         try:
             length = min(int(self.headers.get("Content-Length") or 0), 4096)
             body = json.loads(self.rfile.read(length) or b"{}")
+            if not isinstance(body, dict):
+                raise ValueError("body must be a JSON object")
         except (ValueError, json.JSONDecodeError):
             return self.send(400, json.dumps({"ok": False, "msg": "Bad request"}), "application/json")
         if not CONTROL.enabled:
@@ -585,12 +645,14 @@ class Handler(BaseHTTPRequestHandler):
         if body.get("action") == "check":
             return self.send(200, json.dumps({"ok": True, "msg": "Controls unlocked"}), "application/json")
         try:
-            ok, msg = CONTROL.act(body.get("action", ""))
-            with STATE.lock:
-                STATE.cached_at = 0  # show the change on the next poll
-            return self.send(200 if ok else 409, json.dumps({"ok": ok, "msg": msg}), "application/json")
+            ok, msg = CONTROL.act(str(body.get("action", "")))
+        except ValueError:
+            return self.send(400, json.dumps({"ok": False, "msg": "Unknown action"}), "application/json")
         except Exception as e:
             return self.send(502, json.dumps({"ok": False, "msg": "Kubernetes refused: " + describe_error(e)}), "application/json")
+        with STATE.lock:
+            STATE.cached_at = 0  # show the change on the next poll
+        return self.send(200 if ok else 409, json.dumps({"ok": ok, "msg": msg}), "application/json")
 
     def do_GET(self):
         url = urllib.parse.urlparse(self.path)

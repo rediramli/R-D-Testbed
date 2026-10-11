@@ -64,6 +64,18 @@ r=$(ctl speed-dl); [ "${r%%|*}" = 200 ] && pass "speed-dl accepted" || fail "spe
 dl(){ q "round(sum(u.get('goodputDl',0) for u in d['ran']['ueStats']),1)"; }
 wait_for 90 'awk "BEGIN{exit !($(dl) > 50)}"' && pass "DL goodput $(dl) Mbit/s" || fail "DL goodput only $(dl) Mbit/s"
 
+step "6b. Downlink channel presets through the noise relay (DL traffic still running)"
+nz(){ q "(d['controls'].get('noise') or {}).get('$1')"; }
+mcs(){ q "int(d['ran']['ueStats'][-1].get('mcsDl', -1)) if d['ran']['ueStats'] else -1"; }
+[ "$(nz available)" = True ] && pass "noise relay reachable, preset $(nz preset)" || fail "noise relay not available: $(nz reason)"
+r=$(ctl noise-moderate); [ "${r%%|*}" = 200 ] && pass "noise-moderate accepted: ${r#*|}" || fail "noise-moderate: $r"
+wait_for 20 '[ "$(nz preset)" = moderate ]' && pass "dashboard shows preset moderate ($(nz noiseDb) dB)" || fail "preset shown: $(nz preset)"
+wait_for 60 'm=$(mcs); [ "$m" -ge 12 ] && [ "$m" -le 18 ]' && pass "DL MCS $(mcs) under Moderate (target 15 +/- 3), DL $(dl) Mbit/s" || fail "DL MCS $(mcs) under Moderate (target 15 +/- 3)"
+r=$(ctl noise-off); [ "${r%%|*}" = 200 ] && pass "noise-off accepted" || fail "noise-off: $r"
+wait_for 20 '[ "$(nz preset)" = off ]' && pass "dashboard shows preset off" || fail "preset shown: $(nz preset)"
+wait_for 60 '[ "$(mcs)" -ge 24 ]' && pass "DL MCS back to $(mcs) with noise off" || fail "DL MCS only $(mcs) after noise off"
+r=$(ctl noise-extreme); [ "${r%%|*}" = 400 ] && pass "unknown preset refused (400)" || fail "unknown preset: $r"
+
 step "7. Speed test uplink"
 r=$(ctl speed-ul); [ "${r%%|*}" = 200 ] && pass "speed-ul accepted" || fail "speed-ul: $r"
 ul(){ q "round(sum(u.get('goodputUl',0) for u in d['ran']['ueStats']),1)"; }

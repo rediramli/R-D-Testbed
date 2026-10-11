@@ -25,6 +25,8 @@ spec:
           value: rfsim
         - name: CAPTURE_URL
           value: http://10.0.129.7:8091
+        - name: NOISE_URL
+          value: http://10.0.129.7:8092
         - name: PYTHONDONTWRITEBYTECODE
           value: "1"
         - name: PYTHONUNBUFFERED
@@ -57,6 +59,9 @@ spec:
         - name: admin
           mountPath: /etc/fct-dash/admin
           readOnly: true
+        - name: noise
+          mountPath: /etc/fct-dash/noise
+          readOnly: true
       volumes:
       - name: app
         configMap:
@@ -71,6 +76,10 @@ spec:
       - name: admin
         secret:
           secretName: fct-dash-admin
+          optional: true
+      - name: noise
+        secret:
+          secretName: fct-dash-noise
           optional: true
 ---
 apiVersion: v1
