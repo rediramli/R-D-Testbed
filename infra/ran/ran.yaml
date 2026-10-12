@@ -1,0 +1,86 @@
+# Bench RAN on REDLAB (10.42.0.1): OAI gNB + nrUE, RF simulator only (--rfsim; no radio, no USRP).
+# Image tag pinned: oaisoftwarealliance 2026.w40. Both pods use the host network, as on the old testbed:
+# gNB NGAP/NG-U on 10.42.0.1 towards the core (AMF 10.42.0.2), UE tunnel oaitun_ue1 on the host.
+# ConfigMaps oai-gnb-config / oai-ue-config are created by ran.sh from gnb.yaml and nr-ue.yaml.tpl.
+# The UE SIM comes from Secret ue1-sim; an init container renders it into an in-memory volume.
+# The UE does NOT use the image entrypoint (it prints the whole config); its own [SIM] log line is masked (see below).
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: oai-gnb
+  namespace: default
+  labels: {app: oai-gnb}
+spec:
+  replicas: 1
+  strategy: {type: Recreate}
+  selector: {matchLabels: {app: oai-gnb}}
+  template:
+    metadata:
+      labels: {app: oai-gnb}
+    spec:
+      hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
+      containers:
+      - name: gnb
+        image: docker.io/oaisoftwarealliance/oai-gnb:2026.w40
+        imagePullPolicy: IfNotPresent
+        env:
+        - name: USE_ADDITIONAL_OPTIONS
+          value: "-E --rfsim --log_config.global_log_options level,nocolor,time"
+        securityContext:
+          capabilities: {add: ["SYS_NICE"]}
+        volumeMounts:
+        - {name: config, mountPath: /opt/oai-gnb/etc/gnb.yaml, subPath: gnb.yaml}
+      volumes:
+      - name: config
+        configMap: {name: oai-gnb-config}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: oai-nr-ue
+  namespace: default
+  labels: {app: oai-nr-ue}
+spec:
+  replicas: 1
+  strategy: {type: Recreate}
+  selector: {matchLabels: {app: oai-nr-ue}}
+  template:
+    metadata:
+      labels: {app: oai-nr-ue}
+    spec:
+      hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
+      initContainers:
+      - name: render-sim
+        image: docker.io/library/busybox:1.36
+        envFrom:
+        - secretRef: {name: ue1-sim}
+        command: ["sh", "-c", "sed -e \"s/__IMSI__/$IMSI/\" -e \"s/__KI__/$KI/\" -e \"s/__OPC__/$OPC/\" /tpl/nr-ue.yaml.tpl > /cfg/nr-ue.yaml && echo rendered"]
+        volumeMounts:
+        - {name: tpl, mountPath: /tpl}
+        - {name: cfg, mountPath: /cfg}
+      containers:
+      - name: nr-ue
+        image: docker.io/oaisoftwarealliance/oai-nr-ue:2026.w40
+        imagePullPolicy: IfNotPresent
+        # OAI's [SIM] module prints "UICC simulation: IMSI=..., Ki=..., OPc=..." at start. The output goes through
+        # sed, which masks the three values (taken from the same Secret) before anything reaches the pod log.
+        envFrom:
+        - secretRef: {name: ue1-sim}
+        command: ["/bin/bash", "-c"]
+        args:
+        - |
+          set -o pipefail
+          stdbuf -oL -eL /opt/oai-nr-ue/bin/nr-uesoftmodem -O /cfg/nr-ue.yaml -E --rfsim -r 106 --numerology 1 -C 3319680000 \
+            "--rfsimulator.[0].serveraddr" 127.0.0.1 --log_config.global_log_options level,nocolor,time 2>&1 \
+            | sed -u -E "s/$KI/<K masked>/Ig; s/$OPC/<OPc masked>/Ig; s/$IMSI/<IMSI masked>/g"
+        securityContext:
+          privileged: true
+        volumeMounts:
+        - {name: cfg, mountPath: /cfg, readOnly: true}
+      volumes:
+      - name: tpl
+        configMap: {name: oai-ue-config}
+      - name: cfg
+        emptyDir: {medium: Memory}
