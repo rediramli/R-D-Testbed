@@ -20,7 +20,7 @@ Everything needed to rebuild it is in `infra/`; secrets stay on the machines.
 
 | Host | Address | Role | Status |
 |---|---|---|---|
-| REDLAB (Lenovo P3 Ultra SFF Gen 2, Core Ultra 9 285) | `10.42.0.1` | RAN: OAI gNB + nrUE (rfsim); LAN gateway (NetworkManager shared mode) | next (stage 2) |
+| REDLAB (Lenovo P3 Ultra SFF Gen 2, Core Ultra 9 285) | `10.42.0.1` | RAN: OAI gNB + nrUE (rfsim); LAN gateway (NetworkManager shared mode) | done, stage 2 PASS |
 | P3 Tiny (Core i9-14900, 30 GiB) | `10.42.0.2` | 5G core: Open5GS 2.8.0 on k3s v1.31.4 | done, stage 1 PASS |
 | reComputer J4012 (Jetson Orin NX 16 GB) | `10.42.0.3` | MEC / AI (later) | network only |
 
@@ -29,6 +29,15 @@ Namespace `open5gs`: MongoDB, NRF, SCP, AUSF, UDM, UDR, PCF, BSF, NSSF, SMF; AMF
 (NGAP `10.42.0.2:38412`, GTP-U `10.42.0.2:2152`, `ogstun` `10.45.0.1/16`, NAT for `10.45.0.0/16`). DNN `fctoai`, TAC 1.
 The test SIM (IMSI `001700000000001`, random K/OPc) is in `~/testbed-secrets/ue1.env` on the core host only.
 Stage 1 test: `infra/core/open5gs.sh` MODE=check, 5 consecutive runs PASS (2026-10-12).
+
+RAN on REDLAB: k3s with pods `10.248.0.0/16` and services `10.100.0.0/16` (clear of the core ranges and of Docker's bridges).
+OAI `2026.w40` gNB and nrUE in rfsim mode only (`--rfsim` in both Deployments, checked by the test), host network:
+n78, 106 PRB, 30 kHz SCS, PLMN 001/70, NG to the AMF at `10.42.0.2`, gNB N2/N3 on `10.42.0.1`. The UE gets its address on `oaitun_ue1`.
+The UE config is rendered at start from a Kubernetes Secret into memory. The nrUE prints the SIM key at start,
+so its output goes through a filter that masks IMSI, K and OPc before it reaches the container log.
+Stage 2 test: `infra/ran/ran.sh` MODE=check, 5 consecutive runs PASS (2026-10-13): SCTP NGAP association up on both ends,
+UE `10.45.0.3`, ping to the UPF and to the internet through the tunnel, no SIM value in any UE log file (rotated files included),
+host default route untouched, no pod restarts.
 
 ## What the dashboard shows
 
@@ -45,10 +54,14 @@ Goodput is reported in simulated time. rfsim runs about 1.88x faster than real t
 |---|---|
 | `app.py` | Backend (Python standard library only): reads both clusters through the Kubernetes API, parses AMF and gNB logs, keeps 15 min of KPI history, exposes `/api/*` |
 | `index.html` | Front end (single page, no framework) |
-| `infra/core/k3s-core.sh` | Bench core host: install k3s with non-overlapping CIDRs, SCTP, kubeconfig for the login user (preview / apply / kubeconfig / check) |
+| `infra/k3s-node.sh` | Single-node k3s for a bench host, `PROFILE=core` or `ran`: non-overlapping CIDRs, SCTP, kubeconfig for the login user, host network state compared before and after (preview / apply / kubeconfig / check) |
 | `infra/core/gen-open5gs.py` | Generates `infra/core/open5gs.yaml` (edit the generator, not the YAML) |
 | `infra/core/open5gs.yaml` | Open5GS 2.8.0 manifest for the bench core (generated) |
 | `infra/core/open5gs.sh` | Deploy and test the bench core: preview / apply / subscriber / check / remove; test SIM from a local secrets file |
+| `infra/ran/gnb.yaml` | OAI gNB config (CI rfsim band 78, 106 PRB) with the bench PLMN and addresses |
+| `infra/ran/nr-ue.yaml.tpl` | nrUE config template; SIM placeholders are filled from a Secret at pod start |
+| `infra/ran/ran.yaml` | OAI gNB and nrUE Deployments for REDLAB (rfsim, host network, SIM masking filter) |
+| `infra/ran/ran.sh` | Deploy and test the bench RAN: preview / apply / check / remove; copies the test SIM from the core host |
 | `capture.py`, `n2-capture.yaml` | N2 capture service on the RAN host (tshark on SCTP 38412, JSON over HTTP on port 8091) |
 | `fct-dash.yaml` | Dashboard Deployment and NodePort 30880 on the core cluster |
 | `ran-control.yaml` | Least-privilege controller account (may only scale `oai-gnb`, `oai-nr-ue`, `speedtest-dl`, `speedtest-ul`) and the iperf3 speed-test clients |
@@ -109,4 +122,5 @@ Then open `http://10.0.129.2:30880`.
 - **Stale NRF registrations in Open5GS.** NFs register with pod IPs. When an NF restarts, its consumers keep the old address. Restart consumers in dependency order (SMF, then AMF).
 -  **lab0 re-creates the UE from its source file.** `lab0-run.sh` runs `kubectl apply -f ran/oai-nr-ue-deploy.json`, so a change made only to the live Deployment is undone at the next lab0 run (the first attempt of `ue-chanmod.sh` crashed the UE this way: "cannot open include file"). Change the source file and run lab0 as part of the test.
 - **Bench core (k3s, Open5GS 2.8.0).** (1) The k3s default pod CIDR `10.42.0.0/16` collides with the bench LAN; use `--cluster-cidr 10.244.0.0/16 --service-cidr 10.96.0.0/16`. (2) k3s's `kubectl` reads `/etc/rancher/k3s/k3s.yaml` when `KUBECONFIG` is unset, so `~/.kube/config` is ignored; give the file group read (`write-kubeconfig-group`), and keep `--write-kubeconfig-mode` off the service command line (it overrides `config.yaml`). (3) The UPF init container got `ioctl(TUNSETIFF): Operation not permitted` while privileged but not root; it must run with `runAsUser: 0`, as in the Gradiant chart. (4) Right after start, PFCP association takes a few seconds and PCF/UDR can restart while MongoDB starts; test after the NFs have settled.
+- **Bench RAN (OAI rfsim on k3s).** (1) The nrUE logs the full SIM at start (`[SIM] UICC simulation: IMSI=..., Ki=..., OPc=...`); its output is piped through `sed` that masks the values before it reaches the container log, and the test scans every log file of the pod. (2) kubelet rotates and compresses container logs at about 10 MB, so start-up lines such as `NGSetupResponse` disappear from `kubectl logs` after a while; tests check current state (SCTP association, tunnel address, ping) instead. (3) `kubectl -o jsonpath` prints arrays as Go JSON, which escapes `<` and `>` as `\u003c` and `\u003e`; do not grep for those characters. (4) Use `k3s kubectl`, not a snap `kubectl` of another version.
 - **Relay latency.** The first relay used two telnet sessions with fixed waits per change and a background reader on the same lock, so a change could take more than 8 s and the dashboard timed out although the noise had been applied. Relay v3 uses one session that stops reading as soon as the report is complete; the relay test now fails if a change takes 5 s or more.
