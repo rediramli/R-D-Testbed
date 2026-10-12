@@ -13,6 +13,23 @@ The testbed runs **in RF simulator mode only**. There is no over-the-air transmi
 
 Radio configuration: n78, 40 MHz (106 PRB), 30 kHz SCS, TDD 7 DL / 3 UL slots per 5 ms, PLMN 001/70, SST 1.
 
+### Bench testbed (being rebuilt, 2026-10)
+
+The testbed is being moved to dedicated bench machines on their own LAN (`10.42.0.0/24`, TL-SG105 switch, no link to the lab network).
+Everything needed to rebuild it is in `infra/`; secrets stay on the machines.
+
+| Host | Address | Role | Status |
+|---|---|---|---|
+| REDLAB (Lenovo P3 Ultra SFF Gen 2, Core Ultra 9 285) | `10.42.0.1` | RAN: OAI gNB + nrUE (rfsim); LAN gateway (NetworkManager shared mode) | next (stage 2) |
+| P3 Tiny (Core i9-14900, 30 GiB) | `10.42.0.2` | 5G core: Open5GS 2.8.0 on k3s v1.31.4 | done, stage 1 PASS |
+| reComputer J4012 (Jetson Orin NX 16 GB) | `10.42.0.3` | MEC / AI (later) | network only |
+
+Core on the P3 Tiny: k3s with pods `10.244.0.0/16` and services `10.96.0.0/16` (the k3s defaults overlap the bench LAN).
+Namespace `open5gs`: MongoDB, NRF, SCP, AUSF, UDM, UDR, PCF, BSF, NSSF, SMF; AMF and UPF on the host network
+(NGAP `10.42.0.2:38412`, GTP-U `10.42.0.2:2152`, `ogstun` `10.45.0.1/16`, NAT for `10.45.0.0/16`). DNN `fctoai`, TAC 1.
+The test SIM (IMSI `001700000000001`, random K/OPc) is in `~/testbed-secrets/ue1.env` on the core host only.
+Stage 1 test: `infra/core/open5gs.sh` MODE=check, 5 consecutive runs PASS (2026-10-12).
+
 ## What the dashboard shows
 
 - **Overview**: topology (SBI bus, N2/N3/N4/N6) with live status of every core NF, the gNB and the UE; tiles for connected gNBs and UEs and DL/UL MAC goodput.
@@ -28,6 +45,10 @@ Goodput is reported in simulated time. rfsim runs about 1.88x faster than real t
 |---|---|
 | `app.py` | Backend (Python standard library only): reads both clusters through the Kubernetes API, parses AMF and gNB logs, keeps 15 min of KPI history, exposes `/api/*` |
 | `index.html` | Front end (single page, no framework) |
+| `infra/core/k3s-core.sh` | Bench core host: install k3s with non-overlapping CIDRs, SCTP, kubeconfig for the login user (preview / apply / kubeconfig / check) |
+| `infra/core/gen-open5gs.py` | Generates `infra/core/open5gs.yaml` (edit the generator, not the YAML) |
+| `infra/core/open5gs.yaml` | Open5GS 2.8.0 manifest for the bench core (generated) |
+| `infra/core/open5gs.sh` | Deploy and test the bench core: preview / apply / subscriber / check / remove; test SIM from a local secrets file |
 | `capture.py`, `n2-capture.yaml` | N2 capture service on the RAN host (tshark on SCTP 38412, JSON over HTTP on port 8091) |
 | `fct-dash.yaml` | Dashboard Deployment and NodePort 30880 on the core cluster |
 | `ran-control.yaml` | Least-privilege controller account (may only scale `oai-gnb`, `oai-nr-ue`, `speedtest-dl`, `speedtest-ul`) and the iperf3 speed-test clients |
@@ -87,4 +108,5 @@ Then open `http://10.0.129.2:30880`.
 - **iperf3 "server is busy".** Ubuntu's `iperf3.service` was listening on `*:5201` on the core host, so every DL test ran against it, and it stayed stuck when a client vanished. Disable it with `sudo systemctl disable --now iperf3`. Every iperf3 process here runs under a watchdog that restarts it after 5 s of 0-byte intervals, or after 10 s without progress while a connection is open.
 - **Stale NRF registrations in Open5GS.** NFs register with pod IPs. When an NF restarts, its consumers keep the old address. Restart consumers in dependency order (SMF, then AMF).
 -  **lab0 re-creates the UE from its source file.** `lab0-run.sh` runs `kubectl apply -f ran/oai-nr-ue-deploy.json`, so a change made only to the live Deployment is undone at the next lab0 run (the first attempt of `ue-chanmod.sh` crashed the UE this way: "cannot open include file"). Change the source file and run lab0 as part of the test.
+- **Bench core (k3s, Open5GS 2.8.0).** (1) The k3s default pod CIDR `10.42.0.0/16` collides with the bench LAN; use `--cluster-cidr 10.244.0.0/16 --service-cidr 10.96.0.0/16`. (2) k3s's `kubectl` reads `/etc/rancher/k3s/k3s.yaml` when `KUBECONFIG` is unset, so `~/.kube/config` is ignored; give the file group read (`write-kubeconfig-group`), and keep `--write-kubeconfig-mode` off the service command line (it overrides `config.yaml`). (3) The UPF init container got `ioctl(TUNSETIFF): Operation not permitted` while privileged but not root; it must run with `runAsUser: 0`, as in the Gradiant chart. (4) Right after start, PFCP association takes a few seconds and PCF/UDR can restart while MongoDB starts; test after the NFs have settled.
 - **Relay latency.** The first relay used two telnet sessions with fixed waits per change and a background reader on the same lock, so a change could take more than 8 s and the dashboard timed out although the noise had been applied. Relay v3 uses one session that stops reading as soon as the report is complete; the relay test now fails if a change takes 5 s or more.
