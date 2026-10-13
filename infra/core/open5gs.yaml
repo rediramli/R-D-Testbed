@@ -448,6 +448,10 @@ data:
         client:
           scp:
           - uri: http://open5gs-scp-sbi:7777
+      metrics:
+        server:
+        - dev: eth0
+          port: 9090
     logger:
       level: info
 ---
@@ -506,6 +510,9 @@ spec:
   ports:
   - name: sbi
     port: 7777
+    protocol: TCP
+  - name: metrics
+    port: 9090
     protocol: TCP
 ---
 apiVersion: v1
@@ -691,6 +698,10 @@ data:
       - 8.8.8.8
       - 8.8.4.4
       mtu: 1400
+      metrics:
+        server:
+        - dev: eth0
+          port: 9090
     logger:
       level: info
 ---
@@ -750,6 +761,9 @@ spec:
   - name: pfcp
     port: 8805
     protocol: UDP
+  - name: metrics
+    port: 9090
+    protocol: TCP
 ---
 apiVersion: v1
 kind: ConfigMap
@@ -802,6 +816,10 @@ data:
       time:
         t3512:
           value: 540
+      metrics:
+        server:
+        - address: 10.42.0.2
+          port: 9090
     logger:
       level: info
 ---
@@ -866,6 +884,10 @@ data:
         gateway: 10.45.0.1
         dnn: fctoai
         dev: ogstun
+      metrics:
+        server:
+        - address: 10.42.0.2
+          port: 9091
     logger:
       level: info
 ---

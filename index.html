@@ -8,16 +8,16 @@
 <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Barlow+Semi+Condensed:wght@500;600;700&display=swap" rel="stylesheet">
 <style>
 :root {
-  --bg: #E9EEF2;
-  --panel: #F8FAFB;
-  --ink: #18222D;
-  --muted: #5B6875;
-  --line: #A9B5C0;
-  --ok: #157A6E;
-  --warn: #B7791F;
-  --fault: #C23B22;
-  --unknown: #8A96A3;
-  --rf: #2B59C3;
+  --bg: #141c25;
+  --panel: #1d2834;
+  --ink: #e6edf3;
+  --muted: #93a4b5;
+  --line: #4a5b6d;
+  --ok: #3fb27f;
+  --warn: #e0a43a;
+  --fault: #e5534b;
+  --unknown: #6c7a88;
+  --rf: #5b9cf0;
   --sans: "Barlow", system-ui, sans-serif;
   --cond: "Barlow Semi Condensed", "Barlow", system-ui, sans-serif;
   --mono: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
@@ -41,19 +41,19 @@ header {
 .radio.live .mode { color: var(--fault); }
 .summary {
   display: flex; flex-wrap: wrap; gap: 6px 22px; align-items: baseline;
-  padding: 10px 28px; background: var(--panel); border-top: 1px solid #D5DCE2; border-bottom: 1px solid #D5DCE2;
+  padding: 10px 28px; background: var(--panel); border-top: 1px solid #2f3d4c; border-bottom: 1px solid #2f3d4c;
 }
 .summary b { font: 600 17px var(--cond); }
 .summary .ok { color: var(--ok); } .summary .bad { color: var(--fault); } .summary .mid { color: var(--warn); }
 .summary .updated { margin-left: auto; color: var(--muted); font-size: 13px; }
 .summary .updated.stale { color: var(--fault); font-weight: 600; }
 .kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 12px; padding: 14px 28px 0; }
-.kpi { display: flex; align-items: center; gap: 14px; background: var(--panel); border: 1px solid #D5DCE2; border-radius: 6px; padding: 10px 16px; }
+.kpi { display: flex; align-items: center; gap: 14px; background: var(--panel); border: 1px solid #2f3d4c; border-radius: 6px; padding: 10px 16px; }
 .kpi .v { font: 700 34px/1 var(--cond); font-variant-numeric: tabular-nums; min-width: 2.2ch; }
 .kpi .l { font: 600 14px/1.25 var(--sans); }
 .kpi .l small { display: block; font-weight: 400; font-size: 12px; color: var(--muted); }
 @media (max-width: 900px) { .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); padding: 12px 16px 0; } }
-.uecard rect { fill: var(--panel); stroke: #C7D0D8; }
+.uecard rect { fill: var(--panel); stroke: #3a4a5c; }
 .uecard .h { font: 700 15px var(--cond); fill: var(--ink); }
 .uecard .k, .uecard .h { white-space: pre; }
 .uecard .k { font: 400 12.5px var(--sans); fill: var(--muted); }
@@ -64,93 +64,115 @@ header {
 .tab.on { color: var(--ink); border-bottom-color: var(--rf); background: var(--panel); }
 .uepage { padding: 14px 28px 28px; }
 .uebar { display: flex; flex-wrap: wrap; gap: 10px 18px; align-items: center; margin-bottom: 14px; }
-.uebar select { font: 600 14px var(--sans); padding: 5px 8px; border-radius: 4px; border: 1px solid #C7D0D8; background: var(--panel); }
-.seg { display: inline-flex; border: 1px solid #C7D0D8; border-radius: 4px; overflow: hidden; }
+.uebar select { font: 600 14px var(--sans); padding: 5px 8px; border-radius: 4px; border: 1px solid #3a4a5c; background: var(--panel); }
+.seg { display: inline-flex; border: 1px solid #3a4a5c; border-radius: 4px; overflow: hidden; }
 .seg button { border: 0; border-radius: 0; background: var(--panel); }
-.seg button.on { background: var(--ink); color: #fff; }
-.btn { font: 600 14px var(--sans); color: var(--ink); background: #E3E9EE; border: 1px solid #C7D0D8; border-radius: 4px; padding: 6px 12px; text-decoration: none; }
+.seg button.on { background: var(--ink); color: var(--bg); }
+.btn { font: 600 14px var(--sans); color: var(--ink); background: #26323f; border: 1px solid #3a4a5c; border-radius: 4px; padding: 6px 12px; text-decoration: none; }
 .uenote { color: var(--muted); font-size: 13px; }
 .uetiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); gap: 10px; margin-bottom: 16px; }
-.ut { background: var(--panel); border: 1px solid #D5DCE2; border-radius: 6px; padding: 10px 14px; }
+.ut { background: var(--panel); border: 1px solid #2f3d4c; border-radius: 6px; padding: 10px 14px; }
 .ut .n { font: 600 13px var(--sans); color: var(--muted); }
 .ut .v { font: 700 28px/1.15 var(--cond); font-variant-numeric: tabular-nums; }
 .ut .v small { font: 600 13px var(--sans); color: var(--muted); margin-left: 3px; }
 .ut .r { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
 .charts { display: grid; grid-template-columns: repeat(auto-fill, minmax(380px, 1fr)); gap: 12px; }
-.cqiv { background: var(--panel); border: 1px solid #D5DCE2; border-radius: 6px; padding: 10px 14px; margin-bottom: 16px; }
+.kpipage { padding: 8px 28px 28px; }
+@media (max-width: 700px) { .kpipage { padding: 8px 16px 20px; } }
+.kgroup { margin: 14px 0 6px; font: 700 18px var(--cond); }
+.krow { background: var(--panel); border: 1px solid #2f3d4c; border-radius: 6px; margin-bottom: 6px; }
+.krow > button { all: unset; box-sizing: border-box; cursor: pointer; display: grid; grid-template-columns: 14px minmax(0, 1fr) 120px 110px; gap: 12px; align-items: center; width: 100%; padding: 9px 14px; }
+.krow > button:focus-visible { outline: 3px solid var(--rf); outline-offset: 2px; }
+.krow .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--unknown); }
+.krow.ok .dot { background: var(--ok); } .krow.bad .dot { background: var(--fault); } .krow.info .dot { background: var(--rf); }
+.krow.bad { border-color: var(--fault); }
+.krow .nm { font-weight: 600; } .krow .nm small { display: block; font-weight: 400; color: var(--muted); font-size: 12px; }
+.krow .val { font: 700 22px var(--cond); text-align: right; font-variant-numeric: tabular-nums; }
+.krow .val small { font: 500 12px var(--sans); color: var(--muted); margin-left: 3px; }
+.krow .tg { color: var(--muted); font-size: 12.5px; text-align: right; }
+.krow .det { display: none; padding: 0 14px 12px 40px; font-size: 13px; }
+.krow.open .det { display: block; }
+.krow .det table { border-collapse: collapse; margin: 6px 0; font-variant-numeric: tabular-nums; }
+.krow .det td, .krow .det th { padding: 3px 12px 3px 0; text-align: left; border-bottom: 1px solid #2a3644; }
+.krow .det th { color: var(--muted); font-weight: 600; }
+.krow .det code { font: 12px var(--mono); color: #c9d6e2; }
+.krow .det .hint { border-left: 3px solid var(--warn); padding: 4px 10px; margin-top: 8px; color: var(--ink); }
+.krow .det .ref { color: var(--muted); font-size: 12px; margin-top: 6px; }
+@media (max-width: 700px) { .krow > button { grid-template-columns: 14px minmax(0, 1fr) 90px; } .krow .tg { display: none; } }
+.cqiv { background: var(--panel); border: 1px solid #2f3d4c; border-radius: 6px; padding: 10px 14px; margin-bottom: 16px; }
 .cqiv h3 { margin: 0 0 4px; font: 600 15px var(--sans); }
 .cqiv .sum { font-size: 14px; margin: 4px 0 8px; font-variant-numeric: tabular-nums; }
 .cqiv .sum b { font: 700 18px var(--cond); }
 .cqiv .tw { overflow-x: auto; }
 .cqiv table { border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; min-width: 520px; }
-.cqiv th, .cqiv td { padding: 3px 10px; text-align: right; border-bottom: 1px solid #E4E8EC; }
+.cqiv th, .cqiv td { padding: 3px 10px; text-align: right; border-bottom: 1px solid #2a3644; }
 .cqiv th { color: var(--muted); font-weight: 600; }
 .cqiv td.l, .cqiv th.l { text-align: left; }
 .cqiv tr.hit td { background: rgba(42, 120, 214, .16); font-weight: 700; }
 .cqiv tr.exp td:first-child { box-shadow: inset 3px 0 0 #eb6834; }
 .cqiv .note { font-size: 12px; color: var(--muted); margin-top: 6px; }
-.chart { background: var(--panel); border: 1px solid #D5DCE2; border-radius: 6px; padding: 10px 12px 6px; }
+.chart { background: var(--panel); border: 1px solid #2f3d4c; border-radius: 6px; padding: 10px 12px 6px; }
 .chart h3 { margin: 0; font: 700 17px var(--cond); display: flex; gap: 12px; align-items: baseline; flex-wrap: wrap; }
 .chart h3 small { font: 400 12px var(--sans); color: var(--muted); }
 .chart .lg { margin-left: auto; display: flex; gap: 12px; font: 600 12px var(--sans); color: var(--ink); }
 .chart .lg i { display: inline-block; width: 14px; height: 3px; border-radius: 2px; vertical-align: middle; margin-right: 5px; }
 .chart svg { width: 100%; height: auto; display: block; }
-.chart .grid { stroke: #E1E6EA; stroke-width: 1; }
+.chart .grid { stroke: #2a3644; stroke-width: 1; }
 .chart .axis { font: 400 11px var(--sans); fill: var(--muted); }
 .chart .ln { fill: none; stroke-width: 2; stroke-linejoin: round; stroke-linecap: round; }
 .chart .xh { stroke: var(--muted); stroke-width: 1; stroke-dasharray: 3 3; }
 .chart .empty { font: 400 13px var(--sans); fill: var(--muted); }
-.tip { position: fixed; pointer-events: none; background: var(--ink); color: #fff; font: 12px/1.45 var(--sans); padding: 6px 9px; border-radius: 4px; z-index: 6; white-space: nowrap; }
+.tip { position: fixed; pointer-events: none; background: var(--ink); color: var(--bg); font: 12px/1.45 var(--sans); padding: 6px 9px; border-radius: 4px; z-index: 6; white-space: nowrap; }
 @media (max-width: 700px) { .uepage { padding: 12px 12px 20px; } .charts { grid-template-columns: 1fr; } }
 
-.ctl { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; margin: 12px 28px 0; padding: 10px 14px; background: var(--panel); border: 1px solid #D5DCE2; border-radius: 6px; }
+.ctl { display: flex; flex-wrap: wrap; align-items: center; gap: 8px 16px; margin: 12px 28px 0; padding: 10px 14px; background: var(--panel); border: 1px solid #2f3d4c; border-radius: 6px; }
 .ctl-t { font: 700 17px var(--cond); }
 .unlock { display: flex; gap: 6px; }
-.unlock input { font: 14px var(--sans); padding: 5px 8px; border: 1px solid #C7D0D8; border-radius: 4px; width: 160px; }
+.unlock input { font: 14px var(--sans); padding: 5px 8px; border: 1px solid #3a4a5c; border-radius: 4px; width: 160px; }
 .ctl .grp { display: flex; align-items: center; gap: 4px; }
 .ctl .grp span { font: 600 13px var(--sans); color: var(--muted); margin-right: 4px; }
 .ctl button:disabled { opacity: .45; cursor: not-allowed; }
-.ctl button.active { background: var(--ink); color: #fff; border-color: var(--ink); }
+.ctl button.active { background: var(--ink); color: var(--bg); border-color: var(--ink); }
 .ctl-msg { font-size: 13px; color: var(--muted); }
 .ctl-note { font-size: 12px; color: var(--muted); margin-left: 4px; }
 .ctl-msg.bad { color: var(--fault); } .ctl-msg.ok { color: var(--ok); }
 @media (max-width: 700px) { .ctl { margin: 12px 16px 0; } }
 .errors { margin: 12px 28px 0; }
-.errors div { padding: 8px 12px; background: #F6E3DF; color: #7A1F0E; border-left: 4px solid var(--fault); margin-bottom: 6px; border-radius: 3px; }
+.errors div { padding: 8px 12px; background: #3a2224; color: #f2b8b2; border-left: 4px solid var(--fault); margin-bottom: 6px; border-radius: 3px; }
 main { padding: 8px 20px 28px; display: grid; grid-template-columns: minmax(0, 1fr) 640px; gap: 18px; align-items: start; }
 @media (max-width: 1640px) { main { grid-template-columns: minmax(0, 1fr); } }
 .topo-wrap { min-width: 0; }
 svg#topo { width: 100%; height: auto; display: block; max-width: 1320px; margin: 0 auto; }
-.flow { background: var(--panel); border: 1px solid #D5DCE2; border-radius: 6px; display: flex; flex-direction: column; max-height: calc(100vh - 190px); min-height: 360px; }
-.flow-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 14px; padding: 12px 16px; border-bottom: 1px solid #D5DCE2; }
+.flow { background: var(--panel); border: 1px solid #2f3d4c; border-radius: 6px; display: flex; flex-direction: column; max-height: calc(100vh - 190px); min-height: 360px; }
+.flow-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 14px; padding: 12px 16px; border-bottom: 1px solid #2f3d4c; }
 .flow-head h2 { margin: 0; font: 700 20px var(--cond); }
 .flow-state { flex: 1; color: var(--muted); font-size: 13px; }
 .flow-state.ok { color: var(--ok); } .flow-state.bad { color: var(--fault); }
 .flow-scroll { overflow: auto; flex: 1; }
 .flow table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
 .flow td.m { overflow-wrap: anywhere; }
-.flow th { position: sticky; top: 0; background: #EEF2F5; text-align: left; font: 600 13px var(--sans); color: var(--muted); padding: 7px 10px; }
-.flow td { padding: 6px 10px; border-top: 1px solid #E3E8EC; vertical-align: top; }
+.flow th { position: sticky; top: 0; background: #22303d; text-align: left; font: 600 13px var(--sans); color: var(--muted); padding: 7px 10px; }
+.flow td { padding: 6px 10px; border-top: 1px solid #2a3644; vertical-align: top; }
 .flow td.t { font-variant-numeric: tabular-nums; color: var(--muted); white-space: nowrap; }
 .flow td.d { white-space: nowrap; font-weight: 600; }
 .flow td.d.ul { color: var(--rf); } .flow td.d.dl { color: var(--ok); }
 .flow td.i { font-weight: 600; color: var(--muted); }
-.flow tr.uu td.i { color: #8A4FBF; }
-.flow tr.uu td:first-child { box-shadow: inset 3px 0 0 #8A4FBF; }
+.flow tr.uu td.i { color: #b98cff; }
+.flow tr.uu td:first-child { box-shadow: inset 3px 0 0 #b98cff; }
 .flow td.p { color: var(--muted); white-space: nowrap; }
 .flow td.m b { font-weight: 600; }
-.flow tr.milestone td { background: #EAF1FB; }
-.flow tr.bad td { background: #F6E3DF; }
+.flow tr.milestone td { background: #1f3350; }
+.flow tr.bad td { background: #3a2224; }
 .flow-empty { margin: 0; padding: 18px 16px; color: var(--muted); }
 @media (prefers-reduced-motion: no-preference) { .flow tr.new td { animation: flash 1.2s ease-out; } }
-@keyframes flash { from { background: #FFF3C4; } }
+@keyframes flash { from { background: #4a4120; } }
 .wire { fill: none; stroke: var(--line); stroke-width: 1.6; }
 .wire.dash { stroke-dasharray: 5 5; }
 .wire.radio { stroke: var(--rf); stroke-dasharray: 3 6; stroke-width: 2.2; stroke-linecap: round; }
 .ifname { font: 500 12px var(--sans); fill: var(--muted); }
 .section { font: 600 14px var(--cond); fill: var(--muted); }
 .tile { cursor: pointer; outline: none; }
-.tile rect.body { fill: var(--panel); stroke: #C7D0D8; stroke-width: 1; }
+.tile rect.body { fill: var(--panel); stroke: #3a4a5c; stroke-width: 1; }
 .tile:hover rect.body, .tile:focus rect.body { stroke: var(--ink); stroke-width: 1.6; }
 .tile .name { font: 700 18px var(--cond); fill: var(--ink); }
 .tile .status { font: 600 13px var(--sans); }
@@ -161,21 +183,21 @@ svg#topo { width: 100%; height: auto; display: block; max-width: 1320px; margin:
 /* Log drawer */
 aside {
   position: fixed; top: 0; right: 0; bottom: 0; width: min(640px, 100vw);
-  background: var(--panel); box-shadow: -2px 0 0 #C7D0D8; display: none; flex-direction: column; z-index: 5;
+  background: var(--panel); box-shadow: -2px 0 0 #3a4a5c; display: none; flex-direction: column; z-index: 5;
 }
 aside.open { display: flex; }
-aside .bar { display: flex; gap: 10px; align-items: center; padding: 14px 18px; border-bottom: 1px solid #D5DCE2; }
+aside .bar { display: flex; gap: 10px; align-items: center; padding: 14px 18px; border-bottom: 1px solid #2f3d4c; }
 aside .bar h2 { margin: 0; font: 700 20px var(--cond); flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 aside .bar small { display: block; font: 400 13px var(--sans); color: var(--muted); }
 button {
-  font: 600 14px var(--sans); color: var(--ink); background: #E3E9EE; border: 1px solid #C7D0D8;
+  font: 600 14px var(--sans); color: var(--ink); background: #26323f; border: 1px solid #3a4a5c;
   border-radius: 4px; padding: 6px 12px; cursor: pointer;
 }
-button:hover { background: #D6DEE5; }
+button:hover { background: #2f3d4c; }
 button:focus-visible, .tile:focus-visible { outline: 3px solid var(--rf); outline-offset: 2px; }
 aside pre {
   flex: 1; margin: 0; padding: 14px 18px; overflow: auto; font: 12px/1.5 var(--mono);
-  white-space: pre-wrap; word-break: break-all; background: #FDFEFE;
+  white-space: pre-wrap; word-break: break-all; background: #111820;
 }
 @media (max-width: 700px) {
   header { padding: 14px 16px; } .summary { padding: 10px 16px; } main { padding: 8px 6px 20px; }
@@ -185,6 +207,22 @@ aside pre {
 @media (prefers-reduced-motion: no-preference) {
   .tile rect.bar { transition: fill .4s; }
 }
+/* O-RAN view (overview diagram) */
+svg#topo text { font-family: var(--sans); }
+select, input { color: var(--ink); background: #111820; color-scheme: dark; }
+.topo-panel { background: var(--panel); border: 1px solid #2f3d4c; border-radius: 8px; padding: 8px; }
+.topo-legend { display: flex; flex-wrap: wrap; gap: 6px 18px; font-size: 12.5px; color: var(--muted); padding: 6px 8px 2px; }
+.topo-legend i { display: inline-block; width: 22px; height: 0; border-top: 3px solid var(--ok); vertical-align: middle; margin-right: 6px; }
+.topo-legend i.p { border-top: 2px dashed #5d6b79; } .topo-legend i.c { border-top: 3px solid #b98cff; }
+#topoInfo { font-size: 13.5px; padding: 6px 8px 4px; color: var(--ink); min-height: 1.5em; }
+#topoInfo b { color: #8fc1ff; }
+.pbox { cursor: pointer; } .pbox:hover .frame { stroke: #8fc1ff; stroke-width: 2; }
+.tile rect.body { fill: #26323f; stroke: #3a4a5c; }
+.tile .name { font: 700 15px var(--cond); fill: var(--ink); }
+.tile .status { font: 600 11.5px var(--sans); }
+.chipnf rect.body { fill: #2a2142; stroke: #6a52a8; }
+.uecard .k { font: 400 12.5px var(--sans); fill: var(--muted); }
+.uecard .k tspan.n { fill: var(--ink); font-weight: 600; }
 </style>
 </head>
 <body>
@@ -195,6 +233,7 @@ aside pre {
     <nav class="tabs" aria-label="Pages">
       <button class="tab on" data-page="overview" aria-current="page">Overview</button>
       <button class="tab" data-page="ue">UE KPIs</button>
+      <button class="tab" data-page="kpi">KPIs</button>
     </nav>
   </div>
   <div class="radio" id="radio">
@@ -224,13 +263,128 @@ aside pre {
 </div>
 <div class="errors" id="errors"></div>
 <main id="overview">
-<div class="topo-wrap">
-<svg id="topo" viewBox="0 0 1120 560" role="img" aria-label="Topology of the 5G core and RAN with the state of each function">
+<div class="topo-wrap"><div class="topo-panel">
+<svg id="topo" viewBox="0 0 1280 720" role="img" aria-label="O-RAN view of the bench: live parts with their state, planned parts in grey">
+  <g fill="none" stroke-linecap="round">
+    <path d="M230 320 H250 V78 H270" stroke="#5d6b79" stroke-width="2" stroke-dasharray="6 5"/>
+    <path d="M585 135 V170" stroke="#5d6b79" stroke-width="2" stroke-dasharray="6 5"/>
+    <path d="M900 90 H925 V210 H860" stroke="#5d6b79" stroke-width="2" stroke-dasharray="6 5"/>
+    <path d="M420 250 V290" stroke="#5d6b79" stroke-width="2" stroke-dasharray="6 5"/>
+    <path d="M790 250 V290" stroke="#5d6b79" stroke-width="2" stroke-dasharray="6 5"/>
+    <path d="M605 250 V290" stroke="#5d6b79" stroke-width="2" stroke-dasharray="6 5"/>
+    <path d="M900 70 H950" stroke="#5d6b79" stroke-width="2" stroke-dasharray="6 5"/>
+    <path d="M560 400 H600" stroke="#7b8a99" stroke-width="1.5" stroke-dasharray="3 3"/>
+    <path d="M560 470 H600" stroke="#7b8a99" stroke-width="1.5" stroke-dasharray="3 3"/>
+    <path d="M730 390 V420" stroke="#7b8a99" stroke-width="1.5" stroke-dasharray="3 3"/>
+    <path id="lUu" d="M560 600 H640" stroke="#3fb27f" stroke-width="3"/>
+    <path d="M455 490 V560" stroke="#3fb27f" stroke-width="3"/>
+    <path id="lN2" d="M860 350 H930 V318 H962" stroke="#b98cff" stroke-width="3"/>
+    <path id="lN3" d="M860 465 H930 V476 H962" stroke="#3fb27f" stroke-width="3"/>
+  </g>
+  <g font-size="12" fill="#93a4b5">
+    <text x="254" y="200">O2</text><text x="592" y="160">A1</text><text x="932" y="150">O1</text>
+    <text x="426" y="276">E2</text><text x="611" y="276">E2</text><text x="796" y="276">E2</text>
+    <text x="562" y="394" font-size="11">F1-c</text><text x="562" y="464" font-size="11">F1-u</text><text x="738" y="410" font-size="11">E1</text>
+    <text x="574" y="592" fill="#3fb27f">Uu</text><text x="462" y="530" fill="#3fb27f" font-size="11">IQ (rfsim)</text>
+    <text x="872" y="340" fill="#b98cff">N2</text><text x="872" y="486" fill="#3fb27f">N3</text>
+  </g>
+  <circle id="dN3" r="4" fill="#3fb27f" visibility="hidden"><animateMotion dur="1.6s" repeatCount="indefinite"><mpath href="#lN3"/></animateMotion></circle>
+  <circle id="dN2" r="4" fill="#b98cff" visibility="hidden"><animateMotion dur="3.2s" repeatCount="indefinite"><mpath href="#lN2"/></animateMotion></circle>
+  <circle id="dUu" r="4" fill="#3fb27f" visibility="hidden"><animateMotion dur="1.2s" repeatCount="indefinite"><mpath href="#lUu"/></animateMotion></circle>
+
+  <g class="pbox" data-k="infra">
+    <rect class="frame" x="16" y="150" width="214" height="360" rx="10" fill="rgba(0,0,0,0)" stroke="#5d6b79" stroke-dasharray="5 4"/>
+    <text x="30" y="174" font-size="13" fill="#93a4b5" font-weight="600">Bench infrastructure (O-Cloud)</text>
+    <rect x="30" y="186" width="186" height="92" rx="8" fill="#2f6b4a" stroke="#3fb27f"/>
+    <text x="44" y="210" font-size="14" fill="#fff" font-weight="650">REDLAB</text>
+    <text x="44" y="230" font-size="12" fill="#cfe9dc">k3s RAN · 10.42.0.1</text>
+    <text x="44" y="248" font-size="12" fill="#cfe9dc">Core Ultra 9 285 · 30 GiB</text>
+    <rect x="30" y="292" width="186" height="92" rx="8" fill="#4a3a73" stroke="#9b7be0"/>
+    <text x="44" y="316" font-size="14" fill="#fff" font-weight="650">P3 Tiny</text>
+    <text x="44" y="336" font-size="12" fill="#e2d8f7">k3s core · 10.42.0.2</text>
+    <text x="44" y="354" font-size="12" fill="#e2d8f7">i9-14900 · 30 GiB</text>
+    <rect x="30" y="398" width="186" height="92" rx="8" fill="#26313c" stroke="#5d6b79" stroke-dasharray="5 4"/>
+    <text x="44" y="422" font-size="14" fill="#93a4b5" font-weight="650">Jetson Orin NX</text>
+    <text x="44" y="442" font-size="12" fill="#93a4b5">10.42.0.3 · MEC / AI</text>
+    <text x="44" y="460" font-size="12" fill="#93a4b5">planned</text>
+  </g>
+  <g class="pbox" data-k="smo">
+    <rect class="frame" x="270" y="16" width="630" height="119" rx="10" fill="#26313c" stroke="#5d6b79" stroke-dasharray="6 5"/>
+    <text x="585" y="38" text-anchor="middle" font-size="15" fill="#c2ccd6" font-weight="600">Service Management and Orchestration (SMO)</text>
+    <rect x="300" y="50" width="570" height="74" rx="8" fill="#3a3524" stroke="#7d6a2c" stroke-dasharray="5 4"/>
+    <g font-size="12.5" fill="#d8c999">
+      <rect x="316" y="60" width="120" height="24" rx="4" fill="#4a4128"/><text x="376" y="77" text-anchor="middle">Inventory</text>
+      <rect x="444" y="60" width="120" height="24" rx="4" fill="#4a4128"/><text x="504" y="77" text-anchor="middle">KPI history</text>
+      <rect x="572" y="60" width="120" height="24" rx="4" fill="#4a4128"/><text x="632" y="77" text-anchor="middle">AI/ML models</text>
+      <rect x="700" y="60" width="150" height="24" rx="4" fill="#4a4128"/><text x="775" y="77" text-anchor="middle">rApps</text>
+    </g>
+    <text x="585" y="112" text-anchor="middle" font-size="13" fill="#b9a970">Non-Real-Time RIC · planned (after Lab 3)</text>
+  </g>
+  <g class="pbox" data-k="mec">
+    <rect class="frame" x="950" y="30" width="300" height="80" rx="8" fill="#26313c" stroke="#5d6b79" stroke-dasharray="5 4"/>
+    <text x="1100" y="62" text-anchor="middle" font-size="14" fill="#c2ccd6" font-weight="600">MEC app server</text>
+    <text x="1100" y="84" text-anchor="middle" font-size="12" fill="#93a4b5">Jetson · planned</text>
+  </g>
+  <g class="pbox" data-k="ric">
+    <rect class="frame" x="320" y="170" width="540" height="80" rx="10" fill="#26332a" stroke="#4f9a5a" stroke-dasharray="6 5"/>
+    <g font-size="12.5" fill="#bfe3c4">
+      <rect x="336" y="182" width="150" height="24" rx="4" fill="#33473a"/><text x="411" y="199" text-anchor="middle">KPM monitor xApp</text>
+      <rect x="494" y="182" width="150" height="24" rx="4" fill="#33473a"/><text x="569" y="199" text-anchor="middle">KPM-RC xApp</text>
+      <rect x="652" y="182" width="192" height="24" rx="4" fill="#33473a"/><text x="748" y="199" text-anchor="middle">IDS rules (Lab 4, core)</text>
+    </g>
+    <text x="590" y="234" text-anchor="middle" font-size="13" fill="#9fcfa6">Near-Real-Time RIC (FlexRIC) · planned · Lab 2 and Lab 3</text>
+  </g>
+  <g class="pbox" data-k="gnb">
+    <rect class="frame" x="330" y="290" width="550" height="230" rx="10" fill="rgba(0,0,0,0)" stroke="#2f6fb5" stroke-width="1.5"/>
+    <text x="345" y="314" font-size="13" fill="#8fc1ff" font-weight="600">OAI gNB 2026.w40 · one process (CU + DU, no F1/E1 split)</text>
+    <rect x="350" y="380" width="210" height="110" rx="8" fill="#9aa6b2"/>
+    <text x="512" y="402" font-size="14" fill="#1b2633" font-weight="650">DU</text>
+    <g font-size="12.5" fill="#fff"><rect x="362" y="390" width="70" height="26" rx="4" fill="#e07a35"/><text x="397" y="408" text-anchor="middle">RLC</text>
+      <rect x="362" y="448" width="70" height="26" rx="4" fill="#e07a35"/><text x="397" y="466" text-anchor="middle">MAC</text>
+      <rect x="442" y="448" width="104" height="26" rx="4" fill="#e07a35"/><text x="494" y="466" text-anchor="middle">PHY-High</text></g>
+    <rect x="600" y="320" width="260" height="70" rx="8" fill="#2f6fb5"/>
+    <text x="730" y="340" text-anchor="middle" font-size="14" fill="#fff" font-weight="650">CU-CP</text>
+    <g font-size="12.5" fill="#fff"><rect x="616" y="352" width="100" height="26" rx="4" fill="#e07a35"/><text x="666" y="370" text-anchor="middle">RRC</text>
+      <rect x="744" y="352" width="100" height="26" rx="4" fill="#e07a35"/><text x="794" y="370" text-anchor="middle">PDCP-C</text></g>
+    <rect x="600" y="420" width="260" height="70" rx="8" fill="#2f6fb5"/>
+    <text x="730" y="440" text-anchor="middle" font-size="14" fill="#fff" font-weight="650">CU-UP</text>
+    <g font-size="12.5" fill="#fff"><rect x="616" y="452" width="100" height="26" rx="4" fill="#e07a35"/><text x="666" y="470" text-anchor="middle">SDAP</text>
+      <rect x="744" y="452" width="100" height="26" rx="4" fill="#e07a35"/><text x="794" y="470" text-anchor="middle">PDCP-U</text></g>
+  </g>
+  <g class="pbox" data-k="ru">
+    <rect class="frame" x="350" y="560" width="210" height="96" rx="8" fill="#26313c" stroke="#7b8a99"/>
+    <text x="455" y="582" text-anchor="middle" font-size="14" fill="#c2ccd6" font-weight="650">RU → RF simulator</text>
+    <g font-size="12.5" fill="#93a4b5"><rect x="364" y="594" width="86" height="24" rx="4" fill="#33404d"/><text x="407" y="611" text-anchor="middle">PHY-Low</text>
+      <rect x="460" y="594" width="86" height="24" rx="4" fill="#33404d"/><text x="503" y="611" text-anchor="middle">RF: none</text></g>
+    <text x="455" y="642" text-anchor="middle" font-size="11.5" fill="#93a4b5">IQ on 127.0.0.1:4043 · no RF</text>
+  </g>
+  <g class="pbox" data-k="uebox">
+    <rect class="frame" x="640" y="548" width="240" height="160" rx="8" fill="#22303d" stroke="#3fb27f"/>
+    <text x="656" y="572" font-size="14" fill="#fff" font-weight="650">OAI nrUE</text>
+    <text x="656" y="590" font-size="11.5" fill="#93a4b5">oaitun_ue1 · SIM masked</text>
+  </g>
+  <g id="uecard" class="uecard"></g>
+  <g class="pbox" data-k="core">
+    <rect class="frame" x="950" y="270" width="310" height="300" rx="10" fill="#3b2d5c" stroke="#9b7be0"/>
+    <text x="1105" y="294" text-anchor="middle" font-size="15" fill="#fff" font-weight="650">5G Core · Open5GS 2.8.0</text>
+    <rect x="1062" y="510" width="188" height="30" rx="4" fill="#d6dde4"/>
+    <text x="1156" y="530" text-anchor="middle" font-size="12.5" fill="#1b2633">DN fctoai · internet (NAT)</text>
+    <text x="1105" y="558" text-anchor="middle" font-size="11.5" fill="#d9ccf5">P3 Tiny · N4 SMF-UPF inside the core</text>
+  </g>
+  <path d="M1008 496 V525 H1062" fill="none" stroke="#3fb27f" stroke-width="3"/>
+  <text x="1014" y="518" fill="#3fb27f" font-size="11">N6</text>
+  <g class="pbox" data-k="n2"><rect class="frame" x="890" y="600" width="180" height="42" rx="6" fill="#2b2440" stroke="#b98cff"/>
+    <text x="980" y="619" text-anchor="middle" font-size="12" fill="#e0d2ff">N2 capture (tshark)</text>
+    <text x="980" y="635" text-anchor="middle" font-size="11.5" fill="#b9a6e6">10.42.0.1:8091</text></g>
+  <g class="pbox" data-k="relay"><rect class="frame" x="1080" y="600" width="180" height="42" rx="6" fill="#22303d" stroke="#3fb27f"/>
+    <text x="1170" y="619" text-anchor="middle" font-size="12" fill="#cfe9dc">Noise relay</text>
+    <text x="1170" y="635" text-anchor="middle" font-size="11.5" fill="#9fcfb6">10.42.0.1:8092 · token</text></g>
   <g id="wires"></g>
   <g id="tiles"></g>
-  <g id="uecard" class="uecard"></g>
 </svg>
-</div>
+<div class="topo-legend"><span><i></i>live link</span><span><i class="c"></i>N2, captured</span><span><i class="p"></i>planned (lab not done yet)</span><span>Network functions, gNB and UE: select to read the log. Other boxes: select for details.</span></div>
+<div id="topoInfo"></div>
+</div></div>
 <section class="flow" aria-label="5G SA message flow">
   <div class="flow-head">
     <h2>5G SA message flow</h2>
@@ -247,6 +401,20 @@ aside pre {
   </div>
 </section>
 </main>
+<section id="kpi" class="kpipage" hidden>
+  <div class="uebar">
+    <div class="seg" role="group" aria-label="KPI domain">
+      <button data-kd="core" class="on">Core</button><button data-kd="ran">RAN (gNB)</button>
+    </div>
+    <div class="seg" role="group" aria-label="KPI window">
+      <button data-kw="300">5 min</button><button data-kw="900" class="on">15 min</button><button data-kw="3600">1 h</button><button data-kw="21600">6 h</button>
+    </div>
+    <span id="kpiNote" class="uenote"></span>
+  </div>
+  <div id="kpiErr" class="errors" style="margin:0 0 10px"></div>
+  <div id="kpiBody"></div>
+  <p class="uenote" id="kpiSrc"></p>
+</section>
 <section id="ue" class="uepage" hidden>
   <div class="uebar">
     <label>UE <select id="ueSel"></select></label>
@@ -270,33 +438,14 @@ aside pre {
   <pre id="logBody"></pre>
 </aside>
 <script>
-const W = 124, H = 74;
-// Layout: one entry per network function we expect to see.
+const W = 92, H = 40;
+// O-RAN view: one chip per function whose pod state we show. Positions are in the 1280x720 diagram.
 const NODES = [
-  // Control plane on the service-based interface
-  {role: "nrf", label: "NRF", c: "core", x: 316, y: 36, bus: "down"},
-  {role: "scp", label: "SCP", c: "core", x: 450, y: 36, bus: "down"},
-  {role: "ausf", label: "AUSF", c: "core", x: 584, y: 36, bus: "down"},
-  {role: "udm", label: "UDM", c: "core", x: 718, y: 36, bus: "down"},
-  {role: "udr", label: "UDR", c: "core", x: 852, y: 36, bus: "down"},
-  {role: "pcf", label: "PCF", c: "core", x: 986, y: 36, bus: "down"},
-  {role: "amf", label: "AMF", c: "core", x: 316, y: 166, bus: "up"},
-  {role: "smf", label: "SMF", c: "core", x: 584, y: 166, bus: "up"},
-  {role: "nssf", label: "NSSF", c: "core", x: 718, y: 166, bus: "up"},
-  {role: "mongodb", label: "MongoDB", c: "core", x: 852, y: 166},
-  {role: "bsf", label: "BSF", c: "core", x: 986, y: 166, bus: "up"},
-  {role: "upf", label: "UPF", c: "core", x: 584, y: 320},
-  // RAN
-  {role: "gnb", label: "gNB", c: "ran", x: 40, y: 320},
-  {role: "ue", label: "UE", c: "ran", x: 40, y: 470},
-  // 4G EPC, deployed alongside the 5G core
-  {role: "mme", label: "MME", c: "core", x: 584, y: 478, small: true},
-  {role: "hss", label: "HSS", c: "core", x: 690, y: 478, small: true},
-  {role: "pcrf", label: "PCRF", c: "core", x: 796, y: 478, small: true},
-  {role: "sgwc", label: "SGW-C", c: "core", x: 902, y: 478, small: true},
-  {role: "sgwu", label: "SGW-U", c: "core", x: 1008, y: 478, small: true},
-];
-const SMALL_W = 100, SMALL_H = 52;
+  ["amf", "AMF"], ["smf", "SMF"], ["nrf", "NRF"], ["scp", "SCP"], ["ausf", "AUSF"], ["udm", "UDM"],
+  ["udr", "UDR"], ["pcf", "PCF"], ["bsf", "BSF"], ["upf", "UPF"], ["nssf", "NSSF"], ["mongodb", "MongoDB"],
+].map(([role, label], i) => ({role, label, c: "core", x: 962 + (i % 3) * 98, y: 306 + Math.floor(i / 3) * 50}))
+ .concat([{role: "gnb", label: "gNB", c: "ran", x: 350, y: 328, w: 96},
+          {role: "ue", label: "UE", c: "ran", x: 800, y: 556, w: 72}]);
 const COLORS = {running: "var(--ok)", starting: "var(--warn)", stopping: "var(--warn)",
                 failed: "var(--fault)", missing: "var(--fault)", unknown: "var(--unknown)", off: "var(--unknown)"};
 const WORDS = {running: "Running", starting: "Starting", stopping: "Stopping",
@@ -310,49 +459,30 @@ function el(tag, attrs, text) {
   return e;
 }
 function path(d, cls) { return el("path", {d, class: "wire " + (cls || "")}); }
-function label(x, y, t, anchor) { return el("text", {x, y, class: "ifname", "text-anchor": anchor || "start"}, t); }
-
-function drawWires() {
-  const g = $("wires");
-  // SBI bus
-  g.append(path("M300 134 H1110"), label(300, 127, "SBI"));
-  for (const n of NODES.filter(n => n.bus)) {
-    const cx = n.x + W / 2;
-    g.append(n.bus === "down" ? path(`M${cx} ${n.y + H} V134`) : path(`M${cx} 134 V${n.y}`));
-  }
-  // MongoDB holds the UDR and PCF data
-  g.append(path("M914 166 V110", "dash"));
-  // N4 SMF-UPF, N6 UPF-data network
-  g.append(path("M646 240 V320"), label(654, 286, "N4"));
-  g.append(path("M708 357 H852"), label(780, 349, "N6", "middle"));
-  // N2 gNB-AMF, N3 gNB-UPF
-  g.append(path("M164 345 H378 V240"), label(270, 337, "N2", "middle"));
-  g.append(path("M164 375 H584"), label(374, 367, "N3", "middle"));
-  // Radio link UE-gNB
-  g.append(path("M102 470 V394", "radio"), label(112, 438, "Radio (rfsim)"));
-  // Data network
-  const dn = el("g", {class: "dn"});
-  dn.append(el("rect", {x: 852, y: 320, width: 258, height: 74, rx: 6}),
-            el("text", {x: 868, y: 350, style: "font:700 17px var(--cond)"}, "Data network fctoai"),
-            el("text", {x: 868, y: 372, style: "font:12px var(--sans)"}, "UE pool 10.45.0.0/16"));
-  g.append(dn);
-  // Section names
-  g.append(el("text", {x: 316, y: 24, class: "section"}, "Core, Open5GS on P3 Tiny"),
-           el("text", {x: 40, y: 306, class: "section"}, "RAN, OAI on REDLAB"),
-           el("text", {x: 584, y: 468, class: "section"}, "4G EPC, also deployed"));
-}
+const INFO = {
+  infra: "<b>Bench infrastructure</b>: two single-node k3s clusters on their own LAN (10.42.0.0/24, no link to the lab network). REDLAB runs the RAN, the P3 Tiny the core and this dashboard. The Jetson is reserved for MEC / AI.",
+  smo: "<b>SMO / Non-RT RIC</b>: not deployed. Planned after Lab 3, when there is a Near-RT RIC to give A1 policies to.",
+  mec: "<b>MEC app server</b>: planned on the Jetson (10.42.0.3), reached through the UPF.",
+  ric: "<b>Near-RT RIC (FlexRIC)</b>: not deployed. Lab 2 adds FlexRIC, the E2 agent in the gNB and a KPM monitor xApp; Lab 3 the KPM-RC closed loop.",
+  gnb: "<b>OAI gNB 2026.w40</b>: one process; CU-CP, CU-UP and DU are drawn to show where F1 and E1 would be. n78, 106 PRB, 30 kHz, CSI-RS on. NGAP to the AMF on 10.42.0.2:38412, N3 GTP-U on 10.42.0.1. Select the gNB chip to read its log.",
+  ru: "<b>RU replaced by the RF simulator</b>: IQ samples go over TCP 127.0.0.1:4043 between gNB and UE. No radio, no RF emission.",
+  uebox: "<b>OAI nrUE</b>: test SIM (values masked in all logs), tunnel oaitun_ue1. Channel model 0 is AWGN on the downlink; the noise relay changes it. Select the UE chip to read its log.",
+  core: "<b>Open5GS 2.8.0</b> on the P3 Tiny: 11 NFs and MongoDB. AMF and UPF on the host network. DNN fctoai, slice SST 1. Select a function to read its log.",
+  n2: "<b>N2 capture</b>: tshark on SCTP 38412 on REDLAB; decoded NGAP/NAS appear in the message flow. Bench LAN only.",
+  relay: "<b>Noise relay</b>: sets the UE's AWGN noise through the UE telnet on 127.0.0.1:9090. Needs a token; the DL channel buttons use it."
+};
+document.querySelectorAll(".pbox").forEach(g => g.addEventListener("click", () => { $("topoInfo").innerHTML = INFO[g.dataset.k] || ""; }));
+function drawWires() { /* links are static in the diagram markup */ }
 
 function drawTiles() {
   const g = $("tiles");
   for (const n of NODES) {
-    const w = n.small ? SMALL_W : W, h = n.small ? SMALL_H : H;
-    const t = el("g", {class: "tile" + (n.small ? " small" : ""), tabindex: 0, role: "button", id: "t-" + n.role});
-    t.append(el("rect", {class: "body", x: n.x, y: n.y, width: w, height: h, rx: 6}),
-             el("rect", {class: "bar", x: n.x, y: n.y, width: 6, height: h, rx: 2, fill: COLORS.unknown}),
-             el("text", {class: "name", x: n.x + 16, y: n.y + (n.small ? 21 : 25), style: n.label.length > 6 ? "font-size:15px" : ""}, n.label),
-             el("text", {class: "status", x: n.x + 16, y: n.y + (n.small ? 40 : 45), fill: COLORS.unknown}, WORDS.unknown));
-    if (!n.small) t.append(el("text", {class: "meta", x: n.x + 16, y: n.y + 63}, ""),
-                           el("text", {class: "meta up", x: n.x + w - 10, y: n.y + 24, "text-anchor": "end"}, ""));
+    const w = n.w || W, h = H;
+    const t = el("g", {class: "tile" + (n.c === "core" ? " chipnf" : ""), tabindex: 0, role: "button", id: "t-" + n.role});
+    t.append(el("rect", {class: "body", x: n.x, y: n.y, width: w, height: h, rx: 5}),
+             el("rect", {class: "bar", x: n.x, y: n.y, width: 5, height: h, rx: 2, fill: COLORS.unknown}),
+             el("text", {class: "name", x: n.x + 12, y: n.y + 17, style: n.label.length > 5 ? "font-size:13px" : ""}, n.label),
+             el("text", {class: "status", x: n.x + 12, y: n.y + 33, fill: COLORS.unknown}, WORDS.unknown));
     t.append(el("title", {}, n.label));
     t.addEventListener("click", () => openLog(n));
     t.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); openLog(n); } });
@@ -405,8 +535,11 @@ function render(data) {
     t.querySelector("title").textContent = p
       ? `${p.pod}\nnode ${p.node}\nrestarts ${p.restarts}\nselect to read the log`
       : `${n.label}: no pod found`;
-    if (n.c === "core" && !n.small) { coreAll++; if (state === "running") coreUp++; }
+    if (n.c === "core") { coreAll++; if (state === "running") coreUp++; }
   }
+  const run = r => { const p = latest.pods.find(p => p.cluster === "ran" && p.role === r); return p && p.state === "running"; };
+  $("dN2").setAttribute("visibility", run("gnb") ? "visible" : "hidden");
+  for (const id of ["dN3", "dUu"]) $(id).setAttribute("visibility", run("gnb") && run("ue") ? "visible" : "hidden");
   const s = $("summary");
   s.innerHTML = "";
   const part = (text, cls) => { const b = document.createElement("b"); b.textContent = text; b.className = cls; s.append(b); };
@@ -475,19 +608,22 @@ function renderRan(data) {
   const note = data.radioMode === "rfsim" ? "MAC goodput, simulated time" : "MAC goodput";
   $("kDlNote").textContent = note; $("kUlNote").textContent = note;
   const g = $("uecard"); g.innerHTML = "";
-  if (!stats.length) return;
-  const u = stats[stats.length - 1], x = 196, y = 444;
-  const line = (ty, parts) => {
-    const t = el("text", {x: x + 14, y: ty, class: "k"});
-    parts.forEach(([label, val]) => { t.append(document.createTextNode(label + " ")); const n = el("tspan", {class: "n"}, val + "   "); t.append(n); });
+  const nz = data.controls && data.controls.noise;
+  const x = 656, line = (ty, parts) => {
+    const t = el("text", {x, y: ty, class: "k"});
+    parts.forEach(([label, val], i) => { t.append(document.createTextNode((i ? " · " : "") + label + " ")); t.append(el("tspan", {class: "n"}, val)); });
     return t;
   };
-  g.append(path(`M164 507 H${x}`),
-    el("rect", {x, y, width: 370, height: 104, rx: 6}),
-    el("text", {x: x + 14, y: y + 22, class: "h"}, `RNTI 0x${u.rnti}` + (ran.lastImsi ? `   IMSI ${ran.lastImsi}` : "") + (stats.length > 1 ? `   (+${stats.length - 1} more)` : "")),
-    line(y + 44, [["RSRP", fmt(u.rsrp, 0) + " dBm"], ["CQI", fmt(u.cqi, 0)], ["RI", fmt(u.ri, 0)], ["PH", fmt(u.ph, 0) + " dB"]]),
-    line(y + 64, [["MCS DL", fmt(u.mcsDl, 0)], ["UL", fmt(u.mcsUl, 0)], ["BLER DL", fmt(u.blerDl * 100, 1) + "%"], ["UL", fmt(u.blerUl * 100, 1) + "%"]]),
-    line(y + 84, [["Goodput DL", fmt(u.goodputDl, 1)], ["UL", fmt(u.goodputUl, 1) + " Mbit/s"], ["SNR UL", fmt(u.snrPusch, 1) + " dB"]]));
+  const chan = ran.ueChan || {};
+  if (stats.length) {
+    const u = stats[stats.length - 1];
+    g.append(line(612, [["RNTI", "0x" + u.rnti], ["CQI", fmt(u.cqi, 0)], ["MCS", fmt(u.mcsDl, 0)]]),
+             line(632, [["SINR", fmt(chan.sinrUe, 1) + " dB"], ["BLER DL", fmt(u.blerDl * 100, 1) + "%"]]),
+             line(652, [["DL", fmt(u.goodputDl, 1)], ["UL", fmt(u.goodputUl, 1) + " Mbit/s (MAC)"]]));
+  } else {
+    g.append(el("text", {x, y: 620, class: "k"}, "No UE statistics from the gNB"));
+  }
+  g.append(line(678, [["DL channel", nz && nz.available ? `${nz.preset} (${fmt(nz.noiseDb, 1)} dB)` : "relay not reachable"]]));
 }
 
 // 5G SA message flow: N2 from packet capture, Uu from gNB/UE logs
@@ -752,15 +888,68 @@ document.querySelectorAll(".seg button").forEach(b => b.onclick = () => {
   document.querySelectorAll(".seg button").forEach(x => x.classList.toggle("on", x === b));
   ueWin = Number(b.dataset.w); pollUe();
 });
+// K1: core KPIs (counters -> KPI -> contributors)
+let kpiWin = 900, kpiTimer = null, kpiOpen = new Set(), kpiDom = "core";
+const KSRC = {core: "Counters from the Open5GS metrics (AMF, SMF, UPF, PCF), sampled every 15 s and kept for 6 h in the dashboard. A KPI is computed from the counter changes inside the window, as in a PM report. Select a KPI to see its counters, the failure counters that contribute to it (per cause where the core reports one) and where to look first. A dash means the core has not reported that counter yet (no such event so far).",
+              ran: "Counters from the OAI gNB MAC statistics (HARQ rounds, residual errors, DTX, CCE failures, sync state per UE), sampled every second and kept for 15 min; random access and RRC setup are counted from the gNB log events. Select a KPI to see its counters and the radio values to read when it degrades (SINR, CQI, MCS, BLER)."};
+const KSTATE = {ok: "within target", bad: "below target", idle: "no attempts in the window", nodata: "counter not reported", info: ""};
+function esc(t) { return String(t).replace(/[&<>"]/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}[c])); }
+function kv(v, u) { return v === null || v === undefined ? "–" : (u === "%" ? v.toFixed(2) : u === "Mbit/s" ? v.toFixed(2) : String(Math.round(v * 100) / 100)); }
+function renderKpi(d) {
+  $("kpiNote").textContent = kpiDom === "core"
+    ? `Window ${Math.round(d.span / 60)} of ${kpiWin / 60} min available · ${d.samples || 0} samples every ${d.step || 15} s · updated ${new Date(d.time || Date.now()).toLocaleTimeString()}`
+    : `${d.samples || 0} UE samples in the window (RAN history is kept 15 min) · updated ${new Date(d.time || Date.now()).toLocaleTimeString()}`;
+  const errs = Object.entries(d.errors || {});
+  $("kpiErr").innerHTML = errs.map(([nf, e]) => `<div>${esc(nf.toUpperCase())} metrics: ${esc(e)}</div>`).join("");
+  const body = $("kpiBody"); body.innerHTML = "";
+  let group = "";
+  for (const k of d.kpis) {
+    if (k.group !== group) { group = k.group; const h = document.createElement("h3"); h.className = "kgroup"; h.textContent = group; body.append(h); }
+    const row = document.createElement("div");
+    row.className = "krow " + k.status + (kpiOpen.has(k.id) ? " open" : "");
+    const op = k.sense === "max" ? "≤" : "≥";
+    const tgt = k.target === null || k.target === undefined ? "" : `target ${op} ${k.target}${k.unit === "%" ? "%" : ""}`;
+    row.innerHTML = `<button type="button" aria-expanded="${kpiOpen.has(k.id)}"><span class="dot"></span>
+      <span class="nm">${esc(k.name)}<small>${esc(KSTATE[k.status] || "")}</small></span>
+      <span class="val">${kv(k.value, k.unit)}<small>${esc(k.unit)}</small></span><span class="tg">${tgt}</span></button>
+      <div class="det"></div>`;
+    const det = row.querySelector(".det");
+    let h = `<table><tr><th>Counter</th><th>NF</th><th>${k.status === "nodata" || k.counters.some(c => "value" in c) ? "Value" : "Change in window"}</th></tr>`;
+    for (const c of k.counters) h += `<tr><td><code>${esc(c.name)}</code></td><td>${esc((c.nf || "").toUpperCase())}</td><td>${kv("value" in c ? c.value : c.delta, "")}</td></tr>`;
+    h += "</table>";
+    if (k.contributors.length) {
+      h += `<table><tr><th>Failure counter (contributor)</th><th>NF</th><th>Change</th><th>By cause / label</th></tr>`;
+      for (const c of k.contributors) h += `<tr><td><code>${esc(c.name)}</code></td><td>${esc((c.nf || "").toUpperCase())}</td><td>${kv(c.delta, "")}</td><td>${c.byLabel.length ? c.byLabel.map(b => `${esc(b.labels)}: ${kv(b.delta, "")}`).join("<br>") : "–"}</td></tr>`;
+      h += "</table>";
+    }
+    if (k.hint) h += `<div class="hint">${k.status === "bad" ? "<b>Degraded.</b> " : ""}${esc(k.hint)}</div>`;
+    h += `<div class="ref">${esc(k.ref)}</div>`;
+    det.innerHTML = h;
+    row.querySelector("button").onclick = () => { kpiOpen.has(k.id) ? kpiOpen.delete(k.id) : kpiOpen.add(k.id); row.classList.toggle("open"); row.querySelector("button").setAttribute("aria-expanded", row.classList.contains("open")); };
+    body.append(row);
+  }
+}
+async function pollKpi() {
+  $("kpiSrc").textContent = KSRC[kpiDom];
+  const dom = kpiDom, win = kpiWin;   // a slower answer for a previous selection must not overwrite the current one
+  try { const r = await fetch(`api/kpi?domain=${dom}&seconds=${win}`, {cache: "no-store"}); if (r.ok) { const d = await r.json(); if (dom === kpiDom && win === kpiWin) renderKpi(d); } } catch (e) { /* stale marker on the overview */ }
+}
+document.querySelectorAll("[data-kd]").forEach(b => b.onclick = () => {
+  document.querySelectorAll("[data-kd]").forEach(x => x.classList.toggle("on", x === b)); kpiDom = b.dataset.kd; kpiOpen.clear(); pollKpi();
+});
+document.querySelectorAll("[data-kw]").forEach(b => b.onclick = () => {
+  document.querySelectorAll("[data-kw]").forEach(x => x.classList.toggle("on", x === b)); kpiWin = Number(b.dataset.kw); pollKpi();
+});
 function showPage(p) {
   document.querySelectorAll(".tab").forEach(t => { const on = t.dataset.page === p; t.classList.toggle("on", on); on ? t.setAttribute("aria-current", "page") : t.removeAttribute("aria-current"); });
-  $("overview").hidden = p !== "overview"; $("ue").hidden = p !== "ue";
-  clearInterval(ueTimer);
+  $("overview").hidden = p !== "overview"; $("ue").hidden = p !== "ue"; $("kpi").hidden = p !== "kpi";
+  clearInterval(ueTimer); clearInterval(kpiTimer);
+  if (p === "kpi") { pollKpi(); kpiTimer = setInterval(pollKpi, 15000); }
   if (p === "ue") { pollUe(); ueTimer = setInterval(pollUe, 2000); }
-  history.replaceState(null, "", p === "ue" ? "#ue" : "#");
+  history.replaceState(null, "", p === "overview" ? "#" : "#" + p);
 }
 document.querySelectorAll(".tab").forEach(t => t.onclick = () => showPage(t.dataset.page));
-if (location.hash === "#ue") showPage("ue");
+if (["#ue", "#kpi"].includes(location.hash)) showPage(location.hash.slice(1));
 
 drawWires();
 drawTiles();

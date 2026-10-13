@@ -38,6 +38,8 @@ pre(){
 
 check(){
   echo "== Checks"
+  # The key and RBAC tests need root (SUDO_USER picks the user's secrets file and ssh config); without sudo they fail falsely.
+  [ "$(id -u)" = 0 ] && [ -n "${SUDO_USER:-}" ] || { echo "STOP: run with sudo as your login user: sudo MODE=$MODE bash infra/dash/dash.sh"; exit 1; }
   tiny 'k3s kubectl -n fct-dash rollout status deploy/fct-dash --timeout=120s' >/dev/null 2>&1 && ok "fct-dash running on the core" || bad "fct-dash not running"
   [ "$(curl -s -m 5 $URL/healthz)" = ok ] && ok "$URL/healthz answers from REDLAB" || bad "$URL/healthz does not answer"
   for i in $(seq 1 15); do st=$(curl -s -m 8 $URL/api/state); echo "$st" | python3 -c 'import json,sys; d=json.load(sys.stdin); sys.exit(0 if d["ran"]["ueStats"] else 1)' 2>/dev/null && break; sleep 2; done
@@ -76,6 +78,31 @@ sys.exit(fail)' || F=$((F+$?))
   sn=$(curl -s -m 5 "$URL/api/history?seconds=60" | python3 -c 'import json,sys; print(sum(r.get("sinrUe") is not None for r in json.load(sys.stdin)["rows"]))' 2>/dev/null)
   [ "${sn:-0}" -ge 10 ] && ok "UE SINR in the history: $sn samples in the last 60 s" || bad "UE SINR in the history: '${sn:-none}' samples (want >= 10)"
   [ "${rows:-0}" -ge 10 ] && ok "KPI history: $rows samples in the last 60 s" || bad "KPI history: '${rows:-none}' samples in the last 60 s (want >= 10)"
+  # K1: core KPIs from the Open5GS counters
+  for i in $(seq 1 12); do kp=$(curl -s -m 8 "$URL/api/kpi?seconds=900"); echo "$kp" | python3 -c 'import json,sys; sys.exit(0 if json.load(sys.stdin)["samples"] >= 2 else 1)' 2>/dev/null && break; sleep 5; done
+  echo "$kp" | python3 -c '
+import json, sys
+d = json.load(sys.stdin); k = {x["id"]: x for x in d["kpis"]}; fail = 0
+def r(good, msg):
+    global fail; fail += not good; print(("  PASS  " if good else "  FAIL  ") + msg)
+r(not d["errors"], "core metrics scraped from AMF, SMF, UPF, PCF (errors: %s)" % (d["errors"] or "none"))
+r(len(k) == 17, "%d core KPIs computed (want 17)" % len(k))
+r(k["gnb"]["value"] == 1 and k["pfcp_peers"]["value"] == 1, "gauges: gNBs %s, PFCP peers %s" % (k["gnb"]["value"], k["pfcp_peers"]["value"]))
+r((k["pdu_sessions"]["value"] or 0) >= 1, "active PDU sessions: %s" % k["pdu_sessions"]["value"])
+bad = [x["name"] for x in d["kpis"] if x["status"] == "bad"]
+r(not bad, "no KPI below target: %s" % (", ".join(bad) or "none"))
+sys.exit(fail)' || F=$((F+$?))
+  # K2: RAN KPIs from the gNB MAC counters
+  curl -s -m 8 "$URL/api/kpi?domain=ran&seconds=300" | python3 -c '
+import json, sys
+d = json.load(sys.stdin); k = {x["id"]: x for x in d["kpis"]}; fail = 0
+def r(good, msg):
+    global fail; fail += not good; print(("  PASS  " if good else "  FAIL  ") + msg)
+r(len(k) == 12, "%d RAN KPIs computed (want 12)" % len(k))
+r(d["samples"] >= 10, "RAN counter samples in 5 min: %d" % d["samples"])
+r(k["dl_retx"]["status"] in ("ok", "bad") and k["oos"]["status"] in ("ok", "bad"),
+  "HARQ and sync KPIs have data: DL retx %s %%, out of sync %s %%" % (k["dl_retx"]["value"], k["oos"]["value"]))
+sys.exit(fail)' || F=$((F+$?))
   # Every pod log the dashboard serves must be free of SIM keys.
   pods=$(echo "$st" | python3 -c 'import json,sys; [print(p["cluster"], p["pod"]) for p in json.load(sys.stdin)["pods"]]' 2>/dev/null)
   n=0; hit=0
