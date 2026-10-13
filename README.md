@@ -1,6 +1,6 @@
 # FCT 5G Testbed Dashboard
 
-A custom monitoring and control dashboard for an open-source 5G SA testbed in the FCT Lab, in the spirit of the OAIBOX dashboard. It gives one end-to-end view of the testbed: network function status, live signalling, and UE radio KPIs.
+A custom monitoring and control dashboard for an open-source 5G SA testbed in the FCT Lab It gives one end-to-end view of the testbed: network function status, live signalling, and UE radio KPIs.
 
 The testbed runs **in RF simulator mode only**. There is no over-the-air transmission.
 
