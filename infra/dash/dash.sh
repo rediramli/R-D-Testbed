@@ -117,6 +117,11 @@ if d["ues"]:
       "UE %s: SINR %s dB and CQI %s graded" % (u["rnti"], k["sinr"]["value"], k["cqi"]["value"]))
     r(u["diagnosis"]["id"] and len(u["diagnosis"]["chain"]) == 5, "UE %s: diagnosis %s" % (u["rnti"], u["diagnosis"]["id"]))
 sys.exit(fail)' || F=$((F+$?))
+  # P1a: /metrics for Prometheus (gNB MAC counters and UE radio values per RNTI, Uu events)
+  m=$(curl -s -m 5 "$URL/metrics")
+  echo "$m" | grep -q '^fct_ue_rntis [1-9]' && echo "$m" | grep -q '^fct_gnb_mac_total{rnti=' && echo "$m" | grep -q '^fct_uu_events_total{msg="msg1"}' \
+    && ok "/metrics: $(echo "$m" | grep -c '^fct_') series (MAC counters, radio values, Uu events)" || bad "/metrics incomplete"
+  echo "$m" | grep -qiE 'imsi|supi|[0-9a-f]{32}' && bad "/metrics contains an identity or key-like value" || ok "/metrics has no IMSI/SUPI or key-like value"
   # Every pod log the dashboard serves must be free of SIM keys.
   pods=$(echo "$st" | python3 -c 'import json,sys; [print(p["cluster"], p["pod"]) for p in json.load(sys.stdin)["pods"]]' 2>/dev/null)
   n=0; hit=0

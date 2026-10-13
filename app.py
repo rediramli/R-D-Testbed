@@ -656,12 +656,17 @@ def parse_k8s_ts(ts):
     return base.timestamp() + float("0." + (m[2] or "0")[:6])
 
 
+UU_KINDS = [("msg1", "Msg1"), ("msg2", "Msg2"), ("msg3", "Msg3"), ("msg4", "Msg4:"), ("msg4ack", "Msg4 acknowledged"),
+            ("rrcComplete", "RRCSetupComplete")]
+
+
 class UuEvents:
     def __init__(self):
         self.lock = threading.Lock()
         self.events = collections.deque(maxlen=500)
         self.seen = collections.deque(maxlen=2000)
         self.seq = 0
+        self.counts = {k: 0 for k, _ in UU_KINDS}   # since the dashboard started, for /metrics
 
     def ingest(self, role, text):
         for line in text.splitlines():
@@ -680,6 +685,9 @@ class UuEvents:
                     self.seq += 1
                     self.events.append({"seq": self.seq, "t": parse_k8s_ts(ts), "dir": d, "iface": "Uu",
                                         "proto": proto, "msg": label.format(*m.groups()), "src": role})
+                    for k, pre in UU_KINDS:
+                        if self.events[-1]["msg"].startswith(pre):
+                            self.counts[k] += 1
                 break
 
     def after(self, seq):
@@ -968,9 +976,7 @@ def uu_counts(seconds):
     cut = time.time() - seconds
     with UU.lock:
         ev = [e["msg"] for e in UU.events if e["t"] >= cut]
-    c = lambda p: sum(1 for m in ev if m.startswith(p))
-    return {"msg1": c("Msg1"), "msg2": c("Msg2"), "msg3": c("Msg3"), "msg4": c("Msg4:"), "msg4ack": c("Msg4 acknowledged"),
-            "rrcComplete": c("RRCSetupComplete")}
+    return {k: sum(1 for m in ev if m.startswith(pre)) for k, pre in UU_KINDS}
 
 
 def _pct(a, b):
@@ -1224,6 +1230,46 @@ def ue_kpis(seconds):
                                             "activeMbps": ACTIVE}, "ues": ues, "kpis": [], "errors": {}}
 
 
+# ---- P1: RAN and UE metrics for Prometheus (history beyond the in-memory windows) ----------
+# Exposition text format. Counters are the cumulative OAI MAC counters per RNTI (a new RNTI starts at 0, which
+# Prometheus increase() handles like a counter reset); gauges are the latest per-second sample of each RNTI seen in
+# the last METRICS_FRESH seconds. RNTIs are radio identifiers, not subscriber identities; no IMSI is exported.
+METRICS_FRESH = 30
+GAUGES = ["sinrUe", "cqi", "ri", "mcsDl", "mcsUl", "blerDl", "blerUl", "goodputDl", "goodputUl", "rsrp", "ph", "pcmax",
+          "nprbUl", "snrPucch", "snrPusch"]
+
+
+def metrics_text():
+    cut = time.time() - METRICS_FRESH
+    with HISTORY.lock:
+        last = {r: d[-1] for r, d in HISTORY.by_rnti.items() if d and d[-1]["t"] >= cut}
+    with UU.lock:
+        uu = dict(UU.counts)
+    out = ["# HELP fct_gnb_mac_total Cumulative OAI gNB MAC counter per RNTI (dlR0..3 = DL HARQ rounds, dlErr, pucchDtx, cceDl, ulR0..3, ulErr, ulDtx, cceUl).",
+           "# TYPE fct_gnb_mac_total counter"]
+    for r, x in sorted(last.items()):
+        for k in COUNTERS:
+            if k != "oos" and x.get(k) is not None:
+                out.append('fct_gnb_mac_total{rnti="%s",counter="%s"} %d' % (r, k, x[k]))
+    out += ["# HELP fct_ue_radio Latest per-second radio value per RNTI (UE SINR dB, CQI, MCS, BLER 0-1, MAC goodput Mbit/s in simulated time, RSRP dBm, PH dB, ...).",
+            "# TYPE fct_ue_radio gauge"]
+    for r, x in sorted(last.items()):
+        for k in GAUGES:
+            if x.get(k) is not None:
+                out.append('fct_ue_radio{rnti="%s",field="%s"} %s' % (r, k, repr(float(x[k]))))
+    out += ["# HELP fct_ue_out_of_sync 1 when the gNB reports the RNTI out-of-sync.", "# TYPE fct_ue_out_of_sync gauge"]
+    for r, x in sorted(last.items()):
+        if x.get("oos") is not None:
+            out.append('fct_ue_out_of_sync{rnti="%s"} %d' % (r, x["oos"]))
+    out += ["# HELP fct_uu_events_total Uu procedure events seen in the gNB log since the dashboard started.",
+            "# TYPE fct_uu_events_total counter"]
+    for k, _ in UU_KINDS:
+        out.append('fct_uu_events_total{msg="%s"} %d' % (k, uu.get(k, 0)))
+    out += ["# HELP fct_ue_rntis Number of RNTIs with a sample in the last %d s." % METRICS_FRESH, "# TYPE fct_ue_rntis gauge",
+            "fct_ue_rntis %d" % len(last), ""]
+    return "\n".join(out)
+
+
 STATE = State()
 CONTROL = Control()
 
@@ -1340,6 +1386,8 @@ class Handler(BaseHTTPRequestHandler):
                 return self.send(400, "domain must be core, ran or ue", "text/plain")
             fn = {"core": core_kpis, "ran": ran_kpis, "ue": ue_kpis}[dom]
             return self.send(200, json.dumps(fn(seconds)), "application/json")
+        if url.path == "/metrics":
+            return self.send(200, metrics_text(), "text/plain; version=0.0.4; charset=utf-8")
         if url.path == "/healthz":
             return self.send(200, "ok", "text/plain")
         self.send(404, "Not found", "text/plain")
