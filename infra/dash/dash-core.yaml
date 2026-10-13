@@ -1,0 +1,96 @@
+# Stage 4a, core cluster (P3 Tiny): the dashboard (app.py + index.html from the repo root), read-only.
+# It reads the open5gs namespace in its own cluster and the RAN cluster (REDLAB) through the token in Secret fct-dash-ran.
+# Reachable only on the bench LAN: hostPort 30880 bound to 10.42.0.2 (no NodePort, so not on other interfaces).
+# The ctl / admin / noise Secrets are optional and come with stage 4b-4d; without them the controls stay disabled.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: fct-dash
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: fct-dash-reader
+  namespace: fct-dash
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: fct-dash-read
+  namespace: open5gs
+rules:
+- apiGroups: [""]
+  resources: [pods, pods/log]
+  verbs: [get, list]
+- apiGroups: [apps]
+  resources: [deployments]
+  verbs: [get, list]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: fct-dash-read
+  namespace: open5gs
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: fct-dash-read
+subjects:
+- kind: ServiceAccount
+  name: fct-dash-reader
+  namespace: fct-dash
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fct-dash
+  namespace: fct-dash
+spec:
+  replicas: 1
+  strategy: {type: Recreate}   # hostPort: the old pod must free the port first
+  selector:
+    matchLabels: {app: fct-dash}
+  template:
+    metadata:
+      labels: {app: fct-dash}
+      annotations:
+        fct-dash/code-hash: "CODE_HASH"
+    spec:
+      serviceAccountName: fct-dash-reader
+      containers:
+      - name: dash
+        image: docker.io/library/python:3.12-alpine3.20
+        command: ["python", "/app/app.py"]
+        env:
+        - {name: RADIO_MODE, value: rfsim}
+        - {name: CORE_NAMESPACE, value: open5gs}
+        - {name: RAN_NAMESPACE, value: default}
+        - {name: CAPTURE_URL, value: "http://10.42.0.1:8091"}
+        - {name: NOISE_URL, value: "http://10.42.0.1:8092"}
+        - {name: PYTHONDONTWRITEBYTECODE, value: "1"}
+        - {name: PYTHONUNBUFFERED, value: "1"}
+        ports:
+        - {containerPort: 8080, hostPort: 30880, hostIP: 10.42.0.2}
+        readinessProbe:
+          httpGet: {path: /healthz, port: 8080}
+          periodSeconds: 5
+        resources:
+          requests: {cpu: 50m, memory: 64Mi}
+          limits: {cpu: 500m, memory: 256Mi}
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 65534
+          readOnlyRootFilesystem: true
+          allowPrivilegeEscalation: false
+        volumeMounts:
+        - {name: app, mountPath: /app, readOnly: true}
+        - {name: ran, mountPath: /etc/fct-dash/ran, readOnly: true}
+        - {name: ctl, mountPath: /etc/fct-dash/ctl, readOnly: true}
+        - {name: admin, mountPath: /etc/fct-dash/admin, readOnly: true}
+        - {name: noise, mountPath: /etc/fct-dash/noise, readOnly: true}
+      volumes:
+      - {name: app, configMap: {name: fct-dash-app}}
+      - {name: ran, secret: {secretName: fct-dash-ran}}
+      - {name: ctl, secret: {secretName: fct-dash-ctl, optional: true}}
+      - {name: admin, secret: {secretName: fct-dash-admin, optional: true}}
+      - {name: noise, secret: {secretName: fct-dash-noise, optional: true}}

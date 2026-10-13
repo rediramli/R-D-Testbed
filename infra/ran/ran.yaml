@@ -4,6 +4,9 @@
 # ConfigMaps oai-gnb-config / oai-ue-config are created by ran.sh from gnb.yaml and nr-ue.yaml.tpl.
 # The UE SIM comes from Secret ue1-sim; an init container renders it into an in-memory volume.
 # The UE does NOT use the image entrypoint (it prints the whole config); its own [SIM] log line is masked (see below).
+# UE extras (stage 4d): rfsim channel model (AWGN, noise -100 dB = no effect, set in nr-ue.yaml.tpl) and the OAI telnet
+# server on 127.0.0.1:9090 only, so the noise relay can change the downlink noise without restarting the UE.
+# The config-hash annotations are filled by ran.sh, so a changed gnb.yaml or nr-ue.yaml.tpl restarts the pod on apply.
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -17,6 +20,7 @@ spec:
   template:
     metadata:
       labels: {app: oai-gnb}
+      annotations: {fct/config-hash: "GNB_CONFIG_HASH"}
     spec:
       hostNetwork: true
       dnsPolicy: ClusterFirstWithHostNet
@@ -48,9 +52,11 @@ spec:
   template:
     metadata:
       labels: {app: oai-nr-ue}
+      annotations: {fct/config-hash: "UE_CONFIG_HASH"}
     spec:
       hostNetwork: true
       dnsPolicy: ClusterFirstWithHostNet
+      terminationGracePeriodSeconds: 15
       initContainers:
       - name: render-sim
         image: docker.io/library/busybox:1.36
@@ -66,15 +72,24 @@ spec:
         imagePullPolicy: IfNotPresent
         # OAI's [SIM] module prints "UICC simulation: IMSI=..., Ki=..., OPc=..." at start. The output goes through
         # sed, which masks the three values (taken from the same Secret) before anything reaches the pod log.
+        # bash stays PID 1 and passes SIGTERM on to the softmodem as SIGINT (its clean stop), so a Stop takes seconds,
+        # not the whole grace period.
         envFrom:
         - secretRef: {name: ue1-sim}
         command: ["/bin/bash", "-c"]
         args:
         - |
-          set -o pipefail
           stdbuf -oL -eL /opt/oai-nr-ue/bin/nr-uesoftmodem -O /cfg/nr-ue.yaml -E --rfsim -r 106 --numerology 1 -C 3319680000 \
-            "--rfsimulator.[0].serveraddr" 127.0.0.1 --log_config.global_log_options level,nocolor,time 2>&1 \
-            | sed -u -E "s/$KI/<K masked>/Ig; s/$OPC/<OPc masked>/Ig; s/$IMSI/<IMSI masked>/g"
+            "--rfsimulator.[0].serveraddr" 127.0.0.1 "--rfsimulator.[0].options" chanmod \
+            --telnetsrv --telnetsrv.listenaddr 127.0.0.1 --telnetsrv.listenport 9090 \
+            --log_config.global_log_options level,nocolor,time \
+            > >(sed -u -E "s/$KI/<K masked>/Ig; s/$OPC/<OPc masked>/Ig; s/$IMSI/<IMSI masked>/g") 2>&1 &
+          ue=$!
+          trap 'kill -INT $ue 2>/dev/null' TERM INT
+          wait $ue; rc=$?
+          if [ $rc -gt 128 ] && kill -0 $ue 2>/dev/null; then wait $ue; rc=$?; fi   # woken by the trap: wait for the exit
+          sleep 0.5   # let sed flush the last lines
+          exit $rc
         securityContext:
           privileged: true
         volumeMounts:

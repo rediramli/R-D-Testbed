@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """N2 capture service for the FCT dashboard (D3: message flow).
 
-Runs on the RAN host (FCT0173) with host networking. tshark watches SCTP
+Runs on the RAN host (bench: REDLAB) with host networking. tshark watches SCTP
 port 38412 and decodes NGAP and NAS-5GS; this service keeps the last
 messages in memory and serves them as JSON. It never stores packets to disk.
 """
@@ -16,6 +16,7 @@ import time
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 PORT = int(os.environ.get("PORT", "8091"))
+BIND = os.environ.get("BIND", "0.0.0.0")  # bench: the LAN address only, so it is not reachable from Wi-Fi or Tailscale
 IFACE = os.environ.get("CAPTURE_IFACE", "any")
 GNB_IP = os.environ.get("GNB_IP", "10.0.129.7")
 KEEP = int(os.environ.get("KEEP_MESSAGES", "1000"))
@@ -91,5 +92,5 @@ class Handler(BaseHTTPRequestHandler):
 
 if __name__ == "__main__":
     threading.Thread(target=run_tshark, daemon=True).start()
-    print(f"n2-capture on :{PORT}, iface={IFACE}, gNB={GNB_IP}", flush=True)
-    ThreadingHTTPServer(("0.0.0.0", PORT), Handler).serve_forever()
+    print(f"n2-capture on {BIND}:{PORT}, iface={IFACE}, gNB={GNB_IP}", flush=True)
+    ThreadingHTTPServer((BIND, PORT), Handler).serve_forever()

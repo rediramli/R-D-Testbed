@@ -3,7 +3,7 @@
 
 Standard library only, so it runs on a plain python:3.12-alpine image.
 Read-only: it lists pods and reads pod logs in two Kubernetes clusters
-(core on FCT0172, RAN on FCT0173) with the fct-dash-reader account.
+(core on the P3 Tiny, RAN on REDLAB) with the fct-dash-reader account.
 """
 import collections
 import csv
@@ -134,9 +134,56 @@ RE_GNB_UES = re.compile(r"Number of gNB-UEs is now (\d+)")
 RE_IMSI_OK = re.compile(r"\[imsi-(\d+)\] Registration complete")
 RE_HDR = re.compile(r"UE RNTI ([0-9a-fA-F]{4}) .*?PH (-?\d+) dB PCMAX (-?\d+) dBm, average RSRP (-?\d+)")
 RE_CSI = re.compile(r"UE ([0-9a-fA-F]{4}): CSI \[CQI (\d+) RI (\d+)")
-RE_DL = re.compile(r"UE ([0-9a-fA-F]{4}): dlsch_rounds .*?\(SNR ([-\d.]+)[^)]*\) RSSI ([-\d.]+), BLER ([\d.]+) MCS \(\d+\) (\d+)")
+RE_DL = re.compile(r"UE ([0-9a-fA-F]{4}): dlsch_rounds .*?\(SNR ([-\d.]+)[^)]*\) RSSI ([-\d.]+), BLER ([\d.]+) MCS \((\d+)\) (\d+)")
 RE_UL = re.compile(r"UE ([0-9a-fA-F]{4}): ulsch_rounds .*?BLER ([\d.]+) MCS \(\d+\) (\d+).*?NPRB (\d+)\s+SNR ([-\d.]+).*?RSSI ([-\d.]+)")
 RE_GP = re.compile(r"UE ([0-9a-fA-F]{4}): .*?goodput DL\s+([\d.]+) UL\s+([\d.]+)")
+
+
+# UE side (nrUE log): "DL Chan: SSB 1 SINR 43.3 dB RSRP -41 dBm, RI 1 CQI 15 CSI-RS RSRP -41 dBm"
+RE_UE_CHAN = re.compile(r"DL Chan: SSB \d+ SINR ([-\d.]+) dB RSRP (-?\d+) dBm, RI (\d+) CQI (\d+)")
+
+# 3GPP TS 38.214 CQI tables: (modulation, Qm, code rate x 1024, spectral efficiency). Index 0 = out of range.
+CQI_TABLES = {
+    1: ("TS 38.214 Table 5.2.2.1-2 (CQI table 1, up to 64QAM)", [
+        ("QPSK", 2, 78, 0.1523), ("QPSK", 2, 120, 0.2344), ("QPSK", 2, 193, 0.3770), ("QPSK", 2, 308, 0.6016),
+        ("QPSK", 2, 449, 0.8770), ("QPSK", 2, 602, 1.1758), ("16QAM", 4, 378, 1.4766), ("16QAM", 4, 490, 1.9141),
+        ("16QAM", 4, 616, 2.4063), ("64QAM", 6, 466, 2.7305), ("64QAM", 6, 567, 3.3223), ("64QAM", 6, 666, 3.9023),
+        ("64QAM", 6, 772, 4.5234), ("64QAM", 6, 873, 5.1152), ("64QAM", 6, 948, 5.5547)]),
+    2: ("TS 38.214 Table 5.2.2.1-3 (CQI table 2, up to 256QAM)", [
+        ("QPSK", 2, 78, 0.1523), ("QPSK", 2, 193, 0.3770), ("QPSK", 2, 449, 0.8770), ("16QAM", 4, 378, 1.4766),
+        ("16QAM", 4, 490, 1.9141), ("16QAM", 4, 616, 2.4063), ("64QAM", 6, 466, 2.7305), ("64QAM", 6, 567, 3.3223),
+        ("64QAM", 6, 666, 3.9023), ("64QAM", 6, 772, 4.5234), ("64QAM", 6, 873, 5.1152), ("256QAM", 8, 711, 5.5547),
+        ("256QAM", 8, 797, 6.2266), ("256QAM", 8, 885, 6.9141), ("256QAM", 8, 948, 7.4063)]),
+}
+# Lowest SINR (dB) for CQI 1..15 of table 1 at a 10 % BLER target. Typical link-level values, NOT specified by 3GPP
+# (38.214 only says the UE reports the highest CQI whose transport block would meet BLER <= 0.1).
+TYPICAL_SINR_T1 = [-6.7, -4.7, -2.3, 0.2, 2.4, 4.3, 5.9, 8.1, 10.3, 11.7, 14.1, 16.3, 18.7, 21.0, 22.7]
+
+
+def parse_ue_chan(text):
+    m = RE_UE_CHAN.findall(text)
+    if not m:
+        return {}
+    sinr, rsrp, ri, cqi = m[-1]
+    return {"sinrUe": float(sinr), "rsrpUe": float(rsrp), "riUe": int(ri), "cqiUe": int(cqi)}
+
+
+def cqi_view(cqi, mcs_table, sinr):
+    """Reported CQI as a row of the 38.214 table, and the CQI a typical receiver would reach at this SINR.
+    OAI picks the CQI table that matches the DL MCS table (MCS (0) = 64QAM tables, (1) = 256QAM tables)."""
+    t = 2 if mcs_table == 1 else 1
+    name, rows = CQI_TABLES[t]
+    exp = None
+    if t == 1 and sinr is not None:
+        exp = sum(1 for thr in TYPICAL_SINR_T1 if sinr >= thr)
+    cqi = None if cqi is None else int(cqi)
+    return {"table": t, "name": name,
+            "rows": [{"cqi": i + 1, "mod": m, "qm": q, "rate": r, "eff": e,
+                      "sinrMin": TYPICAL_SINR_T1[i] if t == 1 else None} for i, (m, q, r, e) in enumerate(rows)],
+            "cqi": cqi, "sinr": sinr, "expectedCqi": exp,
+            "delta": None if cqi is None or exp is None else cqi - exp,
+            "note": "CQI table from the DL MCS table index in the gNB log; SINR is the UE's SSB SINR; "
+                    "SINR thresholds are typical values for BLER 10 %, not 3GPP values."}
 
 
 def last_int(regex, text):
@@ -155,7 +202,7 @@ def parse_gnb_stats(text):
     ues, order = {}, []
     for line in text.splitlines():
         for rx, keys in ((RE_HDR, ("ph", "pcmax", "rsrp")), (RE_CSI, ("cqi", "ri")),
-                         (RE_DL, ("snrPucch", "rssiDl", "blerDl", "mcsDl")),
+                         (RE_DL, ("snrPucch", "rssiDl", "blerDl", "mcsTableDl", "mcsDl")),
                          (RE_UL, ("blerUl", "mcsUl", "nprbUl", "snrPusch", "rssiUl")),
                          (RE_GP, ("goodputDl", "goodputUl"))):
             m = rx.search(line)
@@ -238,6 +285,16 @@ class State:
                 res["errors"].append("gNB log: " + describe_error(e))
         else:
             res["gnbs"] = 0 if res["gnbs"] is None else res["gnbs"]
+        uep = next((p for p in pods if p["cluster"] == "ran" and p["role"] == "ue" and p["state"] == "running"), None)
+        chan = {}
+        if uep:
+            try:
+                chan = parse_ue_chan(self.logs("ran", uep["pod"], 80))
+            except Exception as e:
+                res["errors"].append("UE log: " + describe_error(e))
+        res["ueChan"] = chan
+        last = res["ueStats"][-1] if res["ueStats"] else {}
+        res["cqiView"] = cqi_view(last.get("cqi"), last.get("mcsTableDl"), chan.get("sinrUe")) if last else None
         return res
 
     def logs(self, cluster, pod, lines):
@@ -328,7 +385,7 @@ def mock_flow(after):
 # ---- D5: per-UE KPI history, sampled once per second ----------------------
 HISTORY_SECONDS = int(os.environ.get("HISTORY_SECONDS", "900"))
 FIELDS = ["rsrp", "ph", "pcmax", "cqi", "ri", "snrPucch", "snrPusch", "rssiDl", "rssiUl",
-          "mcsDl", "mcsUl", "blerDl", "blerUl", "nprbUl", "goodputDl", "goodputUl"]
+          "mcsDl", "mcsUl", "blerDl", "blerUl", "nprbUl", "goodputDl", "goodputUl", "sinrUe"]
 
 
 class History:
@@ -370,7 +427,17 @@ def sampler():
                     cl, ns, err = STATE.clusters["ran"]
                     if not err:
                         text = cl.get(f"/api/v1/namespaces/{ns}/pods/{gnb['pod']}/log?sinceSeconds=3", raw=True)
+                        uep = next((p for p in pods if p["cluster"] == "ran" and p["role"] == "ue"
+                                    and p["state"] == "running"), None)
+                        chan = {}
+                        if uep:
+                            try:  # one UE in rfsim: its SINR belongs to the (single) RNTI the gNB reports
+                                chan = parse_ue_chan(cl.get(f"/api/v1/namespaces/{ns}/pods/{uep['pod']}/log?sinceSeconds=3", raw=True))
+                            except Exception:
+                                pass
                         for ue in parse_gnb_stats(text):
+                            if chan:
+                                ue["sinrUe"] = chan["sinrUe"]
                             if "goodputDl" in ue:
                                 HISTORY.add(t0, ue)
         except Exception:
@@ -504,6 +571,15 @@ class Control:
         if action not in steps:
             raise ValueError("unknown action")
         if not MOCK:
+            with STATE.lock:
+                STATE.cached_at = 0  # decide on fresh pod states, not a 2 s old snapshot
+            stopping = lambda role: any(p["cluster"] == "ran" and p["role"] == role and p["state"] == "stopping"
+                                        for p in STATE.snapshot()["pods"])
+            # A new UE (same SIM) or gNB next to one that is still shutting down puts two of them on the rfsim link.
+            if action == "ue-start" and stopping("ue"):
+                return False, "The previous UE is still stopping; press Start again when it has gone."
+            if action == "gnb-start" and stopping("gnb"):
+                return False, "The previous gNB is still stopping; press Start again when it has gone."
             if action == "ue-start" and not ready("gnb"):
                 return False, "Start the gNB first; the UE needs a running cell."
             if action.startswith("speed-") and action != "speed-stop" and not ready("ue"):
@@ -536,10 +612,17 @@ UU_RULES = [  # (pod role, regex, direction, protocol, label template)
 UU_RULES = [(r, re.compile(x), d, p, l) for r, x, d, p, l in UU_RULES]
 
 
+RE_K8S_TS = re.compile(r"(\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d)(?:\.(\d+))?(Z|[+-]\d\d:\d\d)$")
+
+
 def parse_k8s_ts(ts):
-    """'2026-10-06T06:44:55.996342288Z' -> epoch seconds (microsecond precision)."""
-    main, _, frac = ts.rstrip("Z").partition(".")
-    return datetime.fromisoformat(main).replace(tzinfo=timezone.utc).timestamp() + float("0." + (frac or "0")[:6])
+    """Kubelet log timestamp -> epoch seconds (microsecond precision). The kubelet writes UTC ('...Z') or the
+    node's local offset ('2026-10-13T14:19:11.037992879+08:00', as on REDLAB); both must keep their offset."""
+    m = RE_K8S_TS.match(ts)
+    if not m:
+        raise ValueError("unknown timestamp " + ts)
+    base = datetime.fromisoformat(m[1] + ("+00:00" if m[3] == "Z" else m[3]))
+    return base.timestamp() + float("0." + (m[2] or "0")[:6])
 
 
 class UuEvents:
