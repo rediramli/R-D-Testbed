@@ -1,0 +1,50 @@
+# Stage 4a, RAN cluster (REDLAB): read-only account for the dashboard that runs on the core host.
+# It may list pods and deployments and read pod logs in the default namespace (oai-gnb, oai-nr-ue).
+# It may not read Secrets (ue1-sim lives in default) and may not change anything.
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: fct-dash
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: fct-dash-reader
+  namespace: fct-dash
+automountServiceAccountToken: false
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: fct-dash-reader-token
+  namespace: fct-dash
+  annotations:
+    kubernetes.io/service-account.name: fct-dash-reader
+type: kubernetes.io/service-account-token
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: fct-dash-read
+  namespace: default
+rules:
+- apiGroups: [""]
+  resources: [pods, pods/log]
+  verbs: [get, list]
+- apiGroups: [apps]
+  resources: [deployments]
+  verbs: [get, list]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: fct-dash-read
+  namespace: default
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: fct-dash-read
+subjects:
+- kind: ServiceAccount
+  name: fct-dash-reader
+  namespace: fct-dash

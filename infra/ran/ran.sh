@@ -3,7 +3,8 @@
 # Run ON REDLAB from the repo root:   sudo MODE=preview bash infra/ran/ran.sh
 #   MODE=preview  show what would change (default; pulls images, changes nothing else)
 #   MODE=apply    copy the test SIM from the core host if missing, create ConfigMaps + Secret, apply ran.yaml, then check
-#   MODE=check    tests only: NG Setup, UE registered with an IP, ping UPF gateway and internet through the UE tunnel
+#   MODE=check    tests only: NG link, UE registered with an IP, pings through the UE tunnel, SIM masking,
+#                 UE channel model (AWGN -100 dB) and telnet on 127.0.0.1:9090 only
 #   MODE=remove   delete both Deployments, ConfigMaps and the Secret (the SIM file stays)
 # Safety: --rfsim is checked in the manifest; the SIM keys are never printed (file mode 600, Secret, in-memory volume).
 set -u
@@ -15,6 +16,29 @@ SECRETS=$UHOME/testbed-secrets/ue1.env
 AMF=10.42.0.2; GNB_IP=10.42.0.1
 asuser(){ sudo -u "$USER_NAME" -H "$@"; }
 F=0; ok(){ echo "  PASS  $1"; }; bad(){ echo "  FAIL  $1"; F=$((F+1)); }
+tn(){  # tn "command" -> output of one OAI telnet command on the UE (127.0.0.1:9090)
+python3 - "$1" <<'TNEOF'
+import socket, sys, time
+try:
+    s = socket.create_connection(("127.0.0.1", 9090), 3)
+except OSError as e:
+    print("TELNET CONNECT FAILED:", e); sys.exit(0)
+s.settimeout(1)
+def drain():
+    out = b""
+    try:
+        while True:
+            d = s.recv(65536)
+            if not d: break
+            out += d
+    except Exception:
+        pass
+    return out.decode(errors="replace")
+time.sleep(0.4); drain()
+s.sendall((sys.argv[1] + "\n").encode()); time.sleep(0.8)
+print(drain().strip()); s.close()
+TNEOF
+}
 
 pre(){
   echo "== Preconditions"
@@ -36,6 +60,10 @@ pre(){
   [ -f "$SECRETS" ] && ok "SIM file $SECRETS present (not shown)" || echo "  note  SIM file missing; apply copies it from the core host (ssh tiny), mode 600"
   for img in $(grep -oE 'image: [^ ]+' "$DIR/ran.yaml" | awk '{print $2}' | sort -u); do
     k3s crictl pull "$img" >/dev/null 2>&1 && ok "image available: $img" || bad "image NOT available: $img"; done
+  line=$(ss -Hltnp "( sport = :9090 )" | head -1)
+  if [ -z "$line" ]; then ok "port 9090 free (UE telnet)"
+  elif echo "$line" | grep -q '"nr-uesoftmodem"'; then ok "port 9090 held by our UE telnet (re-apply)"
+  else bad "port 9090 in use: $(echo "$line" | awk '{print $4, $NF}')"; fi
 }
 
 check(){
@@ -67,6 +95,14 @@ check(){
   n=$(for f in $files; do zgrep -q "UICC simulation: IMSI=<IMSI masked>.*Ki=<K masked>.*OPc=<OPc masked>" "$f" && echo "$f"; done | wc -l)
   [ "$n" -ge 1 ] && ok "masked [SIM] line present in the UE logs" || bad "masked [SIM] line not found in any UE log file"
   [ "$(ip -4 route show default | grep -c oaitun)" = 0 ] && ok "host default route not via the UE tunnel" || bad "default route goes through oaitun_ue1"
+  a=$($KC get deploy oai-nr-ue -o jsonpath='{.spec.template.spec.containers[0].args}')
+  echo "$a" | grep -q "options.*chanmod" && echo "$a" | grep -q "listenaddr 127.0.0.1" \
+    && ok "UE runs with the channel model and telnet on 127.0.0.1" || bad "UE args without chanmod / telnet listenaddr"
+  L=$(ss -Hltn "( sport = :9090 )" | awk '{print $4}' | sort -u | tr '\n' ' ')
+  [ "$L" = "127.0.0.1:9090 " ] && ok "UE telnet listens on 127.0.0.1:9090 only" || bad "telnet listeners on 9090: '$L' (want only 127.0.0.1:9090)"
+  cm=$(tn "channelmod show current")
+  echo "$cm" | grep -q "rfsimu_channel_enB0" && echo "$cm" | grep -qi "AWGN" && echo "$cm" | grep -qE -- "-100" \
+    && ok "UE channel model 0: rfsimu_channel_enB0, AWGN, noise -100 dB" || bad "channel model not as expected: $(echo "$cm" | head -4 | tr '\n' ' ')"
   echo "RESULT: $([ $F = 0 ] && echo PASS || echo "FAIL ($F)")"
 }
 
@@ -90,9 +126,14 @@ apply)
   $KC create configmap oai-gnb-config --from-file=gnb.yaml="$DIR/gnb.yaml" --dry-run=client -o yaml | $KC apply -f -
   $KC create configmap oai-ue-config --from-file=nr-ue.yaml.tpl="$DIR/nr-ue.yaml.tpl" --dry-run=client -o yaml | $KC apply -f -
   $KC create secret generic ue1-sim --from-env-file="$SECRETS" --dry-run=client -o yaml | $KC apply -f - >/dev/null && echo "secret/ue1-sim applied"
-  $KC apply -f "$DIR/ran.yaml"
+  GH=$(sha256sum "$DIR/gnb.yaml" | cut -c1-12); UH=$(sha256sum "$DIR/nr-ue.yaml.tpl" | cut -c1-12)
+  sed -e "s/GNB_CONFIG_HASH/$GH/" -e "s/UE_CONFIG_HASH/$UH/" "$DIR/ran.yaml" | $KC apply -f -
   $KC rollout status deploy/oai-gnb --timeout=180s; sleep 10
   $KC rollout status deploy/oai-nr-ue --timeout=180s
+  # The UE must attach to the gNB that is running now: if the gNB pod is newer, restart the UE once.
+  gs=$($KC get pods -l app=oai-gnb -o jsonpath='{.items[0].status.startTime}'); us=$($KC get pods -l app=oai-nr-ue -o jsonpath='{.items[0].status.startTime}')
+  if [[ "$us" < "$gs" ]]; then echo "UE started before the current gNB: restarting the UE"
+    $KC rollout restart deploy/oai-nr-ue; $KC rollout status deploy/oai-nr-ue --timeout=180s; sleep 10; fi
   F=0; check ;;
 check) check ;;
 remove)

@@ -11,3 +11,17 @@ uicc0:
 thread-pool: "-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1"
 rfsimulator:
   - serveraddr: "127.0.0.1"
+# rfsim channel model (stage 4d). Model 0 (rfsimu_channel_enB0) is applied to what the UE receives from the gNB (downlink).
+# noise_power_dB -100 = no effect; the noise relay changes it at run time through the telnet server (127.0.0.1:9090).
+channelmod:
+  max_chan: 10
+  modellist: modellist_rfsimu_1
+  modellist_rfsimu_1:
+    - model_name: rfsimu_channel_enB0
+      type: AWGN
+      ploss_dB: 0
+      noise_power_dB: -100
+    - model_name: rfsimu_channel_ue0
+      type: AWGN
+      ploss_dB: 0
+      noise_power_dB: -100

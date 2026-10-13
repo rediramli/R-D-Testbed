@@ -21,7 +21,7 @@ Everything needed to rebuild it is in `infra/`; secrets stay on the machines.
 | Host | Address | Role | Status |
 |---|---|---|---|
 | REDLAB (Lenovo P3 Ultra SFF Gen 2, Core Ultra 9 285) | `10.42.0.1` | RAN: OAI gNB + nrUE (rfsim); LAN gateway (NetworkManager shared mode) | done, stage 2 PASS |
-| P3 Tiny (Core i9-14900, 30 GiB) | `10.42.0.2` | 5G core: Open5GS 2.8.0 on k3s v1.31.4 | done, stage 1 PASS |
+| P3 Tiny (Core i9-14900, 30 GiB) | `10.42.0.2` | 5G core: Open5GS 2.8.0 on k3s v1.31.4; dashboard; iperf3 servers | done, stage 1 and 4 PASS |
 | reComputer J4012 (Jetson Orin NX 16 GB) | `10.42.0.3` | MEC / AI (later) | network only |
 
 Core on the P3 Tiny: k3s with pods `10.244.0.0/16` and services `10.96.0.0/16` (the k3s defaults overlap the bench LAN).
@@ -38,6 +38,26 @@ so its output goes through a filter that masks IMSI, K and OPc before it reaches
 Stage 2 test: `infra/ran/ran.sh` MODE=check, 5 consecutive runs PASS (2026-10-13): SCTP NGAP association up on both ends,
 UE `10.45.0.3`, ping to the UPF and to the internet through the tunnel, no SIM value in any UE log file (rotated files included),
 host default route untouched, no pod restarts.
+
+Dashboard on the bench (stage 4, 2026-10-13), all scripts in `infra/dash/`, each with preview / apply / check / remove:
+
+| Step | Script | What it adds | Test (PASS) |
+|---|---|---|---|
+| 4a | `dash.sh` | Dashboard on the P3 Tiny, `http://10.42.0.2:30880` (bench LAN only, hostPort on `10.42.0.2`); read-only accounts on both clusters; CQI/SINR panel with the TS 38.214 CQI table | 12 NFs + gNB + UE seen, KPIs from the gNB log, no SIM key in any served log, readers cannot write or read Secrets |
+| 4b | `control.sh` | Admin password, controller account (may only scale `oai-gnb`, `oai-nr-ue`, `speedtest-dl`, `speedtest-ul`), iperf3 servers on `10.45.0.1`, speed-test clients bound to `oaitun_ue1` | DL and UL speed test through the dashboard API, UE kept its address, no restarts |
+| 4c | `capture.sh` | N2 capture (tshark, NGAP) on `10.42.0.1:8091` for the message flow | full registration in the flow after a UE restart, no SIM key |
+| 4d | `noise.sh` | UE channel model (AWGN, model 0) and telnet on `127.0.0.1:9090` (`infra/ran`), noise relay on `10.42.0.1:8092` with a token | DL test with presets off / poor / off: CQI 15 / 5 / 15, DL MCS 28 / 6 / 28 |
+
+From the laptop: `ssh -L 8080:10.42.0.2:30880 redi@<REDLAB tailscale IP>`, then `http://localhost:8080`.
+The gNB runs with `do_CSIRS: 1`; without it the UE sends no CSI reports and there is no CQI.
+
+Baseline without noise (`control.sh` MODE=baseline, 3 x 20 s, MAC goodput in simulated time, MCS 28, BLER 0):
+
+| | rfsim without channel model | rfsim with channel model (`chanmod`, used for all noise labs) |
+|---|---|---|
+| DL MAC goodput | 56.5 Mbit/s (+/-0.9 %) | 50.9 Mbit/s (+/-5 %) |
+| UL MAC goodput | 35.3 Mbit/s | 35.3 Mbit/s |
+| iperf3 / MAC (rfsim speed vs. real time) | about 4.6-5.0x | about 1.6x |
 
 ## What the dashboard shows
 
@@ -61,7 +81,12 @@ Goodput is reported in simulated time. rfsim runs about 1.88x faster than real t
 | `infra/ran/gnb.yaml` | OAI gNB config (CI rfsim band 78, 106 PRB) with the bench PLMN and addresses |
 | `infra/ran/nr-ue.yaml.tpl` | nrUE config template; SIM placeholders are filled from a Secret at pod start |
 | `infra/ran/ran.yaml` | OAI gNB and nrUE Deployments for REDLAB (rfsim, host network, SIM masking filter) |
-| `infra/ran/ran.sh` | Deploy and test the bench RAN: preview / apply / check / remove; copies the test SIM from the core host |
+| `infra/ran/ran.sh` | Deploy and test the bench RAN: preview / apply / check / remove; copies the test SIM from the core host; config hashes restart the pods when `gnb.yaml` or `nr-ue.yaml.tpl` change |
+| `infra/dash/dash.sh`, `dash-ran.yaml`, `dash-core.yaml` | Stage 4a: dashboard on the bench core host and its read-only accounts |
+| `infra/dash/control.sh`, `control-ran.yaml`, `iperf-core.yaml` | Stage 4b: controls, speed tests, `MODE=baseline` throughput table |
+| `infra/dash/capture.sh`, `capture-ran.yaml` | Stage 4c: N2 capture on REDLAB |
+| `infra/dash/noise.sh`, `noise-ran.yaml` | Stage 4d: noise relay on REDLAB |
+| `exp-power.sh` | Read-only observation of UL power control (PH, PCMAX, PUSCH/PUCCH SNR vs target) over idle / UL / DL phases |
 | `capture.py`, `n2-capture.yaml` | N2 capture service on the RAN host (tshark on SCTP 38412, JSON over HTTP on port 8091) |
 | `fct-dash.yaml` | Dashboard Deployment and NodePort 30880 on the core cluster |
 | `ran-control.yaml` | Least-privilege controller account (may only scale `oai-gnb`, `oai-nr-ue`, `speedtest-dl`, `speedtest-ul`) and the iperf3 speed-test clients |
@@ -123,4 +148,6 @@ Then open `http://10.0.129.2:30880`.
 -  **lab0 re-creates the UE from its source file.** `lab0-run.sh` runs `kubectl apply -f ran/oai-nr-ue-deploy.json`, so a change made only to the live Deployment is undone at the next lab0 run (the first attempt of `ue-chanmod.sh` crashed the UE this way: "cannot open include file"). Change the source file and run lab0 as part of the test.
 - **Bench core (k3s, Open5GS 2.8.0).** (1) The k3s default pod CIDR `10.42.0.0/16` collides with the bench LAN; use `--cluster-cidr 10.244.0.0/16 --service-cidr 10.96.0.0/16`. (2) k3s's `kubectl` reads `/etc/rancher/k3s/k3s.yaml` when `KUBECONFIG` is unset, so `~/.kube/config` is ignored; give the file group read (`write-kubeconfig-group`), and keep `--write-kubeconfig-mode` off the service command line (it overrides `config.yaml`). (3) The UPF init container got `ioctl(TUNSETIFF): Operation not permitted` while privileged but not root; it must run with `runAsUser: 0`, as in the Gradiant chart. (4) Right after start, PFCP association takes a few seconds and PCF/UDR can restart while MongoDB starts; test after the NFs have settled.
 - **Bench RAN (OAI rfsim on k3s).** (1) The nrUE logs the full SIM at start (`[SIM] UICC simulation: IMSI=..., Ki=..., OPc=...`); its output is piped through `sed` that masks the values before it reaches the container log, and the test scans every log file of the pod. (2) kubelet rotates and compresses container logs at about 10 MB, so start-up lines such as `NGSetupResponse` disappear from `kubectl logs` after a while; tests check current state (SCTP association, tunnel address, ping) instead. (3) `kubectl -o jsonpath` prints arrays as Go JSON, which escapes `<` and `>` as `\u003c` and `\u003e`; do not grep for those characters. (4) Use `k3s kubectl`, not a snap `kubectl` of another version.
+- **Bench dashboard and controls.** (1) Ubuntu's `iperf3.service` on the core host took port 5201 again; `control.sh` refuses to install while it is active (`sudo systemctl disable --now iperf3`). (2) Starting a UE while the previous one is still stopping puts two UEs with the same SIM on the rfsim link (about 25 random-access attempts, UE crash). The dashboard now refuses Start while the old pod is stopping. (3) The UE runs behind `bash` for the SIM mask; bash did not pass SIGTERM on, so every stop took the full 30 s grace period. It now forwards it as SIGINT: stop in 2 s. (4) Kubelet log timestamps carry the node's offset (`+08:00` on REDLAB); parsing them as UTC shifted the Uu events by 8 hours. (5) With the rfsim channel model on, the simulation runs about 1.6x real time instead of about 5x, so wall-clock tools (iperf3) read lower; compare MAC goodput.
+- **UL power control in rfsim (observation, `exp-power.sh`).** PCMAX drops from 20 to 19 dBm at full-band 64QAM, as MPR allows. The reported power headroom moves the wrong way (+13 dB from 5 to 106 PRBs, where TS 38.213 gives -13 dB) and lies above the TS 38.133 range, and PUSCH/PUCCH SNR stays 2-4 dB above the 20 dB target. Do not use PH or UE transmit power as a KPI until this is explained.
 - **Relay latency.** The first relay used two telnet sessions with fixed waits per change and a background reader on the same lock, so a change could take more than 8 s and the dashboard timed out although the noise had been applied. Relay v3 uses one session that stops reading as soon as the report is complete; the relay test now fails if a change takes 5 s or more.

@@ -1,5 +1,5 @@
 # OAI gNB, bench testbed (REDLAB 10.42.0.1), rfsim only. Based on OAI ci-scripts/conf_files/
-# gnb.sa.band78.106prb.rfsim.yaml at tag 2026.w40; changed: PLMN 001/70, AMF 10.42.0.2, gNB NG/NG-U 10.42.0.1.
+# gnb.sa.band78.106prb.rfsim.yaml at tag 2026.w40; changed: PLMN 001/70, AMF 10.42.0.2, gNB NG/NG-U 10.42.0.1, do_CSIRS 1.
 # n78, 106 PRB (40 MHz), 30 kHz SCS, TDD, SSB 621312, point A 620040 (3319.68 MHz).
 # SPDX-License-Identifier: LicenseRef-CSSL-1.0
 
@@ -22,6 +22,8 @@ gNBs:
     nr_cellid: 12345678
     ##### Physical parameters:
     min_rxtxtime: 6
+    # bench change: CSI-RS on, so the UE sends CSI reports (CQI/RI) and the gNB can adapt MCS to the channel (LAB-0/0b)
+    do_CSIRS: 1
     servingCellConfigCommon:
       #spCellConfigCommon
       - physCellId: 0

@@ -77,6 +77,18 @@ header {
 .ut .v small { font: 600 13px var(--sans); color: var(--muted); margin-left: 3px; }
 .ut .r { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
 .charts { display: grid; grid-template-columns: repeat(auto-fill, minmax(380px, 1fr)); gap: 12px; }
+.cqiv { background: var(--panel); border: 1px solid #D5DCE2; border-radius: 6px; padding: 10px 14px; margin-bottom: 16px; }
+.cqiv h3 { margin: 0 0 4px; font: 600 15px var(--sans); }
+.cqiv .sum { font-size: 14px; margin: 4px 0 8px; font-variant-numeric: tabular-nums; }
+.cqiv .sum b { font: 700 18px var(--cond); }
+.cqiv .tw { overflow-x: auto; }
+.cqiv table { border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; min-width: 520px; }
+.cqiv th, .cqiv td { padding: 3px 10px; text-align: right; border-bottom: 1px solid #E4E8EC; }
+.cqiv th { color: var(--muted); font-weight: 600; }
+.cqiv td.l, .cqiv th.l { text-align: left; }
+.cqiv tr.hit td { background: rgba(42, 120, 214, .16); font-weight: 700; }
+.cqiv tr.exp td:first-child { box-shadow: inset 3px 0 0 #eb6834; }
+.cqiv .note { font-size: 12px; color: var(--muted); margin-top: 6px; }
 .chart { background: var(--panel); border: 1px solid #D5DCE2; border-radius: 6px; padding: 10px 12px 6px; }
 .chart h3 { margin: 0; font: 700 17px var(--cond); display: flex; gap: 12px; align-items: baseline; flex-wrap: wrap; }
 .chart h3 small { font: 400 12px var(--sans); color: var(--muted); }
@@ -179,7 +191,7 @@ aside pre {
 <header>
   <div class="title">
     <h1>FCT 5G Testbed</h1>
-    <p>Open5GS core on FCT0172, OAI RAN on FCT0173. Select any function to read its log.</p>
+    <p>Open5GS core on the P3 Tiny, OAI RAN on REDLAB (bench LAN). Select any function to read its log.</p>
     <nav class="tabs" aria-label="Pages">
       <button class="tab on" data-page="overview" aria-current="page">Overview</button>
       <button class="tab" data-page="ue">UE KPIs</button>
@@ -245,6 +257,7 @@ aside pre {
     <span id="ueNote" class="uenote"></span>
   </div>
   <div class="uetiles" id="ueTiles"></div>
+  <div class="cqiv" id="cqiView" hidden></div>
   <div class="charts" id="charts"></div>
   <div id="tip" class="tip" hidden></div>
 </section>
@@ -324,8 +337,8 @@ function drawWires() {
             el("text", {x: 868, y: 372, style: "font:12px var(--sans)"}, "UE pool 10.45.0.0/16"));
   g.append(dn);
   // Section names
-  g.append(el("text", {x: 316, y: 24, class: "section"}, "Core, Open5GS on FCT0172"),
-           el("text", {x: 40, y: 306, class: "section"}, "RAN, OAI on FCT0173"),
+  g.append(el("text", {x: 316, y: 24, class: "section"}, "Core, Open5GS on P3 Tiny"),
+           el("text", {x: 40, y: 306, class: "section"}, "RAN, OAI on REDLAB"),
            el("text", {x: 584, y: 468, class: "section"}, "4G EPC, also deployed"));
 }
 
@@ -370,7 +383,7 @@ function render(data) {
   $("errors").innerHTML = "";
   for (const [c, msg] of Object.entries(data.errors || {})) {
     const d = document.createElement("div");
-    d.textContent = (c === "core" ? "Core cluster (FCT0172)" : "RAN cluster (FCT0173)") + ": " + msg;
+    d.textContent = (c === "core" ? "Core cluster (P3 Tiny)" : "RAN cluster (REDLAB)") + ": " + msg;
     $("errors").append(d);
   }
   let coreUp = 0, coreAll = 0;
@@ -517,14 +530,22 @@ function setOrder(newest) {
   try { localStorage.setItem("fctFlowNewestFirst", newest ? "1" : "0"); } catch (e) {}
   renderFlow(new Set());
 }
+let flowBusy = false;
 async function pollFlow() {
+  // setInterval fires every second; a slow answer (capture restarting, up to 3 s) must not start a second poll,
+  // or both polls fetch the same "after" range and every row is added twice.
+  if (flowBusy) return;
+  flowBusy = true;
+  try { await pollFlowOnce(); } finally { flowBusy = false; }
+}
+async function pollFlowOnce() {
   const fresh = new Set();
   try {
     const r = await fetch(`api/flow?after=${flowLast}`, {cache: "no-store"});
     const d = await r.json();
     if (!r.ok || d.error) throw new Error(d.error || r.status);
     if (d.last < flowLast) { flowRows = []; flowLast = 0; }
-    for (const m of d.messages) { flowRows.push(m); fresh.add("N2" + m.seq); flowLast = Math.max(flowLast, m.seq); }
+    for (const m of d.messages) { if (m.seq <= flowLast) continue; flowRows.push(m); fresh.add("N2" + m.seq); flowLast = m.seq; }
     if (flowRows.length > 1000) flowRows = flowRows.slice(-1000);
     const st = $("flowState");
     st.textContent = d.status && d.status.running ? "N2 from packet capture, Uu from gNB and UE logs" : "N2 capture stopped: " + ((d.status && d.status.error) || "unknown reason");
@@ -539,7 +560,7 @@ async function pollFlow() {
     if (r.ok) {
       const d = await r.json();
       if (d.last < uuLast) { uuRows = []; uuLast = 0; }
-      for (const m of d.events) { uuRows.push(m); fresh.add("Uu" + m.seq); uuLast = Math.max(uuLast, m.seq); }
+      for (const m of d.events) { if (m.seq <= uuLast) continue; uuRows.push(m); fresh.add("Uu" + m.seq); uuLast = m.seq; }
       if (uuRows.length > 500) uuRows = uuRows.slice(-500);
     }
   } catch (e) { /* Uu rows are optional; N2 status shows backend loss */ }
@@ -604,6 +625,7 @@ const CHARTS = [
   {id: "rsrp", t: "RSRP", u: "dBm", s: [["rsrp", "RSRP", "a"]], span: 10},
   {id: "ph", t: "Power headroom", u: "dB", s: [["ph", "PH", "a"]]},
   {id: "cqi", t: "CQI", u: "", s: [["cqi", "CQI", "a"]], min: 0, max: 15},
+  {id: "sinr", t: "SINR at the UE (SSB)", u: "dB", s: [["sinrUe", "SINR", "a"]], span: 10},
   {id: "snr", t: "SNR at the gNB", u: "dB", s: [["snrPucch", "PUCCH", "a"], ["snrPusch", "PUSCH", "b"]], span: 10},
   {id: "mcs", t: "MCS", u: "index", s: [["mcsDl", "DL", "a"], ["mcsUl", "UL", "b"]], min: 0, max: 28},
   {id: "bler", t: "BLER", u: "%", s: [["blerDl", "DL", "a", 100], ["blerUl", "UL", "b", 100]], min: 0},
@@ -611,7 +633,7 @@ const CHARTS = [
   {id: "rssi", t: "RSSI at the gNB", u: "dBm", s: [["rssiDl", "PUCCH", "a"], ["rssiUl", "PUSCH", "b"]], span: 10},
 ];
 const TILES = [
-  ["RSRP", "rsrp", "dBm", 0], ["Power headroom", "ph", "dB", 0], ["CQI", "cqi", "", 0],
+  ["RSRP", "rsrp", "dBm", 0], ["Power headroom", "ph", "dB", 0], ["CQI", "cqi", "", 0], ["SINR at the UE", "sinrUe", "dB", 1],
   ["SNR PUSCH", "snrPusch", "dB", 1], ["SNR PUCCH", "snrPucch", "dB", 1],
   ["MCS DL", "mcsDl", "", 0], ["MCS UL", "mcsUl", "", 0],
   ["BLER DL", "blerDl", "%", 2, 100], ["BLER UL", "blerUl", "%", 2, 100],
@@ -684,6 +706,7 @@ function renderUe() {
       `<div class="r">min ${fmt(v.length ? Math.min(...v) : null, dec)}, max ${fmt(v.length ? Math.max(...v) : null, dec)}, avg ${fmt(avg, dec)}</div>`;
     tl.append(div);
   }
+  renderCqiView(latest && latest.ran && latest.ran.cqiView);
   const ch = $("charts"); ch.innerHTML = "";
   for (const c of CHARTS) {
     const box = document.createElement("div"); box.className = "chart";
@@ -696,6 +719,27 @@ function renderUe() {
     }
     box.append(h, drawChart(c, rows, t1)); ch.append(box);
   }
+}
+// Reported CQI as a row of the 38.214 table, and the CQI a typical receiver reaches at the measured SINR.
+function renderCqiView(v) {
+  const box = $("cqiView");
+  if (!v) { box.hidden = true; return; }
+  box.hidden = false;
+  const esc = x => x === null || x === undefined ? "–" : x;
+  const row = v.cqi ? v.rows[v.cqi - 1] : null;
+  let sum = `Reported CQI <b>${esc(v.cqi)}</b>` + (row ? ` = ${row.mod}, code rate ${row.rate}/1024, ${row.eff.toFixed(4)} bit/s/Hz` : "");
+  sum += ` &nbsp;·&nbsp; UE SINR <b>${v.sinr === null ? "–" : fmt(v.sinr, 1)}</b> dB`;
+  if (v.expectedCqi !== null) sum += ` &nbsp;·&nbsp; typical CQI at this SINR <b>${v.expectedCqi}</b> (difference ${v.delta > 0 ? "+" : ""}${esc(v.delta)})`;
+  let t = `<table><thead><tr><th>CQI</th><th class="l">Modulation</th><th>Code rate ×1024</th><th>Efficiency</th>` +
+    (v.table === 1 ? `<th>Typical SINR ≥ (dB)</th>` : "") + `</tr></thead><tbody>`;
+  for (const r of v.rows) {
+    const cls = [r.cqi === v.cqi ? "hit" : "", r.cqi === v.expectedCqi ? "exp" : ""].join(" ").trim();
+    t += `<tr${cls ? ` class="${cls}"` : ""}><td>${r.cqi}</td><td class="l">${r.mod}</td><td>${r.rate}</td><td>${r.eff.toFixed(4)}</td>` +
+      (v.table === 1 ? `<td>${r.sinrMin.toFixed(1)}</td>` : "") + `</tr>`;
+  }
+  t += "</tbody></table>";
+  box.innerHTML = `<h3>CQI and SINR</h3><div class="sum">${sum}</div><div class="tw">${t}</div>` +
+    `<div class="note">${v.name}. Shaded row: reported CQI. Orange edge: typical CQI at the measured SINR. ${v.note}</div>`;
 }
 async function pollUe() {
   try {
