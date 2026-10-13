@@ -91,7 +91,7 @@ header {
 @media (max-width: 700px) { .kpipage { padding: 8px 16px 20px; } }
 .kgroup { margin: 14px 0 6px; font: 700 18px var(--cond); }
 .krow { background: var(--panel); border: 1px solid #2f3d4c; border-radius: 6px; margin-bottom: 6px; }
-.krow > button { all: unset; box-sizing: border-box; cursor: pointer; display: grid; grid-template-columns: 14px minmax(0, 1fr) 120px 110px; gap: 12px; align-items: center; width: 100%; padding: 9px 14px; }
+.krow > button { all: unset; box-sizing: border-box; cursor: pointer; display: grid; grid-template-columns: 14px minmax(0, 1fr) 160px 120px 110px; gap: 12px; align-items: center; width: 100%; padding: 9px 14px; }
 .krow > button:focus-visible { outline: 3px solid var(--rf); outline-offset: 2px; }
 .krow .dot { width: 10px; height: 10px; border-radius: 50%; background: var(--unknown); }
 .krow.ok .dot { background: var(--ok); } .krow.bad .dot { background: var(--fault); } .krow.info .dot { background: var(--rf); }
@@ -108,7 +108,20 @@ header {
 .krow .det code { font: 12px var(--mono); color: #c9d6e2; }
 .krow .det .hint { border-left: 3px solid var(--warn); padding: 4px 10px; margin-top: 8px; color: var(--ink); }
 .krow .det .ref { color: var(--muted); font-size: 12px; margin-top: 6px; }
-@media (max-width: 700px) { .krow > button { grid-template-columns: 14px minmax(0, 1fr) 90px; } .krow .tg { display: none; } }
+@media (max-width: 700px) { .krow > button { grid-template-columns: 14px minmax(0, 1fr) 90px; } .krow .tg, .krow .sp { display: none; } }
+.krow .sp svg { width: 160px; height: 30px; display: block; }
+.krow .sp .l { fill: none; stroke: var(--rf); stroke-width: 1.6; stroke-linejoin: round; }
+.krow.bad .sp .l { stroke: var(--fault); }
+.krow .sp .tl, .trend .tl { stroke: var(--warn); stroke-width: 1; stroke-dasharray: 4 3; }
+.krow .sp .b, .trend .b { fill: var(--fault); }
+.trend { margin: 8px 0 4px; max-width: 760px; }
+.trend svg { width: 100%; height: auto; display: block; }
+.trend .grid { stroke: #2a3644; stroke-width: 1; }
+.trend .axis { font: 400 11px var(--sans); fill: var(--muted); }
+.trend .ln { fill: none; stroke: var(--rf); stroke-width: 2; stroke-linejoin: round; }
+.trend .pt { fill: var(--rf); }
+.trend .xh { stroke: var(--muted); stroke-dasharray: 3 3; }
+.trend .empty { font: 400 13px var(--sans); fill: var(--muted); }
 .cqiv { background: var(--panel); border: 1px solid #2f3d4c; border-radius: 6px; padding: 10px 14px; margin-bottom: 16px; }
 .cqiv h3 { margin: 0 0 4px; font: 600 15px var(--sans); }
 .cqiv .sum { font-size: 14px; margin: 4px 0 8px; font-variant-numeric: tabular-nums; }
@@ -417,7 +430,7 @@ select, input { color: var(--ink); background: #111820; color-scheme: dark; }
       <button data-kd="core" class="on">Core</button><button data-kd="ran">RAN (gNB)</button><button data-kd="ue">UE</button>
     </div>
     <div class="seg" role="group" aria-label="KPI window">
-      <button data-kw="300">5 min</button><button data-kw="900" class="on">15 min</button><button data-kw="3600">1 h</button><button data-kw="21600">6 h</button>
+      <button data-kw="300">5 min</button><button data-kw="900" class="on">15 min</button><button data-kw="3600">1 h</button><button data-kw="21600">6 h</button><button data-kw="86400">24 h</button><button data-kw="604800">7 d</button>
     </div>
     <span id="kpiNote" class="uenote"></span>
   </div>
@@ -894,29 +907,84 @@ async function pollUe() {
   } catch (e) { /* the stale marker on the overview shows backend loss */ }
 }
 $("ueSel").onchange = e => { ueRnti = e.target.value; pollUe(); };
-document.querySelectorAll(".seg button").forEach(b => b.onclick = () => {
-  document.querySelectorAll(".seg button").forEach(x => x.classList.toggle("on", x === b));
+document.querySelectorAll("[data-w]").forEach(b => b.onclick = () => {
+  document.querySelectorAll("[data-w]").forEach(x => x.classList.toggle("on", x === b));
   ueWin = Number(b.dataset.w); pollUe();
 });
 // K1: core KPIs (counters -> KPI -> contributors)
 let kpiWin = 900, kpiTimer = null, kpiOpen = new Set(), kpiDom = "core";
-const KSRC = {core: "Counters from the Open5GS metrics (AMF, SMF, UPF, PCF), sampled every 15 s and kept for 6 h in the dashboard. A KPI is computed from the counter changes inside the window, as in a PM report. Select a KPI to see its counters, the failure counters that contribute to it (per cause where the core reports one) and where to look first. A dash means the core has not reported that counter yet (no such event so far).",
+const KSRC = {core: "Counters from the Open5GS metrics (AMF, SMF, UPF, PCF), sampled every 15 s: 6 h in the dashboard memory, 30 days in Prometheus (used for longer windows and for the trends). A KPI is computed from the counter changes inside the window, as in a PM report. Select a KPI to see its counters, the failure counters that contribute to it (per cause where the core reports one) and where to look first. A dash means the core has not reported that counter yet (no such event so far).",
               ue: "Per UE (RNTI), from the gNB MAC statistics and the UE's own SSB SINR, sampled every second (15 min kept). Targets are bench rules against the stage 3 baseline (noise off): throughput >= 80 % of the baseline, CQI at most 2 and DL MCS at most 4 below it, SINR above the typical value for that CQI. MCS and throughput only count the seconds with data (at least 10 % of the baseline, so TCP ACKs of a test in the other direction do not count). The diagnosis names the first link of SINR -> CQI -> MCS -> BLER -> throughput that fails.",
-              ran: "Counters from the OAI gNB MAC statistics (HARQ rounds, residual errors, DTX, CCE failures, sync state per UE), sampled every second and kept for 15 min; random access and RRC setup are counted from the gNB log events. Select a KPI to see its counters and the radio values to read when it degrades (SINR, CQI, MCS, BLER)."};
+              ran: "Counters from the OAI gNB MAC statistics (HARQ rounds, residual errors, DTX, CCE failures, sync state per UE), sampled every second: 15 min in the dashboard memory, 30 days in Prometheus at 5 s (used for longer windows and for the trends); random access and RRC setup are counted from the gNB log events. Select a KPI to see its trend, its counters and the radio values to read when it degrades (SINR, CQI, MCS, BLER). Red dots in a trend are buckets outside the target; gaps are buckets without attempts."};
 const KSTATE = {ok: "within target", bad: "below target", idle: "no attempts in the window", nodata: "counter not reported", info: ""};
 function esc(t) { return String(t).replace(/[&<>"]/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}[c])); }
 function kv(v, u) { return v === null || v === undefined ? "–" : (u === "%" ? v.toFixed(2) : u === "Mbit/s" ? v.toFixed(2) : String(Math.round(v * 100) / 100)); }
+// P1b: KPI trends (series from Prometheus, one point per bucket; null = no attempts in that bucket)
+let kpiSeries = null, kpiStep = 0;
+function isBad(v, k) { return k.target !== null && k.target !== undefined && v !== null && (k.sense === "max" ? v > k.target : v < k.target); }
+function tlabel(t, span) {
+  const d = new Date(t * 1000);
+  if (span > 86400) return d.toLocaleDateString([], {day: "2-digit", month: "2-digit"}) + " " + d.toLocaleTimeString([], {hour: "2-digit", minute: "2-digit", hour12: false});
+  return d.toLocaleTimeString([], span > 900 ? {hour: "2-digit", minute: "2-digit", hour12: false} : {hour12: false});
+}
+function yRange(pts, k) {
+  const v = pts.map(p => p[1]).filter(x => x !== null);
+  if (k.target !== null && k.target !== undefined) v.push(k.target);
+  return niceRange(Math.min(...v), Math.max(...v), k.unit === "%" || k.unit === "Mbit/s" || k.unit === "" ? 0 : undefined, k.unit === "%" ? 100 : undefined, 1);
+}
+function pathOf(pts, X, Y, step) {
+  let d = "", prev = null;
+  for (const [t, v] of pts) { if (v === null) { prev = null; continue; } d += `${prev === null || t - prev > step * 1.5 ? "M" : "L"}${X(t).toFixed(1)} ${Y(v).toFixed(1)}`; prev = t; }
+  return d;
+}
+function spark(pts, k) {
+  const W = 160, H = 30, t1 = Date.now() / 1000, t0 = t1 - kpiWin, yr = yRange(pts, k);
+  const X = t => 2 + (t - t0) / (t1 - t0) * (W - 4), Y = v => 3 + (1 - (v - yr.lo) / (yr.hi - yr.lo)) * (H - 6);
+  const svg = el("svg", {viewBox: `0 0 ${W} ${H}`, "aria-hidden": "true"});
+  if (k.target !== null && k.target !== undefined) svg.append(el("line", {class: "tl", x1: 2, x2: W - 2, y1: Y(k.target), y2: Y(k.target)}));
+  svg.append(el("path", {class: "l", d: pathOf(pts, X, Y, kpiStep)}));
+  for (const [t, v] of pts) if (isBad(v, k)) svg.append(el("circle", {class: "b", cx: X(t), cy: Y(v), r: 1.8}));
+  return svg;
+}
+function trendChart(pts, k) {
+  const Wc = 720, Hc = 200, L = 52, R = 12, T = 10, B = 24, t1 = Date.now() / 1000, t0 = t1 - kpiWin, yr = yRange(pts, k);
+  const X = t => L + (t - t0) / (t1 - t0) * (Wc - L - R), Y = v => T + (1 - (v - yr.lo) / (yr.hi - yr.lo)) * (Hc - T - B);
+  const svg = el("svg", {viewBox: `0 0 ${Wc} ${Hc}`, role: "img", "aria-label": `${k.name}, trend over the window`});
+  for (const v of yr.ticks) svg.append(el("line", {class: "grid", x1: L, x2: Wc - R, y1: Y(v), y2: Y(v)}), el("text", {class: "axis", x: L - 6, y: Y(v) + 4, "text-anchor": "end"}, v.toFixed(yr.dec)));
+  for (let i = 0; i <= 4; i++) { const t = t0 + i * kpiWin / 4; svg.append(el("text", {class: "axis", x: X(t), y: Hc - 6, "text-anchor": i === 0 ? "start" : i === 4 ? "end" : "middle"}, tlabel(t, kpiWin))); }
+  if (k.target !== null && k.target !== undefined) svg.append(el("line", {class: "tl", x1: L, x2: Wc - R, y1: Y(k.target), y2: Y(k.target)}));
+  if (!pts.some(p => p[1] !== null)) svg.append(el("text", {class: "empty", x: Wc / 2, y: Hc / 2, "text-anchor": "middle"}, "No attempts in this window"));
+  svg.append(el("path", {class: "ln", d: pathOf(pts, X, Y, kpiStep)}));
+  for (const [t, v] of pts) if (v !== null) svg.append(el("circle", {class: isBad(v, k) ? "b" : "pt", cx: X(t), cy: Y(v), r: isBad(v, k) ? 3 : 2}));
+  const xh = el("line", {class: "xh", y1: T, y2: Hc - B, visibility: "hidden"});
+  const hit = el("rect", {x: L, y: T, width: Wc - L - R, height: Hc - T - B, fill: "transparent"});
+  svg.append(xh, hit);
+  hit.addEventListener("mousemove", e => {
+    const bb = svg.getBoundingClientRect(), tx = t0 + ((e.clientX - bb.left) * Wc / bb.width - L) / (Wc - L - R) * kpiWin;
+    let best = pts[0]; for (const p of pts) if (Math.abs(p[0] - tx) < Math.abs(best[0] - tx)) best = p;
+    if (!best) return;
+    xh.setAttribute("x1", X(best[0])); xh.setAttribute("x2", X(best[0])); xh.setAttribute("visibility", "visible");
+    const tip = $("tip"); tip.hidden = false;
+    tip.innerHTML = `<b>${tlabel(best[0] - kpiStep, kpiWin)} – ${tlabel(best[0], kpiWin)}</b><br>${esc(k.name)}: ${best[1] === null ? "no attempts" : kv(best[1], k.unit) + " " + esc(k.unit)}`;
+    tip.style.left = Math.min(e.clientX + 14, innerWidth - 220) + "px"; tip.style.top = (e.clientY + 12) + "px";
+  });
+  hit.addEventListener("mouseleave", () => { xh.setAttribute("visibility", "hidden"); $("tip").hidden = true; });
+  return svg;
+}
 function renderKpi(d) {
-  $("kpiNote").textContent = kpiDom === "core"
-    ? `Window ${Math.round(d.span / 60)} of ${kpiWin / 60} min available · ${d.samples || 0} samples every ${d.step || 15} s · updated ${new Date(d.time || Date.now()).toLocaleTimeString()}`
-    : `${d.samples || 0} UE samples in the window (RAN and UE history is kept 15 min) · updated ${new Date(d.time || Date.now()).toLocaleTimeString()}`;
+  kpiSeries = d.series || null; kpiStep = d.seriesStep || 0;
+  const src = d.source === "prometheus" ? "from Prometheus (30 days kept)" : d.source === "memory" ? "from the dashboard memory" : "no data yet";
+  const trend = d.series && Object.keys(d.series).length ? ` · trend: one point per ${d.seriesStep >= 60 ? Math.round(d.seriesStep / 60) + " min" : d.seriesStep + " s"}` : (kpiDom === "ue" ? "" : " · trend unavailable (Prometheus not reachable)");
+  $("kpiNote").textContent = kpiDom === "ue"
+    ? `${d.samples || 0} UE samples in the window (UE KPIs use the last 15 min at most) · updated ${new Date(d.time || Date.now()).toLocaleTimeString()}`
+    : `Window values ${src} · ${d.samples || 0} samples${trend} · updated ${new Date(d.time || Date.now()).toLocaleTimeString()}`;
   const errs = Object.entries(d.errors || {});
   $("kpiErr").innerHTML = errs.map(([nf, e]) => `<div>${esc(nf.toUpperCase())} metrics: ${esc(e)}</div>`).join("");
   const body = $("kpiBody"); body.innerHTML = "";
-  if (kpiDom === "ue") return renderUe(d, body);
+  if (kpiDom === "ue") return renderUeKpis(d, body);
   kpiRows(d.kpis, body, "");
 }
-function renderUe(d, body) {
+function renderUeKpis(d, body) {
   if (!d.ues.length) { body.innerHTML = `<p class="uenote">No UE statistics in the window. Start the gNB and the UE.</p>`; return; }
   for (const u of d.ues) {
     const h = document.createElement("h3"); h.className = "uehead";
@@ -942,7 +1010,7 @@ function kpiRows(list, body, pre) {
     const tgt = k.target === null || k.target === undefined ? "" : `target ${op} ${k.target}${k.unit === "%" ? "%" : ""}`;
     row.innerHTML = `<button type="button" aria-expanded="${kpiOpen.has(k.id)}"><span class="dot"></span>
       <span class="nm">${esc(k.name)}<small>${esc(KSTATE[k.status] || "")}</small></span>
-      <span class="val">${kv(k.value, k.unit)}<small>${esc(k.unit)}</small></span><span class="tg">${tgt}</span></button>
+      <span class="sp"></span><span class="val">${kv(k.value, k.unit)}<small>${esc(k.unit)}</small></span><span class="tg">${tgt}</span></button>
       <div class="det"></div>`;
     const det = row.querySelector(".det");
     let h = `<table><tr><th>Counter</th><th>NF</th><th>${k.status === "nodata" || k.counters.some(c => "value" in c) ? "Value" : "Change in window"}</th></tr>`;
@@ -956,6 +1024,11 @@ function kpiRows(list, body, pre) {
     if (k.hint) h += `<div class="hint">${k.status === "bad" ? "<b>Degraded.</b> " : ""}${esc(k.hint)}</div>`;
     h += `<div class="ref">${esc(k.ref)}</div>`;
     det.innerHTML = h;
+    const pts = (kpiSeries || {})[k0.id];
+    if (pts) {
+      row.querySelector(".sp").append(spark(pts, k));
+      const tr = document.createElement("div"); tr.className = "trend"; tr.append(trendChart(pts, k)); det.prepend(tr);
+    }
     row.querySelector("button").onclick = () => { kpiOpen.has(k.id) ? kpiOpen.delete(k.id) : kpiOpen.add(k.id); row.classList.toggle("open"); row.querySelector("button").setAttribute("aria-expanded", row.classList.contains("open")); };
     body.append(row);
   }

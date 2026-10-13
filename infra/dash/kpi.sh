@@ -6,6 +6,7 @@
 #   off  -> ok again
 # The RAN (cell) DL user throughput must follow the same ok / bad / ok.
 # Run ON REDLAB from the repo root as the login user (no sudo):   MODE=check bash infra/dash/kpi.sh
+# Do not use the dashboard controls while it runs: a UE stop/start gives a new RNTI and the phases are not comparable.
 #   MODE=preview  dashboard, relay and UE KPIs answer, noise off; changes nothing
 #   MODE=check    the test above (about 3 x PH + 10 s); always ends with noise off and the speed test stopped
 set -u
@@ -27,7 +28,9 @@ def r(good, msg):
     global fail; fail += not good; print(("  PASS  " if good else "  FAIL  ") + phase + ": " + msg)
 if not ue["ues"]:
     r(False, "no UE in the UE KPIs"); sys.exit(1)
-u = ue["ues"][0]; k = {x["id"]: x for x in u["kpis"]}; g = u["diagnosis"]
+u = max(ue["ues"], key=lambda x: (x["activeDl"], x["samples"]))   # the RNTI that carried the speed test
+k = {x["id"]: x for x in u["kpis"]}; g = u["diagnosis"]
+open("/tmp/kpi-rnti-" + phase, "w").write(u["rnti"])
 v = lambda i: "-" if k[i]["value"] is None else "%.1f" % k[i]["value"]
 print("  info  %s: RNTI %s, %d samples, %d s with DL data | SINR %s dB  CQI %s  DL MCS %s  DL retx %s %%  DL %s Mbit/s | diagnosis %s"
       % (phase, u["rnti"], u["samples"], u["activeDl"], v("sinr"), v("cqi"), v("mcs_dl"), v("dl_retx"), v("dl_tput"), g["id"]))
@@ -56,6 +59,7 @@ pre(){
 check(){
   pre; [ $F = 0 ] || { echo "STOP: preconditions failed"; exit 1; }
   echo "== Degradation test (DL speed test; off -> poor -> off; $PH s per phase, KPIs of the last $WIN s)"
+  echo "   do not use the dashboard controls until RESULT"
   KEY=$(tiny "k3s kubectl -n fct-dash get secret fct-dash-admin -o jsonpath='{.data.password}'" 2>/dev/null | base64 -d)
   trap 'api noise-off >/dev/null; api speed-stop >/dev/null' EXIT
   c=$(api speed-dl); [ "$c" = 200 ] && ok "DL speed test started" || { bad "dashboard refused speed-dl (HTTP $c)"; exit 1; }
@@ -65,7 +69,21 @@ check(){
   c=$(api noise-off); [ "$c" = 200 ] && ok "preset off set ($(noise_db) dB)" || bad "dashboard refused noise-off (HTTP $c)"
   sleep "$PH"; grade off-again ok
   api speed-stop >/dev/null; trap - EXIT
+  r=$(cat /tmp/kpi-rnti-off /tmp/kpi-rnti-poor /tmp/kpi-rnti-off-again 2>/dev/null | sort -u | tr '\n' ' ')
+  [ "$(echo $r | wc -w)" = 1 ] && ok "same RNTI in all phases ($r)" \
+    || bad "UE re-attached during the test (RNTI changed: $r): rerun without touching the controls"
+  rm -f /tmp/kpi-rnti-*
   [ "$(noise_db)" = "-100.0" ] && ok "noise back at -100 dB" || bad "noise not back at -100 dB: $(noise_db)"
+  # P1b: the RAN trend from Prometheus must show the dip (DL user throughput per 15 s bucket over the test)
+  curl -s -m 20 "$URL/api/kpi?domain=ran&seconds=$((3 * PH + 10))&source=prom" | python3 -c '
+import json, sys
+d = json.load(sys.stdin); pts = [v for t, v in d.get("series", {}).get("dl_tput", []) if v is not None]
+target = {x["id"]: x for x in d.get("kpis", [])}.get("dl_tput", {}).get("target")
+lo = sum(1 for v in pts if target and v < target); hi = sum(1 for v in pts if target and v >= target)
+print("  info  trend DL user throughput (Mbit/s per %s s): %s" % (d.get("seriesStep"), " ".join("%.0f" % v for v in pts)))
+ok = lo >= 2 and hi >= 2
+print(("  PASS  " if ok else "  FAIL  ") + "Prometheus trend shows the dip: %d buckets below %s Mbit/s, %d above" % (lo, target, hi))
+sys.exit(0 if ok else 1)' 2>/dev/null || F=$((F+1))
   echo "RESULT: $([ $F = 0 ] && echo PASS || echo "FAIL ($F)")"
 }
 
