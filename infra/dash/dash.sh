@@ -103,6 +103,20 @@ r(d["samples"] >= 10, "RAN counter samples in 5 min: %d" % d["samples"])
 r(k["dl_retx"]["status"] in ("ok", "bad") and k["oos"]["status"] in ("ok", "bad"),
   "HARQ and sync KPIs have data: DL retx %s %%, out of sync %s %%" % (k["dl_retx"]["value"], k["oos"]["value"]))
 sys.exit(fail)' || F=$((F+$?))
+  # K3/K4: KPIs per UE with a diagnosis
+  curl -s -m 8 "$URL/api/kpi?domain=ue&seconds=120" | python3 -c '
+import json, sys
+d = json.load(sys.stdin); fail = 0
+def r(good, msg):
+    global fail; fail += not good; print(("  PASS  " if good else "  FAIL  ") + msg)
+r(len(d["ues"]) >= 1, "UE KPIs: %d UE(s) in the last 2 min" % len(d["ues"]))
+if d["ues"]:
+    u = d["ues"][0]; k = {x["id"]: x for x in u["kpis"]}
+    r(len(k) == 10, "UE %s: %d KPIs computed (want 10)" % (u["rnti"], len(k)))
+    r(k["sinr"]["status"] in ("ok", "bad") and k["cqi"]["status"] in ("ok", "bad"),
+      "UE %s: SINR %s dB and CQI %s graded" % (u["rnti"], k["sinr"]["value"], k["cqi"]["value"]))
+    r(u["diagnosis"]["id"] and len(u["diagnosis"]["chain"]) == 5, "UE %s: diagnosis %s" % (u["rnti"], u["diagnosis"]["id"]))
+sys.exit(fail)' || F=$((F+$?))
   # Every pod log the dashboard serves must be free of SIM keys.
   pods=$(echo "$st" | python3 -c 'import json,sys; [print(p["cluster"], p["pod"]) for p in json.load(sys.stdin)["pods"]]' 2>/dev/null)
   n=0; hit=0

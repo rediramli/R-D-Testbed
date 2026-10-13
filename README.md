@@ -49,6 +49,7 @@ Dashboard on the bench (stage 4, 2026-10-13), all scripts in `infra/dash/`, each
 | 4d | `noise.sh` | UE channel model (AWGN, model 0) and telnet on `127.0.0.1:9090` (`infra/ran`), noise relay on `10.42.0.1:8092` with a token | DL test with presets off / poor / off: CQI 15 / 5 / 15, DL MCS 28 / 6 / 28 |
 | K1 | `infra/core/metrics.sh`, then `dash.sh` | Open5GS Prometheus metrics (AMF `10.42.0.2:9090`, UPF `:9091`, SMF/PCF through their Services on `:9090`); 17 core KPIs | exactly 4 ConfigMaps + 2 Services change, NFs restarted in order, every NF registered once in the NRF; all 4 endpoints scraped, gNBs 1, PFCP peers 1, a PDU session, no KPI below target |
 | K2 | `dash.sh` | 12 RAN (gNB) KPIs from the OAI MAC counters per RNTI and the Uu events | 12 KPIs, >= 10 counter samples, HARQ and sync KPIs have data |
+| K3/K4 | `dash.sh`, then `kpi.sh` | 10 KPIs per UE (RNTI) graded against the stage 3 baseline, and a root-cause diagnosis along SINR -> CQI -> MCS -> BLER -> throughput | `dash.sh`: 10 KPIs and a diagnosis per UE. `kpi.sh` (DL speed test, presets off / poor / off): SINR, CQI, DL MCS and DL user throughput ok / bad / ok, BLER ok throughout, diagnosis none / `radio_sinr` / none |
 
 From the laptop: `ssh -L 8080:10.42.0.2:30880 redi@<REDLAB tailscale IP>`, then `http://localhost:8080`.
 The gNB runs with `do_CSIRS: 1`; without it the UE sends no CSI reports and there is no CQI.
@@ -66,7 +67,7 @@ Baseline without noise (`control.sh` MODE=baseline, 3 x 20 s, MAC goodput in sim
 - **Overview**: topology (SBI bus, N2/N3/N4/N6) with live status of every core NF, the gNB and the UE; tiles for connected gNBs and UEs and DL/UL MAC goodput.
 - **5G SA message flow**: N2 NGAP/NAS captured on the gNB host with tshark, plus Uu events (SSB found, SIB1, RA Msg1–Msg4, RRCSetupComplete) parsed from the gNB and UE logs, in chronological order.
 - **UE KPIs**: CQI, MCS, BLER, SNR, RSRP/RSSI and DL/UL goodput from the gNB MAC statistics, sampled once per second, 2/5/15 min windows, CSV export.
-- **KPIs** (Core / RAN): KPI -> counters -> contributor (failure) counters -> where to look first, as in a vendor PM view. Windows 5 min / 15 min / 1 h / 6 h. Core: Open5GS counters sampled every 15 s, kept 6 h in the dashboard; a KPI uses the counter changes inside the window (counter resets handled), contributors split per cause label. RAN: OAI MAC counters per RNTI sampled every second (15 min), random access and RRC setup counted from the Uu events. `GET /api/kpi?domain=core|ran&seconds=N`.
+- **KPIs** (Core / RAN): KPI -> counters -> contributor (failure) counters -> where to look first, as in a vendor PM view. Windows 5 min / 15 min / 1 h / 6 h. Core: Open5GS counters sampled every 15 s, kept 6 h in the dashboard; a KPI uses the counter changes inside the window (counter resets handled), contributors split per cause label. RAN: OAI MAC counters per RNTI sampled every second (15 min), random access and RRC setup counted from the Uu events. UE: one block per RNTI with a diagnosis box (the first failing link of SINR -> CQI -> MCS -> BLER -> throughput) and its KPIs; targets are bench rules against the stage 3 baseline (throughput >= 80 %, CQI at most 2 and DL MCS at most 4 below it, SINR above the typical value for that CQI), and throughput and MCS only count the seconds with data (>= 10 % of the baseline, so the TCP ACKs of a test in the other direction do not count). The RAN DL/UL throughput KPIs use the same rule. `GET /api/kpi?domain=core|ran|ue&seconds=N`.
 - **Controls** (admin password, rfsim mode only): gNB Start/Stop, UE Start/Stop, DL/UL speed test, and **DL channel** presets Off / Clean / Moderate / Poor (AWGN on the UE receiver through the noise relay; the active preset is shown next to the buttons).
 
 Goodput is reported in simulated time. rfsim runs about 1.88x faster than real time, so wall-clock tools such as iperf3 report higher numbers than the MAC goodput.
@@ -89,6 +90,7 @@ Goodput is reported in simulated time. rfsim runs about 1.88x faster than real t
 | `infra/dash/control.sh`, `control-ran.yaml`, `iperf-core.yaml` | Stage 4b: controls, speed tests, `MODE=baseline` throughput table |
 | `infra/dash/capture.sh`, `capture-ran.yaml` | Stage 4c: N2 capture on REDLAB |
 | `infra/dash/noise.sh`, `noise-ran.yaml` | Stage 4d: noise relay on REDLAB |
+| `infra/dash/kpi.sh` | K4: degradation test (DL speed test with presets off / poor / off; the UE and RAN KPIs must turn bad and back, with the right root cause) |
 | `exp-power.sh` | Read-only observation of UL power control (PH, PCMAX, PUSCH/PUCCH SNR vs target) over idle / UL / DL phases |
 | `capture.py`, `n2-capture.yaml` | N2 capture service on the RAN host (tshark on SCTP 38412, JSON over HTTP on port 8091) |
 | `fct-dash.yaml` | Dashboard Deployment and NodePort 30880 on the core cluster |

@@ -935,7 +935,8 @@ def ran_counter_deltas(seconds):
     cut = time.time() - seconds
     tot = {k: 0 for k in COUNTERS if k != "oos"}
     oos = n = 0
-    avg = {k: [] for k in ("cqi", "mcsDl", "mcsUl", "sinrUe", "goodputDl", "goodputUl", "blerDl", "blerUl")}
+    avg = {k: [] for k in ("cqi", "mcsDl", "mcsUl", "sinrUe", "goodputDl", "goodputUl", "blerDl", "blerUl",
+                           "tputDlAct", "tputUlAct", "mcsDlAct")}
     with HISTORY.lock:
         series = {r: [x for x in d if x["t"] >= cut] for r, d in HISTORY.by_rnti.items()}
     for rows in series.values():
@@ -953,7 +954,14 @@ def ran_counter_deltas(seconds):
             for k in avg:
                 if x.get(k) is not None:
                     avg[k].append(x[k])
-    return tot, oos, n, {k: (sum(v) / len(v) if v else None) for k, v in avg.items()}
+            if (x.get("goodputDl") or 0) >= ACTIVE["dl"]:
+                avg["tputDlAct"].append(x["goodputDl"])
+                if x.get("mcsDl") is not None:
+                    avg["mcsDlAct"].append(x["mcsDl"])
+            if (x.get("goodputUl") or 0) >= ACTIVE["ul"]:
+                avg["tputUlAct"].append(x["goodputUl"])
+    act = {"dl": len(avg["tputDlAct"]), "ul": len(avg["tputUlAct"])}
+    return tot, oos, n, {k: (sum(v) / len(v) if v else None) for k, v in avg.items()}, act
 
 
 def uu_counts(seconds):
@@ -970,7 +978,7 @@ def _pct(a, b):
 
 
 def ran_kpis(seconds):
-    tot, oos, n, avg = ran_counter_deltas(seconds)
+    tot, oos, n, avg, act = ran_counter_deltas(seconds)
     uu = uu_counts(seconds)
     dl_tx = tot["dlR0"]; ul_tx = tot["ulR0"]
     dl_retx = tot["dlR1"] + tot["dlR2"] + tot["dlR3"]; ul_retx = tot["ulR1"] + tot["ulR2"] + tot["ulR3"]
@@ -1017,9 +1025,21 @@ def ran_kpis(seconds):
         ("cce_fail", "Utilization", "PDCCH allocation failures (CCE)", tot["cceDl"] + tot["cceUl"], None, "", None, "info",
          cnt("cceDl", "cceUl"), "CCE failures mean the PDCCH had no room for a DCI in that slot; they delay scheduling.",
          "OAI CCE fail counters (DL and UL)"),
-        ("dl_tput", "Integrity", "Average DL MAC goodput", avg["goodputDl"], None, "Mbit/s", None, "info", radio[:3], "",
-         "Average of the per-second MAC goodput (simulated time in rfsim)"),
-        ("ul_tput", "Integrity", "Average UL MAC goodput", avg["goodputUl"], None, "Mbit/s", None, "info", [], "", "Same, uplink"),
+        ("dl_tput", "Integrity", "DL user throughput (seconds with data)", avg["tputDlAct"], act["dl"], "Mbit/s",
+         round(BASE_TPUT_RATIO * BASELINE["dlTput"], 1), "min",
+         [{"name": "seconds with DL data", "nf": "gNB", "delta": act["dl"]},
+          {"name": "DL baseline (stage 3, Mbit/s)", "value": BASELINE["dlTput"], "nf": ""}] + radio[:3] +
+         [{"name": "Average DL MCS in seconds with data", "value": avg["mcsDlAct"]}],
+         "Below 80 % of the bench baseline. Open the UE KPIs: the diagnosis follows SINR -> CQI -> MCS -> BLER -> "
+         "throughput and names the first link that fails. Noise lowers the MCS, not the BLER.",
+         "MAC goodput averaged over the seconds with data (>= 10 % of the baseline; idle seconds and TCP ACK traffic excluded, "
+         "as in a user-throughput KPI); "
+         "simulated time in rfsim; target = 80 % of the stage 3 baseline"),
+        ("ul_tput", "Integrity", "UL user throughput (seconds with data)", avg["tputUlAct"], act["ul"], "Mbit/s",
+         round(BASE_TPUT_RATIO * BASELINE["ulTput"], 1), "min",
+         [{"name": "seconds with UL data", "nf": "gNB", "delta": act["ul"]},
+          {"name": "UL baseline (stage 3, Mbit/s)", "value": BASELINE["ulTput"], "nf": ""}], "",
+         "Same, uplink"),
     ]
     out = []
     for kid, group, name, val, attempts, unit, target, sense, counters, hint, ref in defs:
@@ -1036,6 +1056,172 @@ def ran_kpis(seconds):
                     "counters": [{**c, "nf": c.get("nf", "gNB")} for c in counters],
                     "contributors": []})
     return {"window": seconds, "span": seconds, "samples": n, "step": 1, "time": now_iso(), "kpis": out, "errors": {}}
+
+
+# ---- K3/K4: KPIs per UE and degradation against the bench baseline --------------
+# Targets are bench rules, not 3GPP values: the stage 3 baseline (rfsim with chanmod, noise off) is the reference.
+# A throughput below 80 % of the baseline, a CQI more than 2 below it or a DL MCS more than 4 below it is degraded;
+# the SINR target is the typical SINR for that lowest good CQI (TYPICAL_SINR_T1). Throughput and MCS only count the
+# seconds with data (see ACTIVE): idle seconds report MCS 0 and goodput 0 and are not a degradation.
+BASELINE = {"dlTput": float(os.environ.get("BASELINE_DL_MBPS", "50.9")), "ulTput": float(os.environ.get("BASELINE_UL_MBPS", "35.3")),
+            "cqi": int(os.environ.get("BASELINE_CQI", "15")), "mcsDl": int(os.environ.get("BASELINE_MCS_DL", "28"))}
+BASE_TPUT_RATIO, BASE_CQI_DROP, BASE_MCS_DROP = 0.8, 2, 4
+# A second "has data" in a direction when its goodput is >= 10 % of that direction's baseline: TCP ACKs of a speed
+# test in the other direction (about 1-3 Mbit/s) must not count as a slow transfer.
+ACTIVE = {"dl": max(1.0, 0.1 * BASELINE["dlTput"]), "ul": max(1.0, 0.1 * BASELINE["ulTput"])}
+
+
+def _mean(v):
+    v = [x for x in v if x is not None]
+    return sum(v) / len(v) if v else None
+
+
+def _grade(val, attempts, target, sense):
+    if target is None:
+        return "info" if val is not None else "nodata"
+    if attempts is None:
+        return "nodata"
+    if not attempts:
+        return "idle"
+    if val is None:
+        return "nodata"
+    return "ok" if (val >= target if sense == "min" else val <= target) else "bad"
+
+
+def ue_eval(rows):
+    """KPIs of one UE (one RNTI) from its rows in the window."""
+    cnt = [x for x in rows if x.get("dlR0") is not None]
+    d = {k: 0 for k in COUNTERS if k != "oos"}
+    if cnt:
+        for k in d:
+            a, b = cnt[0].get(k), cnt[-1].get(k)
+            if a is not None and b is not None:
+                d[k] = b - a if b >= a else b
+    act_dl = [x for x in rows if (x.get("goodputDl") or 0) >= ACTIVE["dl"]]
+    act_ul = [x for x in rows if (x.get("goodputUl") or 0) >= ACTIVE["ul"]]
+    v = {"sinr": _mean(x.get("sinrUe") for x in rows), "cqi": _mean(x.get("cqi") for x in rows),
+         "mcsDl": _mean(x.get("mcsDl") for x in act_dl), "mcsUl": _mean(x.get("mcsUl") for x in act_ul),
+         "tputDl": _mean(x["goodputDl"] for x in act_dl), "tputUl": _mean(x["goodputUl"] for x in act_ul),
+         "rsrp": _mean(x.get("rsrp") for x in rows), "ph": rows[-1].get("ph") if rows else None,
+         "pcmax": rows[-1].get("pcmax") if rows else None,
+         "nprbUl": _mean(x.get("nprbUl") for x in act_ul)}
+    n_cqi = sum(1 for x in rows if x.get("cqi") is not None)
+    n_sinr = sum(1 for x in rows if x.get("sinrUe") is not None)
+    dl_tx, ul_tx = d["dlR0"], d["ulR0"]
+    dl_rt, ul_rt = d["dlR1"] + d["dlR2"] + d["dlR3"], d["ulR1"] + d["ulR2"] + d["ulR3"]
+    oos = sum(x.get("oos") or 0 for x in cnt)
+    cqi_t = BASELINE["cqi"] - BASE_CQI_DROP
+    sinr_t = TYPICAL_SINR_T1[cqi_t - 1]
+    base = lambda name, val: {"name": name, "value": val, "nf": ""}
+    defs = [
+        ("sinr", "Radio quality", "UE SINR (SSB, UE side)", v["sinr"], n_sinr or None, "dB", sinr_t, "min",
+         [base("samples", n_sinr), base("SINR needed for CQI %d (typical)" % cqi_t, sinr_t)],
+         "Low SINR means noise or interference on the DL. In this bench the only source is the noise preset (AWGN on "
+         "the UE receiver); check the DL channel buttons.", "UE log 'DL Chan: SSB SINR'; target = typical SINR for CQI %d "
+         "at 10 %% BLER (link-level value, not 3GPP)" % cqi_t),
+        ("cqi", "Radio quality", "Average CQI", v["cqi"], n_cqi or None, "", cqi_t, "min",
+         [base("samples", n_cqi), base("baseline CQI", BASELINE["cqi"]), base("average UE SINR (dB)", v["sinr"])],
+         "CQI follows SINR. A low CQI with a good SINR points to CSI-RS / CSI report configuration, not the channel.",
+         "gNB 'CSI [CQI n'; TS 38.214 5.2.2.1; target = baseline CQI - %d" % BASE_CQI_DROP),
+        ("mcs_dl", "Radio quality", "Average DL MCS (seconds with data)", v["mcsDl"], len(act_dl), "",
+         BASELINE["mcsDl"] - BASE_MCS_DROP, "min",
+         [base("seconds with DL data", len(act_dl)), base("baseline DL MCS", BASELINE["mcsDl"]), base("average CQI", v["cqi"])],
+         "The scheduler picks the MCS from the CQI and lowers it further when the BLER is high. A low MCS with a good "
+         "CQI points to the BLER-based backoff or an MCS limit in the gNB config.",
+         "gNB 'MCS (table) n'; TS 38.214 Table 5.1.3.1-1; target = baseline MCS - %d" % BASE_MCS_DROP),
+        ("dl_retx", "Integrity", "DL HARQ retransmission rate", _pct(dl_rt, dl_tx), dl_tx, "%", 10.0, "max",
+         [{"name": "dlR0 (1st transmissions)", "delta": dl_tx}, {"name": "dlR1-3 (retransmissions)", "delta": dl_rt},
+          {"name": "dlErr (residual)", "delta": d["dlErr"]}, {"name": "pucchDtx", "delta": d["pucchDtx"]}],
+         "Above 10 % the link adaptation does not follow the channel (MCS too high for the SINR).",
+         "OAI dlsch_rounds per RNTI; 38.214 BLER target 10 %"),
+        ("dl_tput", "Integrity", "DL user throughput (seconds with data)", v["tputDl"], len(act_dl), "Mbit/s",
+         round(BASE_TPUT_RATIO * BASELINE["dlTput"], 1), "min",
+         [base("seconds with DL data", len(act_dl)), base("DL baseline (Mbit/s)", BASELINE["dlTput"]),
+          base("average DL MCS", v["mcsDl"])],
+         "See the diagnosis above: it names the first link of SINR -> CQI -> MCS -> BLER -> throughput that fails.",
+         "MAC goodput in seconds with data (>= 10 % of the baseline), simulated time; target = 80 % of the stage 3 baseline"),
+        ("ul_retx", "Integrity", "UL HARQ retransmission rate", _pct(ul_rt, ul_tx), ul_tx, "%", 10.0, "max",
+         [{"name": "ulR0 (1st transmissions)", "delta": ul_tx}, {"name": "ulR1-3 (retransmissions)", "delta": ul_rt},
+          {"name": "ulErr (residual)", "delta": d["ulErr"]}, {"name": "ulDtx", "delta": d["ulDtx"]}],
+         "UL decoding failures: PUSCH SNR too low for the UL MCS.", "OAI ulsch_rounds per RNTI"),
+        ("ul_tput", "Integrity", "UL user throughput (seconds with data)", v["tputUl"], len(act_ul), "Mbit/s",
+         round(BASE_TPUT_RATIO * BASELINE["ulTput"], 1), "min",
+         [base("seconds with UL data", len(act_ul)), base("UL baseline (Mbit/s)", BASELINE["ulTput"]),
+          base("average UL MCS", v["mcsUl"]), base("average UL PRBs", v["nprbUl"])], "",
+         "Same, uplink"),
+        ("oos", "Retainability", "Time out of sync", _pct(oos, len(cnt)), len(cnt), "%", 0.0, "max",
+         [{"name": "samples out-of-sync", "delta": oos}, {"name": "samples", "delta": len(cnt)}],
+         "The gNB lost this UE: radio link failure follows.", "OAI in-sync / out-of-sync per RNTI, sampled once a second"),
+        ("rsrp", "Info", "Average RSRP (gNB report)", v["rsrp"], None, "dBm", None, "info", [], "",
+         "rfsim has no path loss: RSRP stays near -41 dBm and does not show the noise preset"),
+        ("ph", "Info", "Power headroom (last report)", v["ph"], None, "dB", None, "info",
+         [base("PCMAX (dBm)", v["pcmax"])],
+         "Not used as a KPI: in rfsim the reported PH moves the wrong way (exp-power.sh).", "TS 38.321 PHR; observation only"),
+    ]
+    out = []
+    for kid, group, name, val, att, unit, target, sense, counters, hint, ref in defs:
+        out.append({"id": kid, "group": group, "name": name, "unit": unit, "target": target, "sense": sense, "ref": ref,
+                    "hint": hint, "value": val, "status": _grade(val, att, target, sense),
+                    "counters": [{**c, "nf": c.get("nf", "gNB")} for c in counters], "contributors": []})
+    return out, len(act_dl), len(act_ul)
+
+
+def diagnose(kpis):
+    """K4: the first failing link of SINR -> CQI -> MCS -> BLER -> throughput is the root cause."""
+    k = {x["id"]: x for x in kpis}
+    st = lambda i: k[i]["status"]
+    f = lambda i, nd=1: "–" if k[i]["value"] is None else ("%." + str(nd) + "f") % k[i]["value"]
+    chain = [{"id": i, "name": n, "value": k[i]["value"], "unit": k[i]["unit"], "status": st(i)}
+             for i, n in (("sinr", "SINR"), ("cqi", "CQI"), ("mcs_dl", "DL MCS"), ("dl_retx", "DL BLER (retx)"),
+                          ("dl_tput", "DL throughput"))]
+    deg = [i for i in ("sinr", "cqi", "mcs_dl", "dl_retx", "dl_tput", "ul_retx", "ul_tput", "oos") if st(i) == "bad"]
+    if not deg:
+        idle = st("dl_tput") == "idle"
+        return {"id": "none", "status": "ok", "chain": chain,
+                "summary": "No degradation." + (" No DL data in the window: start a DL speed test to grade the MCS and "
+                                                 "throughput." if idle else "")}
+    if st("oos") == "bad":
+        cid, txt = "rlf", "The gNB lost the UE (out of sync %s %% of the time): radio link failure. Check the noise preset " \
+                          "and whether the UE pod restarted." % f("oos")
+    elif st("sinr") == "bad":
+        cid, txt = "radio_sinr", ("Low SINR (%s dB) -> CQI %s -> DL MCS %s -> %s Mbit/s. The link adaptation works "
+                                  "(retransmissions %s %%), so the cause is the channel: noise or interference on the DL "
+                                  "(here: the noise preset)." % (f("sinr"), f("cqi"), f("mcs_dl"), f("dl_tput"), f("dl_retx", 2)))
+    elif st("cqi") == "bad":
+        cid, txt = "cqi_report", "SINR is fine (%s dB) but the CQI is low (%s): CSI reporting or CSI-RS configuration, " \
+                                 "not the channel." % (f("sinr"), f("cqi"))
+    elif st("mcs_dl") == "bad":
+        cid, txt = "mcs_choice", "CQI is fine (%s) but the DL MCS is low (%s): BLER-based MCS backoff or an MCS limit in " \
+                                 "the gNB config." % (f("cqi"), f("mcs_dl"))
+    elif st("dl_retx") == "bad":
+        cid, txt = "link_adaptation", "Radio is fine but %s %% of the DL TBs need a retransmission: the MCS is too high for " \
+                                      "the channel (link adaptation)." % f("dl_retx", 2)
+    elif st("dl_tput") == "bad":
+        cid, txt = "not_radio", "SINR, CQI, MCS and BLER are within target but DL throughput is %s Mbit/s: not the radio. " \
+                                "Check the PRB share and CCE failures (RAN KPIs), the traffic source (iperf3), the rfsim " \
+                                "CPU load, or the core user plane (UPF)." % f("dl_tput")
+    elif st("ul_retx") == "bad":
+        cid, txt = "ul_decoding", "UL retransmissions %s %%: PUSCH SNR too low for the UL MCS." % f("ul_retx", 2)
+    else:
+        cid, txt = "ul_not_radio", "UL throughput is %s Mbit/s with UL decoding fine: check the UL PRBs, the traffic " \
+                                   "source, the rfsim CPU load or the UPF." % f("ul_tput")
+    return {"id": cid, "status": "bad", "chain": chain, "summary": txt, "degraded": deg}
+
+
+def ue_kpis(seconds):
+    cut = time.time() - seconds
+    with HISTORY.lock:
+        series = {r: [x for x in d if x["t"] >= cut] for r, d in HISTORY.by_rnti.items()}
+    ues = []
+    for rnti, rows in sorted(series.items(), key=lambda kv: -(kv[1][-1]["t"] if kv[1] else 0)):
+        if not rows:
+            continue
+        kp, a_dl, a_ul = ue_eval(rows)
+        ues.append({"rnti": rnti, "samples": len(rows), "activeDl": a_dl, "activeUl": a_ul,
+                    "first": rows[0]["t"], "last": rows[-1]["t"], "kpis": kp, "diagnosis": diagnose(kp)})
+    return {"window": seconds, "span": seconds, "samples": sum(u["samples"] for u in ues), "step": 1, "time": now_iso(),
+            "baseline": BASELINE, "rules": {"tputRatio": BASE_TPUT_RATIO, "cqiDrop": BASE_CQI_DROP, "mcsDrop": BASE_MCS_DROP,
+                                            "activeMbps": ACTIVE}, "ues": ues, "kpis": [], "errors": {}}
 
 
 STATE = State()
@@ -1144,12 +1330,16 @@ class Handler(BaseHTTPRequestHandler):
             except Exception as e:
                 return self.send(502, json.dumps({"error": "Capture service: " + describe_error(e)}), "application/json")
         if url.path == "/api/kpi":
+            dom = (q.get("domain") or ["core"])[0]
+            lo, hi = (60, PM_KEEP * PM_STEP) if dom == "core" else (30, HISTORY_SECONDS)
             try:
-                seconds = max(60, min(PM_KEEP * PM_STEP, int((q.get("seconds") or ["900"])[0])))
+                seconds = max(lo, min(hi, int((q.get("seconds") or ["900"])[0])))
             except ValueError:
                 seconds = 900
-            dom = (q.get("domain") or ["core"])[0]
-            return self.send(200, json.dumps(ran_kpis(seconds) if dom == "ran" else core_kpis(seconds)), "application/json")
+            if dom not in ("core", "ran", "ue"):
+                return self.send(400, "domain must be core, ran or ue", "text/plain")
+            fn = {"core": core_kpis, "ran": ran_kpis, "ue": ue_kpis}[dom]
+            return self.send(200, json.dumps(fn(seconds)), "application/json")
         if url.path == "/healthz":
             return self.send(200, "ok", "text/plain")
         self.send(404, "Not found", "text/plain")

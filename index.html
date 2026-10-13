@@ -78,6 +78,16 @@ header {
 .ut .r { font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
 .charts { display: grid; grid-template-columns: repeat(auto-fill, minmax(380px, 1fr)); gap: 12px; }
 .kpipage { padding: 8px 28px 28px; }
+.uehead { margin: 18px 0 6px; font: 700 20px var(--cond); }
+.uehead small { font: 400 13px var(--sans); color: var(--muted); margin-left: 8px; }
+.diag { background: var(--panel); border: 1px solid #2f3d4c; border-left: 4px solid var(--ok); border-radius: 6px; padding: 10px 14px; margin-bottom: 8px; }
+.diag.bad { border-left-color: var(--fault); }
+.diag .t { font-weight: 700; margin-bottom: 6px; }
+.diag .chain { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; margin-bottom: 6px; font-variant-numeric: tabular-nums; }
+.diag .chain span.s { border: 1px solid #3a4a5c; border-radius: 4px; padding: 2px 8px; font-size: 13px; }
+.diag .chain span.s.bad { border-color: var(--fault); color: #ffb3ad; }
+.diag .chain span.s.ok { border-color: var(--ok); }
+.diag .chain span.a { color: var(--muted); }
 @media (max-width: 700px) { .kpipage { padding: 8px 16px 20px; } }
 .kgroup { margin: 14px 0 6px; font: 700 18px var(--cond); }
 .krow { background: var(--panel); border: 1px solid #2f3d4c; border-radius: 6px; margin-bottom: 6px; }
@@ -404,7 +414,7 @@ select, input { color: var(--ink); background: #111820; color-scheme: dark; }
 <section id="kpi" class="kpipage" hidden>
   <div class="uebar">
     <div class="seg" role="group" aria-label="KPI domain">
-      <button data-kd="core" class="on">Core</button><button data-kd="ran">RAN (gNB)</button>
+      <button data-kd="core" class="on">Core</button><button data-kd="ran">RAN (gNB)</button><button data-kd="ue">UE</button>
     </div>
     <div class="seg" role="group" aria-label="KPI window">
       <button data-kw="300">5 min</button><button data-kw="900" class="on">15 min</button><button data-kw="3600">1 h</button><button data-kw="21600">6 h</button>
@@ -891,6 +901,7 @@ document.querySelectorAll(".seg button").forEach(b => b.onclick = () => {
 // K1: core KPIs (counters -> KPI -> contributors)
 let kpiWin = 900, kpiTimer = null, kpiOpen = new Set(), kpiDom = "core";
 const KSRC = {core: "Counters from the Open5GS metrics (AMF, SMF, UPF, PCF), sampled every 15 s and kept for 6 h in the dashboard. A KPI is computed from the counter changes inside the window, as in a PM report. Select a KPI to see its counters, the failure counters that contribute to it (per cause where the core reports one) and where to look first. A dash means the core has not reported that counter yet (no such event so far).",
+              ue: "Per UE (RNTI), from the gNB MAC statistics and the UE's own SSB SINR, sampled every second (15 min kept). Targets are bench rules against the stage 3 baseline (noise off): throughput >= 80 % of the baseline, CQI at most 2 and DL MCS at most 4 below it, SINR above the typical value for that CQI. MCS and throughput only count the seconds with data (at least 10 % of the baseline, so TCP ACKs of a test in the other direction do not count). The diagnosis names the first link of SINR -> CQI -> MCS -> BLER -> throughput that fails.",
               ran: "Counters from the OAI gNB MAC statistics (HARQ rounds, residual errors, DTX, CCE failures, sync state per UE), sampled every second and kept for 15 min; random access and RRC setup are counted from the gNB log events. Select a KPI to see its counters and the radio values to read when it degrades (SINR, CQI, MCS, BLER)."};
 const KSTATE = {ok: "within target", bad: "below target", idle: "no attempts in the window", nodata: "counter not reported", info: ""};
 function esc(t) { return String(t).replace(/[&<>"]/g, c => ({"&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;"}[c])); }
@@ -898,12 +909,32 @@ function kv(v, u) { return v === null || v === undefined ? "–" : (u === "%" ? 
 function renderKpi(d) {
   $("kpiNote").textContent = kpiDom === "core"
     ? `Window ${Math.round(d.span / 60)} of ${kpiWin / 60} min available · ${d.samples || 0} samples every ${d.step || 15} s · updated ${new Date(d.time || Date.now()).toLocaleTimeString()}`
-    : `${d.samples || 0} UE samples in the window (RAN history is kept 15 min) · updated ${new Date(d.time || Date.now()).toLocaleTimeString()}`;
+    : `${d.samples || 0} UE samples in the window (RAN and UE history is kept 15 min) · updated ${new Date(d.time || Date.now()).toLocaleTimeString()}`;
   const errs = Object.entries(d.errors || {});
   $("kpiErr").innerHTML = errs.map(([nf, e]) => `<div>${esc(nf.toUpperCase())} metrics: ${esc(e)}</div>`).join("");
   const body = $("kpiBody"); body.innerHTML = "";
+  if (kpiDom === "ue") return renderUe(d, body);
+  kpiRows(d.kpis, body, "");
+}
+function renderUe(d, body) {
+  if (!d.ues.length) { body.innerHTML = `<p class="uenote">No UE statistics in the window. Start the gNB and the UE.</p>`; return; }
+  for (const u of d.ues) {
+    const h = document.createElement("h3"); h.className = "uehead";
+    h.innerHTML = `UE RNTI ${esc(u.rnti)}<small>${u.samples} samples · ${u.activeDl} s with DL data · ${u.activeUl} s with UL data · last seen ${new Date(u.last * 1000).toLocaleTimeString()}</small>`;
+    body.append(h);
+    const g = u.diagnosis, box = document.createElement("div");
+    box.className = "diag " + g.status;
+    box.innerHTML = `<div class="t">${g.status === "bad" ? "Degraded · root cause" : "Diagnosis"}</div>
+      <div class="chain">${g.chain.map(c => `<span class="s ${c.status}">${esc(c.name)} ${kv(c.value, c.unit)}${c.unit && c.unit !== "%" ? " " + esc(c.unit) : c.unit}</span>`).join('<span class="a">→</span>')}</div>
+      <div>${esc(g.summary)}</div>`;
+    body.append(box);
+    kpiRows(u.kpis, body, u.rnti + ":");
+  }
+}
+function kpiRows(list, body, pre) {
   let group = "";
-  for (const k of d.kpis) {
+  for (const k0 of list) {
+    const k = {...k0, id: pre + k0.id};
     if (k.group !== group) { group = k.group; const h = document.createElement("h3"); h.className = "kgroup"; h.textContent = group; body.append(h); }
     const row = document.createElement("div");
     row.className = "krow " + k.status + (kpiOpen.has(k.id) ? " open" : "");
