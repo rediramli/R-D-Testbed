@@ -30,7 +30,7 @@ if not ue["ues"]:
     r(False, "no UE in the UE KPIs"); sys.exit(1)
 u = max(ue["ues"], key=lambda x: (x["activeDl"], x["samples"]))   # the RNTI that carried the speed test
 k = {x["id"]: x for x in u["kpis"]}; g = u["diagnosis"]
-open("/tmp/kpi-rnti-" + phase, "w").write(u["rnti"])
+open("/tmp/kpi-rnti-" + phase, "w").write(u["rnti"] + "\n")
 v = lambda i: "-" if k[i]["value"] is None else "%.1f" % k[i]["value"]
 print("  info  %s: RNTI %s, %d samples, %d s with DL data | SINR %s dB  CQI %s  DL MCS %s  DL retx %s %%  DL %s Mbit/s | diagnosis %s"
       % (phase, u["rnti"], u["samples"], u["activeDl"], v("sinr"), v("cqi"), v("mcs_dl"), v("dl_retx"), v("dl_tput"), g["id"]))
@@ -70,7 +70,7 @@ check(){
   sleep "$PH"; grade off-again ok
   api speed-stop >/dev/null; trap - EXIT
   r=$(cat /tmp/kpi-rnti-off /tmp/kpi-rnti-poor /tmp/kpi-rnti-off-again 2>/dev/null | sort -u | tr '\n' ' ')
-  [ "$(echo $r | wc -w)" = 1 ] && ok "same RNTI in all phases ($r)" \
+  [ "$(echo $r | wc -w)" = 1 ] && [ -n "$r" ] && ok "same RNTI in all phases ($r)" \
     || bad "UE re-attached during the test (RNTI changed: $r): rerun without touching the controls"
   rm -f /tmp/kpi-rnti-*
   [ "$(noise_db)" = "-100.0" ] && ok "noise back at -100 dB" || bad "noise not back at -100 dB: $(noise_db)"
