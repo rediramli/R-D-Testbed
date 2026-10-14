@@ -4,6 +4,21 @@ A custom monitoring and control dashboard for an open-source 5G SA testbed in th
 
 The testbed runs **in RF simulator mode only**. There is no over-the-air transmission.
 
+## Screenshots
+
+Overview: the testbed drawn as an O-RAN architecture, with the live state of every core network function, the gNB and
+the UE, the 5G SA message flow (N2 captured with tshark, Uu from the gNB and UE logs) and the controls.
+
+![Dashboard overview](docs/img/dashboard-overview.png)
+
+UE KPIs: per-second radio values of one UE (RSRP, SINR, CQI, MCS, BLER, goodput), the reported CQI as a row of the
+TS 38.214 CQI table, and the trends of the last 2 to 15 minutes. The KPIs tab adds core, RAN and per-UE KPIs with
+counters, root-cause diagnosis and 30 days of history (Prometheus).
+
+![UE KPIs](docs/img/dashboard-ue-kpis.png)
+
+Experiments and results: [docs/experiments](docs/experiments/README.md).
+
 ## Testbed
 
 | Host | Role | Software |
