@@ -1,0 +1,108 @@
+# Stage P1a, core cluster (P3 Tiny): Prometheus keeps the KPI counters for 30 days (history beyond the dashboard's
+# in-memory windows). It scrapes the four Open5GS metrics endpoints (K1) and the dashboard's /metrics (gNB MAC counters
+# and UE radio values per RNTI, Uu events).
+# Not reachable from outside the core cluster: ClusterIP Services only, no hostPort, no NodePort. Applied by prom.sh.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: prometheus-config
+  namespace: fct-dash
+data:
+  prometheus.yml: |
+    global:
+      scrape_interval: 15s
+      scrape_timeout: 5s
+      external_labels: {testbed: fct-bench}
+    scrape_configs:
+    - job_name: open5gs
+      static_configs:
+      - {targets: ["10.42.0.2:9090"], labels: {nf: amf}}
+      - {targets: ["10.42.0.2:9091"], labels: {nf: upf}}
+      - {targets: ["open5gs-smf-sbi.open5gs.svc:9090"], labels: {nf: smf}}
+      - {targets: ["open5gs-pcf-sbi.open5gs.svc:9090"], labels: {nf: pcf}}
+    - job_name: fct-dash
+      scrape_interval: 5s
+      static_configs:
+      - {targets: ["fct-dash-metrics.fct-dash.svc:8080"], labels: {nf: gnb}}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: fct-dash-metrics          # the dashboard's /metrics inside the cluster (the dashboard itself stays on hostPort 30880)
+  namespace: fct-dash
+spec:
+  type: ClusterIP
+  selector: {app: fct-dash}
+  ports:
+  - {name: http, port: 8080, targetPort: 8080}
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: prometheus-data
+  namespace: fct-dash
+spec:
+  accessModes: [ReadWriteOnce]
+  storageClassName: local-path    # k3s default: a directory on the Tiny disk; the size limit is --storage.tsdb.retention.size
+  resources:
+    requests: {storage: 5Gi}
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: prometheus
+  namespace: fct-dash
+spec:
+  replicas: 1
+  strategy: {type: Recreate}      # one writer on the volume
+  selector:
+    matchLabels: {app: prometheus}
+  template:
+    metadata:
+      labels: {app: prometheus}
+      annotations:
+        fct-dash/config-hash: "CONFIG_HASH"
+    spec:
+      automountServiceAccountToken: false   # static targets only: no Kubernetes API access
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 65534
+        runAsGroup: 65534
+        fsGroup: 65534
+      containers:
+      - name: prometheus
+        image: docker.io/prom/prometheus:v3.5.0
+        args:
+        - --config.file=/etc/prometheus/prometheus.yml
+        - --storage.tsdb.path=/prometheus
+        - --storage.tsdb.retention.time=30d
+        - --storage.tsdb.retention.size=5GB
+        - --web.listen-address=:9090
+        ports:
+        - {name: http, containerPort: 9090}
+        readinessProbe:
+          httpGet: {path: /-/ready, port: 9090}
+          periodSeconds: 5
+        resources:
+          requests: {cpu: 50m, memory: 128Mi}
+          limits: {cpu: "1", memory: 1Gi}
+        securityContext:
+          readOnlyRootFilesystem: true
+          allowPrivilegeEscalation: false
+        volumeMounts:
+        - {name: config, mountPath: /etc/prometheus, readOnly: true}
+        - {name: data, mountPath: /prometheus}
+      volumes:
+      - {name: config, configMap: {name: prometheus-config}}
+      - {name: data, persistentVolumeClaim: {claimName: prometheus-data}}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: prometheus
+  namespace: fct-dash
+spec:
+  type: ClusterIP
+  selector: {app: prometheus}
+  ports:
+  - {name: http, port: 9090, targetPort: 9090}
