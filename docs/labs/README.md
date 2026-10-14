@@ -26,7 +26,7 @@ after through the dashboard and Prometheus (30 days kept).
 |---|---|---|---|---|
 | 0 | DL noise presets (Clean / Moderate / Poor) and dashboard control | yes | Done; bench rerun 2026-10-14 PASS | [LAB-00-noise-presets.md](LAB-00-noise-presets.md) |
 | 0b | Noise sweep -20 to -2 dB (SINR, CQI, MCS, goodput curve) | yes | Planned | |
-| 0c | Why the DL speed test stays near 50 Mbit/s on the bench while the link carries ~88 (TCP vs UDP) | yes | Next | |
+| 0c | Why the DL speed test stays near 50 Mbit/s on the bench while the link carries ~88 (TCP vs UDP) | yes | Done 2026-10-14: one TCP flow is the limit, the link carries 87.5 Mbit/s | [LAB-00-noise-presets.md](LAB-00-noise-presets.md#lab-0c-one-tcp-flow-vs-udp-2026-10-14) |
 | 1 | Changing the 5G NR bandwidth | yes | Planned | |
 | 2 | Changing the 5G NR central frequency carrier | yes (configuration only) | Planned | |
 | 3 | Changing the 5G NR TDD slot configuration | yes | Planned | |

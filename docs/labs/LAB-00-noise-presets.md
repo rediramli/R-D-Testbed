@@ -107,6 +107,39 @@ MODE=run bash infra/lab/lab00-timeline.sh
 python3 plot-noise-timeline.py docs/labs/data/bench-timeline-<time> docs/labs/img/LAB-00-bench-timeline.png "LAB-0 on the bench: ..."
 ```
 
+## LAB-0c: one TCP flow vs UDP (2026-10-14)
+Question from the bench rerun: is the DL speed test (one TCP flow) what keeps the goodput near 50 Mbit/s at Off?
+`infra/lab/lab00c-tcp-udp.sh` runs three DL phases of 30 s with noise off through a temporary iperf3 client pod bound
+to `oaitun_ue1` (server 10.45.0.1:5202, `-R`): TCP, UDP at 200 Mbit/s offered (wall clock), TCP again.
+Run `bench-tcpudp-20261014T025110Z`: **RESULT: PASS** (all phases complete, one UE context `c79d`, no out-of-sync).
+**Verdict: hypothesis supported.**
+
+![LAB-0c TCP vs UDP](img/LAB-00c-tcp-udp.png)
+
+| Phase | iperf3 at the UE (wall clock) | MAC goodput median (p90), sim time | DL MCS | DL BLER |
+|---|---|---|---|---|
+| TCP | 89.0 Mbit/s, 1261 retransmissions | 54.6 (88.4) Mbit/s | 28 | 0 |
+| UDP, 200 Mbit/s offered | ~128 Mbit/s received (27.4 % lost) | 87.5 (87.7) Mbit/s | 28 | 0 |
+| TCP again | 82.7 Mbit/s, 260 retransmissions | 49.8 (69.6) Mbit/s | 28 | 0 |
+
+Findings:
+- The link carries **87.5 Mbit/s** of MAC goodput at MCS 28, steady, with BLER 0: the same as the old lab (~88-90).
+  Use UDP at a fixed rate above the link rate when a lab measures capacity (LAB-1 onwards).
+- One TCP flow reaches that rate for about 6-9 s after its start (MAC 88 Mbit/s, iperf3 ~130 Mbit/s wall clock), then
+  loses packets (1261 and 260 retransmissions) and settles at 60-90 Mbit/s wall clock, about 40-60 Mbit/s of MAC
+  goodput. The radio stays at MCS 28 and BLER 0 throughout, so the losses are not on the air interface.
+  Hypothesis, not tested: a queue on the path (gNB RLC/PDCP buffer, GTP-U or the UE tunnel) overflows when TCP fills
+  it, and TCP (CUBIC) backs off and recovers slowly over the long round trip of the simulated link.
+- Wall clock vs simulated time in this run: 128 / 87.5 = about 1.46.
+- The dashboard speed test stays TCP on purpose (it shows what one application flow gets). The stage 3 baseline
+  (50.9 Mbit/s) and the KPI targets built on it describe that TCP flow, not the radio capacity.
+
+Reproduce (on REDLAB, repo root, about 2.5 min, dashboard speed tests stopped, no controls meanwhile):
+```
+MODE=run bash infra/lab/lab00c-tcp-udp.sh
+python3 plot-tcp-udp.py docs/labs/data/bench-tcpudp-<time> docs/labs/img/LAB-00c-tcp-udp.png
+```
+
 ## Lessons
 - `lab0-run.sh` re-creates the UE from `ran/oai-nr-ue-deploy.json`: change the source file, and run lab0 in the test.
 - With no DL traffic the gNB reports MCS 0, goodput 0 and a decaying BLER; that is the idle state.
