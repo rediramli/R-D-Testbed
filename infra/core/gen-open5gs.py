@@ -69,6 +69,12 @@ configs = {
 }
 for c in configs.values():
     c["logger"] = {"level": "info"}
+# Prometheus metrics (KPI counters, stage K1). AMF and UPF share the host network, so they get their own ports on the
+# bench LAN address; SMF and PCF listen in their pods (port 9090, also on their Service).
+METRICS = {"amf": {"address": HOST_IP, "port": 9090}, "upf": {"address": HOST_IP, "port": 9091},
+           "smf": {"dev": "eth0", "port": 9090}, "pcf": {"dev": "eth0", "port": 9090}}
+for nf, srv in METRICS.items():
+    configs[nf][nf]["metrics"] = {"server": [srv]}
 
 UPF_INIT = f"""set -e
 # Idempotent: with hostNetwork, ogstun and the NAT rule stay on the host across pod restarts.
@@ -137,6 +143,8 @@ for nf in ["nrf", "scp", "ausf", "udm", "udr", "pcf", "bsf", "nssf", "smf", "amf
         ports = [{"name": "sbi", "port": 7777, "protocol": "TCP"}]
         if nf == "smf":
             ports.append({"name": "pfcp", "port": 8805, "protocol": "UDP"})
+        if nf in METRICS:
+            ports.append({"name": "metrics", "port": 9090, "protocol": "TCP"})
         docs.append({"apiVersion": "v1", "kind": "Service",
                      "metadata": {"name": f"{name}-sbi", "namespace": NS},
                      "spec": {"selector": labels(nf), "ports": ports}})

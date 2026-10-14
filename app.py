@@ -139,6 +139,35 @@ RE_UL = re.compile(r"UE ([0-9a-fA-F]{4}): ulsch_rounds .*?BLER ([\d.]+) MCS \(\d
 RE_GP = re.compile(r"UE ([0-9a-fA-F]{4}): .*?goodput DL\s+([\d.]+) UL\s+([\d.]+)")
 
 
+# ---- K2: RAN (gNB) KPIs from the OAI MAC statistics and the Uu events -------
+# OAI prints cumulative per-UE counters in its MAC statistics (about 5 times a second):
+#   "UE xxxx: dlsch_rounds a/b/c/d, dlsch_errors e, pucch0_DTX f ... CCE fail g"   (HARQ round 1..4 counts of DL TBs)
+#   "UE xxxx: ulsch_rounds a/b/c/d, ulsch_errors e, ulsch_DTX f ... CCE fail g"
+#   "UE RNTI xxxx ... in-sync|out-of-sync ..."
+# The sampler stores them once a second per RNTI; a KPI uses the change of each counter inside the window, per RNTI
+# (a new RNTI starts its own counters). Random access and RRC setup are counted from the Uu events.
+RE_DLC = re.compile(r"UE ([0-9a-fA-F]{4}): dlsch_rounds (\d+)/(\d+)/(\d+)/(\d+), dlsch_errors (\d+), pucch0_DTX (\d+).*?CCE fail (\d+)")
+RE_ULC = re.compile(r"UE ([0-9a-fA-F]{4}): ulsch_rounds (\d+)/(\d+)/(\d+)/(\d+), ulsch_errors (\d+), ulsch_DTX (\d+).*?CCE fail (\d+)")
+RE_SYNC = re.compile(r"UE RNTI ([0-9a-fA-F]{4}) .*?\b(in-sync|out-of-sync)\b")
+COUNTERS = ["dlR0", "dlR1", "dlR2", "dlR3", "dlErr", "pucchDtx", "cceDl", "ulR0", "ulR1", "ulR2", "ulR3", "ulErr", "ulDtx",
+            "cceUl", "oos"]
+
+
+def parse_gnb_counters(text, ues):
+    """Add the cumulative MAC counters of each RNTI to `ues` (the dicts from parse_gnb_stats)."""
+    by = {u["rnti"]: u for u in ues}
+    for line in text.splitlines():
+        for rx, keys in ((RE_DLC, COUNTERS[0:7]), (RE_ULC, COUNTERS[7:14])):
+            m = rx.search(line)
+            if m and m[1].lower() in by:
+                by[m[1].lower()].update({k: int(v) for k, v in zip(keys, m.groups()[1:])})
+        m = RE_SYNC.search(line)
+        if m and m[1].lower() in by:
+            by[m[1].lower()]["oos"] = 1 if m[2] == "out-of-sync" else 0
+
+
+
+
 # UE side (nrUE log): "DL Chan: SSB 1 SINR 43.3 dB RSRP -41 dBm, RI 1 CQI 15 CSI-RS RSRP -41 dBm"
 RE_UE_CHAN = re.compile(r"DL Chan: SSB \d+ SINR ([-\d.]+) dB RSRP (-?\d+) dBm, RI (\d+) CQI (\d+)")
 
@@ -385,7 +414,7 @@ def mock_flow(after):
 # ---- D5: per-UE KPI history, sampled once per second ----------------------
 HISTORY_SECONDS = int(os.environ.get("HISTORY_SECONDS", "900"))
 FIELDS = ["rsrp", "ph", "pcmax", "cqi", "ri", "snrPucch", "snrPusch", "rssiDl", "rssiUl",
-          "mcsDl", "mcsUl", "blerDl", "blerUl", "nprbUl", "goodputDl", "goodputUl", "sinrUe"]
+          "mcsDl", "mcsUl", "blerDl", "blerUl", "nprbUl", "goodputDl", "goodputUl", "sinrUe"] + COUNTERS
 
 
 class History:
@@ -435,7 +464,9 @@ def sampler():
                                 chan = parse_ue_chan(cl.get(f"/api/v1/namespaces/{ns}/pods/{uep['pod']}/log?sinceSeconds=3", raw=True))
                             except Exception:
                                 pass
-                        for ue in parse_gnb_stats(text):
+                        ues = parse_gnb_stats(text)
+                        parse_gnb_counters(text, ues)
+                        for ue in ues:
                             if chan:
                                 ue["sinrUe"] = chan["sinrUe"]
                             if "goodputDl" in ue:
@@ -690,6 +721,323 @@ def mock_uu():
             off = 0 if role == "ue" else 2
             UU.ingest(role, "\n".join(f"{base}{(off + i) * 4:03d}000000Z {l}" for i, l in enumerate(ls)))
 
+
+# ---- K1: core KPIs from the Open5GS Prometheus counters ---------------------
+# Counters are scraped every PM_STEP seconds and kept in memory (PM_KEEP samples). A KPI is computed over a window
+# from the counter deltas, like a PM report over a ROP. Counter names were checked on Open5GS 2.8.0 (metrics.sh).
+PM_STEP = int(os.environ.get("PM_STEP", "15"))
+PM_KEEP = int(os.environ.get("PM_KEEP", "1440"))           # 6 h at 15 s
+PM_TARGETS = dict(kv.split("=", 1) for kv in os.environ.get(
+    "CORE_METRICS",
+    "amf=http://10.42.0.2:9090/metrics,smf=http://open5gs-smf-sbi.open5gs:9090/metrics,"
+    "upf=http://10.42.0.2:9091/metrics,pcf=http://open5gs-pcf-sbi.open5gs:9090/metrics").split(","))
+RE_PROM = re.compile(r'^([a-zA-Z_:][a-zA-Z0-9_:]*)(\{[^}]*\})?\s+(\S+)')
+
+
+def parse_prom(text):
+    """Prometheus text format -> {(metric, labels): value}; HELP/TYPE lines skipped."""
+    out = {}
+    for line in text.splitlines():
+        if not line or line[0] == "#":
+            continue
+        m = RE_PROM.match(line)
+        if m:
+            try:
+                out[(m[1], m[2] or "")] = float(m[3])
+            except ValueError:
+                pass
+    return out
+
+
+class PmStore:
+    def __init__(self):
+        self.lock = threading.Lock()
+        self.samples = collections.deque(maxlen=PM_KEEP)    # (t, {nf: {(metric, labels): value}}, {nf: error})
+
+    def scrape(self):
+        vals, errs = {}, {}
+        for nf, url in PM_TARGETS.items():
+            try:
+                with urllib.request.urlopen(url, timeout=3) as r:
+                    vals[nf] = parse_prom(r.read().decode("utf-8", "replace"))
+            except Exception as e:
+                errs[nf] = describe_error(e)
+        with self.lock:
+            self.samples.append((time.time(), vals, errs))
+
+    def window(self, seconds):
+        """(first, last) samples spanning at most `seconds`; first is the oldest sample inside the window."""
+        with self.lock:
+            if not self.samples:
+                return None, None
+            last = self.samples[-1]
+            first = next((s for s in self.samples if s[0] >= last[0] - seconds - PM_STEP / 2), last)
+            return first, last
+
+
+PM = PmStore()
+
+
+def pm_collector():
+    while True:
+        t0 = time.time()
+        if not MOCK:
+            PM.scrape()
+        time.sleep(max(1.0, PM_STEP - (time.time() - t0)))
+
+
+def _sum(sample, nf, metric):
+    """Sum of a metric over all its label sets, or None when the NF or metric is absent."""
+    vals = sample[1].get(nf)
+    if vals is None:
+        return None
+    hits = [v for (m, _), v in vals.items() if m == metric]
+    return sum(hits) if hits else None
+
+
+def _delta(first, last, nf, metric):
+    a, b = _sum(first, nf, metric), _sum(last, nf, metric)
+    if b is None:
+        return None
+    if a is None or b < a:          # NF restarted inside the window: the counter started again from 0
+        return b
+    return b - a
+
+
+def _by_label(first, last, nf, metric):
+    """Per label set delta of a counter (the 'contributors' of a failure counter)."""
+    out = []
+    lv = last[1].get(nf, {})
+    fv = first[1].get(nf, {})
+    for (m, labels), v in lv.items():
+        if m != metric:
+            continue
+        a = fv.get((m, labels))
+        d = v if a is None or v < a else v - a
+        if d:
+            out.append({"labels": labels.strip("{}") or "(no label)", "delta": d})
+    return sorted(out, key=lambda x: -x["delta"])
+
+
+# id, group, name, kind, numerator, denominator / extra, unit, target, 3GPP reference, failure contributors, hint
+CORE_KPIS = [
+    ("reg_init_sr", "Accessibility", "Initial registration success rate", "ratio",
+     ("amf", "fivegs_amffunction_rm_reginitsucc"), ("amf", "fivegs_amffunction_rm_reginitreq"), "%", 99.0,
+     "TS 28.552 5.2.1 RM.RegInitReq / RM.RegInitSucc; TS 28.554 registration success rate",
+     [("amf", "fivegs_amffunction_rm_reginitfail"), ("amf", "fivegs_amffunction_amf_authfail"),
+      ("amf", "fivegs_amffunction_amf_authreject")],
+     "Failures by cause point to the step: authentication (authfail from the UE = keys/SQN; authreject from the AMF = "
+     "subscriber or AUSF/UDM), no gNB connected (N2), or AMF cannot reach AUSF/UDM/PCF through the SCP."),
+    ("reg_mob_sr", "Accessibility", "Mobility registration update success rate", "ratio",
+     ("amf", "fivegs_amffunction_rm_regmobsucc"), ("amf", "fivegs_amffunction_rm_regmobreq"), "%", 99.0,
+     "TS 28.552 5.2.1 RM.RegMobReq / RM.RegMobSucc", [("amf", "fivegs_amffunction_rm_regmobfail")],
+     "A single cell bench has no mobility; attempts here mean the UE re-registered with a mobility update."),
+    ("reg_period_sr", "Accessibility", "Periodic registration update success rate", "ratio",
+     ("amf", "fivegs_amffunction_rm_regperiodsucc"), ("amf", "fivegs_amffunction_rm_regperiodreq"), "%", 99.0,
+     "TS 28.552 5.2.1 RM.RegPeriodReq / RM.RegPeriodSucc (T3512 = 540 s on this core)",
+     [("amf", "fivegs_amffunction_rm_regperiodfail")],
+     "Periodic updates fail when the UE context was lost in the AMF (AMF restart) or the UE lost the cell."),
+    ("auth_sr", "Accessibility", "Authentication success rate", "auth",
+     ("amf", "fivegs_amffunction_amf_authreq"), None, "%", 99.0,
+     "AMF authentication requests vs. failures (authfail) and rejects (authreject)",
+     [("amf", "fivegs_amffunction_amf_authfail"), ("amf", "fivegs_amffunction_amf_authreject")],
+     "authfail: the UE rejected the network (MAC or SQN failure: K/OPc in the UE and the subscriber DB differ, "
+     "or SQN out of range). authreject: the network rejected the UE's RES."),
+    ("pdu_sr", "Accessibility", "PDU session establishment success rate", "ratio",
+     ("smf", "fivegs_smffunction_sm_pdusessioncreationsucc"), ("smf", "fivegs_smffunction_sm_pdusessioncreationreq"),
+     "%", 99.0, "TS 28.552 5.3.1 SM.PduSessionCreationReq / Succ; TS 28.554 PDU session establishment success rate",
+     [("smf", "fivegs_smffunction_sm_pdusessioncreationfail"), ("smf", "fivegs_smffunction_sm_n4sessionestabfail")],
+     "Failures by cause: DNN or slice not in the subscription, no UE IP left in the pool, PCF policy refused, "
+     "or the N4 session to the UPF failed (see N4 success rate and PFCP peers)."),
+    ("n4_sr", "Accessibility", "N4 session establishment success rate", "n4",
+     ("smf", "fivegs_smffunction_sm_n4sessionestabreq"), None, "%", 99.0,
+     "TS 28.552 5.3.x SM.N4SessionEstab (SMF side); UPF side in the contributors",
+     [("smf", "fivegs_smffunction_sm_n4sessionestabfail"), ("upf", "fivegs_upffunction_sm_n4sessionestabfail")],
+     "N4 failures: PFCP association lost (UPF restarted), or the UPF could not install the rules (ogstun/route)."),
+    ("pcf_am_sr", "Accessibility", "AM policy association success rate", "ratio",
+     ("pcf", "fivegs_pcffunction_pa_policyamassosucc"), ("pcf", "fivegs_pcffunction_pa_policyamassoreq"), "%", 99.0,
+     "PCF PA.PolicyAMAssoReq / Succ", [],
+     "AMF to PCF over the SCP; a drop here with a good registration rate means the PCF or UDR is slow or down."),
+    ("pcf_sm_sr", "Accessibility", "SM policy association success rate", "ratio",
+     ("pcf", "fivegs_pcffunction_pa_policysmassosucc"), ("pcf", "fivegs_pcffunction_pa_policysmassoreq"), "%", 99.0,
+     "PCF PA.PolicySMAssoReq / Succ", [],
+     "SMF to PCF; failures block PDU sessions (see PDU session success rate)."),
+    ("paging_sr", "Accessibility", "Paging success rate", "ratio",
+     ("amf", "fivegs_amffunction_mm_paging5gsucc"), ("amf", "fivegs_amffunction_mm_paging5greq"), "%", 95.0,
+     "TS 28.552 MM.Paging5GReq / Succ", [],
+     "Paging is rare on the bench (the UE stays connected while it has traffic)."),
+    ("n3_dl", "Integrity", "N3 downlink user-plane throughput", "rate",
+     ("upf", "fivegs_ep_n3_gtp_outdatavolumeqosleveln3upf"), None, "Mbit/s", None,
+     "TS 28.552 GTP.OutDataOctN3UPF (per QoS level), UPF to gNB", [], ""),
+    ("n3_ul", "Integrity", "N3 uplink user-plane throughput", "rate",
+     ("upf", "fivegs_ep_n3_gtp_indatavolumeqosleveln3upf"), None, "Mbit/s", None,
+     "TS 28.552 GTP.InDataOctN3UPF (per QoS level), gNB to UPF", [], ""),
+    ("gnb", "Load", "gNBs connected to the AMF", "gauge", ("amf", "gnb"), None, "", 1, "AMF gauge", [],
+     "0 means no N2 link: gNB down or SCTP to 10.42.0.2:38412 broken."),
+    ("ran_ue", "Load", "UEs known to the AMF (RAN UE contexts)", "gauge", ("amf", "ran_ue"), None, "", None, "AMF gauge", [], ""),
+    ("reg_subs", "Load", "Registered subscribers", "gauge", ("amf", "fivegs_amffunction_rm_registeredsubnbr"), None, "",
+     None, "TS 28.552 RM.RegisteredSubNbr", [], ""),
+    ("pdu_sessions", "Load", "Active PDU sessions (SMF)", "gauge", ("smf", "fivegs_smffunction_sm_sessionnbr"), None, "",
+     None, "TS 28.552 SM.SessionNbr", [], ""),
+    ("upf_sessions", "Load", "Active N4 sessions (UPF)", "gauge", ("upf", "fivegs_upffunction_upf_sessionnbr"), None, "",
+     None, "UPF gauge", [], ""),
+    ("pfcp_peers", "Load", "PFCP peers of the SMF", "gauge", ("smf", "pfcp_peers_active"), None, "", 1, "SMF gauge", [],
+     "0 means the SMF has no UPF: no PDU session can be set up."),
+]
+
+
+def core_kpis(seconds):
+    first, last = PM.window(seconds)
+    if last is None:
+        return {"window": seconds, "span": 0, "kpis": [], "errors": {"pm": "no sample yet"}}
+    span = last[0] - first[0]
+    res = []
+    for kid, group, name, kind, num, den, unit, target, ref, contrib, hint in CORE_KPIS:
+        k = {"id": kid, "group": group, "name": name, "unit": unit, "target": target, "ref": ref, "hint": hint,
+             "value": None, "counters": [], "contributors": [], "status": "nodata"}
+        if kind == "gauge":
+            v = _sum(last, *num)
+            k["value"] = v
+            k["counters"] = [{"name": num[1], "nf": num[0], "value": v}]
+            k["status"] = "nodata" if v is None else ("info" if target is None else ("bad" if v < target else "ok"))
+        elif kind == "rate":
+            d = _delta(first, last, *num)
+            k["counters"] = [{"name": num[1], "nf": num[0], "delta": d}]
+            if d is not None and span > 0:
+                k["value"] = d * 8 / span / 1e6
+                k["status"] = "info"
+        else:
+            req = _delta(first, last, *num) if kind in ("auth", "n4") else _delta(first, last, *den)
+            if kind == "ratio":
+                succ = _delta(first, last, *num)
+                k["counters"] = [{"name": num[1], "nf": num[0], "delta": succ}, {"name": den[1], "nf": den[0], "delta": req}]
+            else:                    # success = requests minus the failure counters
+                fails = [_delta(first, last, *c) for c in contrib if c[0] == num[0]]
+                succ = None if req is None else req - sum(f or 0 for f in fails)
+                k["counters"] = [{"name": num[1], "nf": num[0], "delta": req}] + \
+                    [{"name": c[1], "nf": c[0], "delta": f} for c, f in zip([c for c in contrib if c[0] == num[0]], fails)]
+            if req is None:
+                k["status"] = "nodata"
+            elif req == 0:
+                k["status"] = "idle"            # no attempts in the window: nothing to judge
+            else:
+                k["value"] = 100.0 * max(0.0, succ or 0) / req
+                k["status"] = "ok" if k["value"] >= target else "bad"
+        for nf, metric in contrib:
+            d = _delta(first, last, nf, metric)
+            k["contributors"].append({"name": metric, "nf": nf, "delta": d, "byLabel": _by_label(first, last, nf, metric)})
+        res.append(k)
+    return {"window": seconds, "span": round(span), "samples": len(PM.samples), "step": PM_STEP,
+            "time": now_iso(), "kpis": res, "errors": last[2]}
+
+def ran_counter_deltas(seconds):
+    """Sum over RNTIs of the counter changes inside the window, plus averages of the radio values."""
+    cut = time.time() - seconds
+    tot = {k: 0 for k in COUNTERS if k != "oos"}
+    oos = n = 0
+    avg = {k: [] for k in ("cqi", "mcsDl", "mcsUl", "sinrUe", "goodputDl", "goodputUl", "blerDl", "blerUl")}
+    with HISTORY.lock:
+        series = {r: [x for x in d if x["t"] >= cut] for r, d in HISTORY.by_rnti.items()}
+    for rows in series.values():
+        rows = [x for x in rows if x.get("dlR0") is not None]
+        if not rows:
+            continue
+        first, last = rows[0], rows[-1]
+        for k in tot:
+            a, b = first.get(k), last.get(k)
+            if a is not None and b is not None:
+                tot[k] += b - a if b >= a else b
+        for x in rows:
+            n += 1
+            oos += x.get("oos") or 0
+            for k in avg:
+                if x.get(k) is not None:
+                    avg[k].append(x[k])
+    return tot, oos, n, {k: (sum(v) / len(v) if v else None) for k, v in avg.items()}
+
+
+def uu_counts(seconds):
+    cut = time.time() - seconds
+    with UU.lock:
+        ev = [e["msg"] for e in UU.events if e["t"] >= cut]
+    c = lambda p: sum(1 for m in ev if m.startswith(p))
+    return {"msg1": c("Msg1"), "msg2": c("Msg2"), "msg3": c("Msg3"), "msg4": c("Msg4:"), "msg4ack": c("Msg4 acknowledged"),
+            "rrcComplete": c("RRCSetupComplete")}
+
+
+def _pct(a, b):
+    return None if not b else 100.0 * a / b
+
+
+def ran_kpis(seconds):
+    tot, oos, n, avg = ran_counter_deltas(seconds)
+    uu = uu_counts(seconds)
+    dl_tx = tot["dlR0"]; ul_tx = tot["ulR0"]
+    dl_retx = tot["dlR1"] + tot["dlR2"] + tot["dlR3"]; ul_retx = tot["ulR1"] + tot["ulR2"] + tot["ulR3"]
+    radio = [{"name": "Average CQI", "value": avg["cqi"]}, {"name": "Average UE SINR (dB)", "value": avg["sinrUe"]},
+             {"name": "Average DL MCS", "value": avg["mcsDl"]}, {"name": "Average DL BLER (%)", "value": None if avg["blerDl"] is None else 100 * avg["blerDl"]},
+             {"name": "Average DL MAC goodput (Mbit/s)", "value": avg["goodputDl"]}]
+    cnt = lambda *names: [{"name": x, "nf": "gNB", "delta": tot.get(x, uu.get(x))} for x in names]
+    defs = [
+        ("rach_sr", "Accessibility", "Random access success rate", _pct(uu["msg4ack"], uu["msg1"]), uu["msg1"], "%", 99.0, "min",
+         cnt("msg1", "msg2", "msg3", "msg4", "msg4ack"),
+         "Read the chain Msg1 -> Msg2 -> Msg3 -> Msg4 -> Msg4 ACK: a loss between Msg1 and Msg3 means the UE did not "
+         "get or use the RAR (PRACH power, timing advance, RAR window); a loss after Msg3 means contention resolution "
+         "failed (two UEs with the same identity on the link, or Msg4 not decoded).",
+         "TS 38.321 5.1 random access; counted from the gNB log (Msg1 = preamble detected, success = Msg4 acknowledged)"),
+        ("rrc_sr", "Accessibility", "RRC setup success rate", _pct(uu["rrcComplete"], uu["msg3"]), uu["msg3"], "%", 99.0, "min",
+         cnt("msg3", "rrcComplete"),
+         "RRCSetupRequest (in Msg3) without RRCSetupComplete: RRCSetup not decoded, UE timer T300 expired, or the UE "
+         "restarted during the setup.", "TS 38.331 RRC connection establishment; TS 28.552 RRC.ConnEstabAtt / Succ"),
+        ("dl_retx", "Integrity", "DL HARQ retransmission rate", _pct(dl_retx, dl_tx), dl_tx, "%", 10.0, "max",
+         [{"name": "dlR0 (1st transmissions)", "nf": "gNB", "delta": dl_tx}, {"name": "dlR1-3 (retransmissions)", "nf": "gNB", "delta": dl_retx}] + radio,
+         "Above the 10 % BLER target the link adaptation is not following the channel. Read down the chain: UE SINR "
+         "(noise or interference) -> CQI reported -> DL MCS chosen -> BLER. Low SINR with a matching CQI is the channel; "
+         "a good SINR with a high BLER points to CQI reporting or the MCS offset.",
+         "First transmissions vs HARQ retransmissions (OAI dlsch_rounds); 38.214 targets 10 % BLER on the first transmission"),
+        ("dl_resid", "Integrity", "DL residual BLER (TB lost after all HARQ rounds)", _pct(tot["dlErr"], dl_tx), dl_tx, "%", 1.0, "max",
+         cnt("dlErr", "dlR0"), "Residual errors reach RLC/TCP and cut throughput; they follow a high retransmission rate.",
+         "OAI dlsch_errors / dlsch_rounds[1st]"),
+        ("pucch_dtx", "Integrity", "PUCCH DTX rate (HARQ feedback not received)", _pct(tot["pucchDtx"], dl_tx), dl_tx, "%", 1.0, "max",
+         cnt("pucchDtx", "dlR0"),
+         "The gNB expected HARQ ACK/NACK and got nothing: the UE missed the DL assignment (PDCCH) or its PUCCH was too weak.",
+         "OAI pucch0_DTX / DL first transmissions"),
+        ("ul_retx", "Integrity", "UL HARQ retransmission rate", _pct(ul_retx, ul_tx), ul_tx, "%", 10.0, "max",
+         [{"name": "ulR0 (1st transmissions)", "nf": "gNB", "delta": ul_tx}, {"name": "ulR1-3 (retransmissions)", "nf": "gNB", "delta": ul_retx}],
+         "UL decoding failures: PUSCH SNR below the MCS in use (UL power control, see the UE KPIs) or UL interference.",
+         "OAI ulsch_rounds"),
+        ("ul_resid", "Integrity", "UL residual BLER", _pct(tot["ulErr"], ul_tx), ul_tx, "%", 1.0, "max", cnt("ulErr", "ulR0"),
+         "", "OAI ulsch_errors / ulsch_rounds[1st]"),
+        ("ul_dtx", "Integrity", "PUSCH DTX rate (granted but nothing received)", _pct(tot["ulDtx"], ul_tx), ul_tx, "%", 1.0, "max",
+         cnt("ulDtx", "ulR0"), "The UE did not send on its UL grant: it missed the DCI or lost UL sync.", "OAI ulsch_DTX"),
+        ("oos", "Retainability", "Time out of sync", _pct(oos, n), n, "%", 0.0, "max",
+         [{"name": "samples out-of-sync", "nf": "gNB", "delta": oos}, {"name": "samples", "nf": "gNB", "delta": n}],
+         "The gNB lost the UE (no UL for a while): radio link failure follows. Check SINR, the noise preset and whether the UE pod restarted.",
+         "OAI in-sync / out-of-sync state per UE, sampled once a second"),
+        ("cce_fail", "Utilization", "PDCCH allocation failures (CCE)", tot["cceDl"] + tot["cceUl"], None, "", None, "info",
+         cnt("cceDl", "cceUl"), "CCE failures mean the PDCCH had no room for a DCI in that slot; they delay scheduling.",
+         "OAI CCE fail counters (DL and UL)"),
+        ("dl_tput", "Integrity", "Average DL MAC goodput", avg["goodputDl"], None, "Mbit/s", None, "info", radio[:3], "",
+         "Average of the per-second MAC goodput (simulated time in rfsim)"),
+        ("ul_tput", "Integrity", "Average UL MAC goodput", avg["goodputUl"], None, "Mbit/s", None, "info", [], "", "Same, uplink"),
+    ]
+    out = []
+    for kid, group, name, val, attempts, unit, target, sense, counters, hint, ref in defs:
+        if sense == "info":
+            status = "info" if val is not None else "nodata"
+        elif attempts is None or n == 0 and kid not in ("rach_sr", "rrc_sr"):
+            status = "nodata"
+        elif not attempts:
+            status = "idle"
+        else:
+            status = "ok" if (val >= target if sense == "min" else val <= target) else "bad"
+        out.append({"id": kid, "group": group, "name": name, "unit": unit, "target": target, "sense": sense, "ref": ref,
+                    "hint": hint, "value": val, "status": status,
+                    "counters": [{**c, "nf": c.get("nf", "gNB")} for c in counters],
+                    "contributors": []})
+    return {"window": seconds, "span": seconds, "samples": n, "step": 1, "time": now_iso(), "kpis": out, "errors": {}}
+
+
 STATE = State()
 CONTROL = Control()
 
@@ -795,6 +1143,13 @@ class Handler(BaseHTTPRequestHandler):
                     return self.send(200, r.read(), "application/json")
             except Exception as e:
                 return self.send(502, json.dumps({"error": "Capture service: " + describe_error(e)}), "application/json")
+        if url.path == "/api/kpi":
+            try:
+                seconds = max(60, min(PM_KEEP * PM_STEP, int((q.get("seconds") or ["900"])[0])))
+            except ValueError:
+                seconds = 900
+            dom = (q.get("domain") or ["core"])[0]
+            return self.send(200, json.dumps(ran_kpis(seconds) if dom == "ran" else core_kpis(seconds)), "application/json")
         if url.path == "/healthz":
             return self.send(200, "ok", "text/plain")
         self.send(404, "Not found", "text/plain")
@@ -806,4 +1161,5 @@ if __name__ == "__main__":
         STATE.snapshot()
     threading.Thread(target=sampler, daemon=True).start()
     threading.Thread(target=uu_collector, daemon=True).start()
+    threading.Thread(target=pm_collector, daemon=True).start()
     ThreadingHTTPServer(("0.0.0.0", PORT), Handler).serve_forever()
