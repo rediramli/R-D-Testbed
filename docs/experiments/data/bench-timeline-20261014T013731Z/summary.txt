@@ -1,0 +1,9 @@
+  info  phase     from    noise  | UE SINR  CQI  DL MCS  DL BLER   DL goodput | samples
+  PASS  off         0.0 s -100.0 dB |  45.1 dB   15    28 (want 26-28)  0.00000    48.4 Mbit/s | 30
+  PASS  clean      40.0 s  -11.0 dB |  22.1 dB   14    26 (want 23-28)  0.00000    44.6 Mbit/s | 30
+  PASS  moderate   80.0 s   -6.5 dB |  13.8 dB    9    15 (want 12-18)  0.00000    38.8 Mbit/s | 30
+  PASS  poor      120.0 s   -3.0 dB |   6.2 dB    5     6 (want 3-9)  0.00000    14.0 Mbit/s | 30
+  PASS  off       160.1 s -100.0 dB |  45.1 dB   15    28 (want 26-28)  0.00000    45.8 Mbit/s | 30
+  PASS  one UE context throughout: ['c79d']
+  PASS  out-of-sync samples: 0
+RESULT: PASS
