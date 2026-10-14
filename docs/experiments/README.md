@@ -21,6 +21,8 @@ BLER, DL/UL goodput, CCE failures and the KPI page, compared before and after th
 (30 days kept). Capacity is measured with UDP at a fixed rate above the link rate (Experiment 0c); the dashboard
 speed test is one TCP flow and shows what a single application gets.
 
+Teaching material built on these experiments (theory, formulas, worked examples, exercises): [docs/training](../training/README.md).
+
 ## Status
 
 | # | Experiment | rfsim | Status | Results |
