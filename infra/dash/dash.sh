@@ -117,6 +117,38 @@ if d["ues"]:
       "UE %s: SINR %s dB and CQI %s graded" % (u["rnti"], k["sinr"]["value"], k["cqi"]["value"]))
     r(u["diagnosis"]["id"] and len(u["diagnosis"]["chain"]) == 5, "UE %s: diagnosis %s" % (u["rnti"], u["diagnosis"]["id"]))
 sys.exit(fail)' || F=$((F+$?))
+  # P1a: /metrics for Prometheus (gNB MAC counters and UE radio values per RNTI, Uu events)
+  m=$(curl -s -m 5 "$URL/metrics")
+  echo "$m" | grep -q '^fct_ue_rntis [1-9]' && echo "$m" | grep -q '^fct_gnb_mac_total{rnti=' && echo "$m" | grep -q '^fct_uu_events_total{msg="msg1"}' \
+    && ok "/metrics: $(echo "$m" | grep -c '^fct_') series (MAC counters, radio values, Uu events)" || bad "/metrics incomplete"
+  echo "$m" | grep -qiE 'imsi|supi|[0-9a-f]{32}' && bad "/metrics contains an identity or key-like value" || ok "/metrics has no IMSI/SUPI or key-like value"
+  # P1b: KPI windows and trends from Prometheus (needs prom.sh). Same KPI code on both sources.
+  if tiny 'k3s kubectl -n fct-dash get deploy prometheus' >/dev/null 2>&1; then
+    t7=$(curl -s -m 20 -o /dev/null -w '%{time_total}' "$URL/api/kpi?domain=ran&seconds=604800")
+    { curl -s -m 20 "$URL/api/kpi?domain=core&seconds=3600&source=prom"; echo; curl -s -m 20 "$URL/api/kpi?domain=core&seconds=900&source=mem"; echo
+      curl -s -m 20 "$URL/api/kpi?domain=ran&seconds=900&source=prom"; echo; } | python3 -c '
+import json, sys
+cp, cm, rp = [json.loads(l) for l in sys.stdin.read().strip().split("\n")]
+t7 = float(sys.argv[1]); fail = 0
+def r(good, msg):
+    global fail; fail += not good; print(("  PASS  " if good else "  FAIL  ") + msg)
+kp = {x["id"]: x for x in cp["kpis"]}; km = {x["id"]: x for x in cm["kpis"]}; kr = {x["id"]: x for x in rp["kpis"]}
+r(cp["source"] == "prometheus" and len(kp) == 17 and "prometheus" not in cp["errors"],
+  "core KPIs over 1 h from Prometheus: %d KPIs, %d samples" % (len(kp), cp["samples"]))
+g = [p[1] for p in cp["series"].get("gnb", []) if p[1] is not None]
+r(len(g) >= min(10, cp["samples"] - 1) and len(g) >= 3 and g[-1] == 1,
+  "core trend: %d gNB points (of %d buckets with data), last %s" % (len(g), cp["samples"] - 1, g[-1] if g else None))
+same = [i for i in ("gnb", "pfcp_peers", "pdu_sessions", "reg_subs") if kp[i]["value"] == km[i]["value"]]
+r(len(same) == 4, "memory and Prometheus agree on the gauges: %s" % ", ".join("%s %s/%s" % (i, kp[i]["value"], km[i]["value"]) for i in ("gnb", "pfcp_peers", "pdu_sessions", "reg_subs")))
+r(rp["source"] == "prometheus" and len(kr) == 12 and kr["dl_retx"]["status"] in ("ok", "bad"),
+  "RAN KPIs over 15 min from Prometheus: 12 KPIs, DL retx %s %%" % kr["dl_retx"]["value"])
+d = [p for p in rp["series"].get("dl_retx", []) if p[1] is not None]
+r(len(d) >= 10, "RAN trend: %d DL retx points every %s s" % (len(d), rp["seriesStep"]))
+r(t7 < 5, "7 day RAN window answers in %.2f s" % t7)
+sys.exit(fail)' "${t7:-99}" || F=$((F+$?))
+  else
+    echo "  info  Prometheus not installed: P1b checks skipped (MODE=apply bash infra/dash/prom.sh)"
+  fi
   # Every pod log the dashboard serves must be free of SIM keys.
   pods=$(echo "$st" | python3 -c 'import json,sys; [print(p["cluster"], p["pod"]) for p in json.load(sys.stdin)["pods"]]' 2>/dev/null)
   n=0; hit=0

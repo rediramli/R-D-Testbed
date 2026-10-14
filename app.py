@@ -484,7 +484,11 @@ def mock_stats(t):
              "snrPusch": 22 + 1.5 * noise, "rssiDl": -37.3 + 0.3 * noise, "rssiUl": -41 + noise,
              "mcsDl": 28 if load else 9, "mcsUl": 28 if noise > -0.6 else 20,
              "blerDl": max(0, 0.02 * noise), "blerUl": max(0, 0.03 * -noise), "nprbUl": 106 if not load else 5,
-             "goodputDl": 90 * load + 0.1, "goodputUl": 2.9 * load + 0.05}]
+             "goodputDl": 90 * load + 0.1, "goodputUl": 2.9 * load + 0.05,
+             # cumulative MAC counters (about 1000 DL / 200 UL TBs a second, 1 % retransmitted)
+             "dlR0": int(t * 1000) % 10**9, "dlR1": int(t * 10) % 10**9, "dlR2": 0, "dlR3": 0, "dlErr": 0, "pucchDtx": 0,
+             "cceDl": int(t), "ulR0": int(t * 200) % 10**9, "ulR1": int(t * 2) % 10**9, "ulR2": 0, "ulR3": 0, "ulErr": 0,
+             "ulDtx": 0, "cceUl": 0, "oos": 0}]
 
 
 # ---- D6: controls (scale approved deployments only) -----------------------
@@ -656,12 +660,17 @@ def parse_k8s_ts(ts):
     return base.timestamp() + float("0." + (m[2] or "0")[:6])
 
 
+UU_KINDS = [("msg1", "Msg1"), ("msg2", "Msg2"), ("msg3", "Msg3"), ("msg4", "Msg4:"), ("msg4ack", "Msg4 acknowledged"),
+            ("rrcComplete", "RRCSetupComplete")]
+
+
 class UuEvents:
     def __init__(self):
         self.lock = threading.Lock()
         self.events = collections.deque(maxlen=500)
         self.seen = collections.deque(maxlen=2000)
         self.seq = 0
+        self.counts = {k: 0 for k, _ in UU_KINDS}   # since the dashboard started, for /metrics
 
     def ingest(self, role, text):
         for line in text.splitlines():
@@ -680,6 +689,9 @@ class UuEvents:
                     self.seq += 1
                     self.events.append({"seq": self.seq, "t": parse_k8s_ts(ts), "dir": d, "iface": "Uu",
                                         "proto": proto, "msg": label.format(*m.groups()), "src": role})
+                    for k, pre in UU_KINDS:
+                        if self.events[-1]["msg"].startswith(pre):
+                            self.counts[k] += 1
                 break
 
     def after(self, seq):
@@ -781,7 +793,7 @@ PM = PmStore()
 def pm_collector():
     while True:
         t0 = time.time()
-        if not MOCK:
+        if not MOCK or "CORE_METRICS" in os.environ:   # mock mode scrapes only when test endpoints are given
             PM.scrape()
         time.sleep(max(1.0, PM_STEP - (time.time() - t0)))
 
@@ -799,6 +811,8 @@ def _delta(first, last, nf, metric):
     a, b = _sum(first, nf, metric), _sum(last, nf, metric)
     if b is None:
         return None
+    if first[1].get(nf) is None:    # no data from this NF at the start (scrape failed, or before Prometheus existed):
+        return 0                    # unknown start, do not count the whole cumulative value as a change
     if a is None or b < a:          # NF restarted inside the window: the counter started again from 0
         return b
     return b - a
@@ -817,6 +831,24 @@ def _by_label(first, last, nf, metric):
         if d:
             out.append({"labels": labels.strip("{}") or "(no label)", "delta": d})
     return sorted(out, key=lambda x: -x["delta"])
+
+
+def _dsum(ss, nf, metric):
+    """Counter change over a list of samples: sum of the changes between consecutive samples (each pair handles a reset)."""
+    tot = None
+    for a, b in zip(ss, ss[1:]):
+        d = _delta(a, b, nf, metric)
+        if d is not None:
+            tot = (tot or 0) + d
+    return tot
+
+
+def _by_label_sum(ss, nf, metric):
+    acc = {}
+    for a, b in zip(ss, ss[1:]):
+        for x in _by_label(a, b, nf, metric):
+            acc[x["labels"]] = acc.get(x["labels"], 0) + x["delta"]
+    return sorted(({"labels": k, "delta": v} for k, v in acc.items() if v), key=lambda x: -x["delta"])
 
 
 # id, group, name, kind, numerator, denominator / extra, unit, target, 3GPP reference, failure contributors, hint
@@ -886,10 +918,9 @@ CORE_KPIS = [
 ]
 
 
-def core_kpis(seconds):
-    first, last = PM.window(seconds)
-    if last is None:
-        return {"window": seconds, "span": 0, "kpis": [], "errors": {"pm": "no sample yet"}}
+def core_eval(ss):
+    """Core KPIs from a list of samples (t, {nf: {(metric, labels): value}}, errors), oldest first."""
+    first, last = ss[0], ss[-1]
     span = last[0] - first[0]
     res = []
     for kid, group, name, kind, num, den, unit, target, ref, contrib, hint in CORE_KPIS:
@@ -901,18 +932,18 @@ def core_kpis(seconds):
             k["counters"] = [{"name": num[1], "nf": num[0], "value": v}]
             k["status"] = "nodata" if v is None else ("info" if target is None else ("bad" if v < target else "ok"))
         elif kind == "rate":
-            d = _delta(first, last, *num)
+            d = _dsum(ss, *num)
             k["counters"] = [{"name": num[1], "nf": num[0], "delta": d}]
             if d is not None and span > 0:
                 k["value"] = d * 8 / span / 1e6
                 k["status"] = "info"
         else:
-            req = _delta(first, last, *num) if kind in ("auth", "n4") else _delta(first, last, *den)
+            req = _dsum(ss, *num) if kind in ("auth", "n4") else _dsum(ss, *den)
             if kind == "ratio":
-                succ = _delta(first, last, *num)
+                succ = _dsum(ss, *num)
                 k["counters"] = [{"name": num[1], "nf": num[0], "delta": succ}, {"name": den[1], "nf": den[0], "delta": req}]
             else:                    # success = requests minus the failure counters
-                fails = [_delta(first, last, *c) for c in contrib if c[0] == num[0]]
+                fails = [_dsum(ss, *c) for c in contrib if c[0] == num[0]]
                 succ = None if req is None else req - sum(f or 0 for f in fails)
                 k["counters"] = [{"name": num[1], "nf": num[0], "delta": req}] + \
                     [{"name": c[1], "nf": c[0], "delta": f} for c, f in zip([c for c in contrib if c[0] == num[0]], fails)]
@@ -924,11 +955,39 @@ def core_kpis(seconds):
                 k["value"] = 100.0 * max(0.0, succ or 0) / req
                 k["status"] = "ok" if k["value"] >= target else "bad"
         for nf, metric in contrib:
-            d = _delta(first, last, nf, metric)
-            k["contributors"].append({"name": metric, "nf": nf, "delta": d, "byLabel": _by_label(first, last, nf, metric)})
+            d = _dsum(ss, nf, metric)
+            k["contributors"].append({"name": metric, "nf": nf, "delta": d, "byLabel": _by_label_sum(ss, nf, metric)})
         res.append(k)
-    return {"window": seconds, "span": round(span), "samples": len(PM.samples), "step": PM_STEP,
-            "time": now_iso(), "kpis": res, "errors": last[2]}
+    return {"span": round(span), "kpis": res, "errors": dict(last[2])}
+
+
+def core_kpis(seconds, source=""):
+    """Window KPIs from memory when the in-memory samples cover the window, else from Prometheus (P1b).
+    The trend series always come from Prometheus (about 60 buckets over the window)."""
+    first, last = PM.window(seconds)
+    mem_ok = last is not None and last[0] - first[0] >= seconds - 2 * PM_STEP
+    step = bucket_step(seconds, 30)
+    ss, perr = [], None
+    try:
+        ss = prom_core_samples(seconds, step)
+    except Exception as e:
+        perr = describe_error(e)
+    use_prom = source == "prom" or (source != "mem" and not mem_ok and len(ss) >= 2)
+    if use_prom and len(ss) >= 2:
+        out, src, n, used_step = core_eval(ss), "prometheus", len(ss), step
+    elif last is not None:
+        out, src, n, used_step = core_eval([first, last]), "memory", len(PM.samples), PM_STEP
+    else:
+        out, src, n, used_step = {"span": 0, "kpis": [], "errors": {"pm": "no sample yet"}}, "none", 0, PM_STEP
+    series = {}
+    for a, b in zip(ss, ss[1:]):
+        for k in core_eval([a, b])["kpis"]:
+            series.setdefault(k["id"], []).append([b[0], k["value"]])
+    if perr:
+        out["errors"]["prometheus"] = perr
+    out.update({"window": seconds, "samples": n, "step": used_step, "source": src, "seriesStep": step, "series": series,
+                "time": now_iso()})
+    return out
 
 def ran_counter_deltas(seconds):
     """Sum over RNTIs of the counter changes inside the window, plus averages of the radio values."""
@@ -968,18 +1027,44 @@ def uu_counts(seconds):
     cut = time.time() - seconds
     with UU.lock:
         ev = [e["msg"] for e in UU.events if e["t"] >= cut]
-    c = lambda p: sum(1 for m in ev if m.startswith(p))
-    return {"msg1": c("Msg1"), "msg2": c("Msg2"), "msg3": c("Msg3"), "msg4": c("Msg4:"), "msg4ack": c("Msg4 acknowledged"),
-            "rrcComplete": c("RRCSetupComplete")}
+    return {k: sum(1 for m in ev if m.startswith(pre)) for k, pre in UU_KINDS}
 
 
 def _pct(a, b):
     return None if not b else 100.0 * a / b
 
 
-def ran_kpis(seconds):
-    tot, oos, n, avg, act = ran_counter_deltas(seconds)
-    uu = uu_counts(seconds)
+def ran_kpis(seconds, source=""):
+    """Window KPIs from the 1 s in-memory history when it covers the window, else from Prometheus (P1b);
+    trend series from Prometheus."""
+    with HISTORY.lock:
+        oldest = min((d[0]["t"] for d in HISTORY.by_rnti.values() if d), default=None)
+    mem_ok = oldest is not None and oldest <= time.time() - seconds + 5
+    step = bucket_step(seconds, 15)
+    buckets, perr = [], None
+    try:
+        buckets = prom_ran_buckets(seconds, step)
+    except Exception as e:
+        perr = describe_error(e)
+    use_prom = source == "prom" or (source != "mem" and not mem_ok and buckets)
+    if use_prom and buckets:
+        out = ran_eval(*ran_sum_buckets(buckets), seconds)
+        out.update({"source": "prometheus", "step": DASH_SCRAPE})
+    else:
+        tot, oos, n, avg, act = ran_counter_deltas(seconds)
+        out = ran_eval(tot, oos, n, avg, act, uu_counts(seconds), seconds)
+        out.update({"source": "memory", "step": 1})
+    series = {}
+    for b in buckets:
+        for k in ran_eval(*ran_sum_buckets([b]), step)["kpis"]:
+            series.setdefault(k["id"], []).append([b["t"], k["value"] if k["status"] not in ("idle", "nodata") else None])
+    if perr:
+        out["errors"]["prometheus"] = perr
+    out.update({"seriesStep": step, "series": series})
+    return out
+
+
+def ran_eval(tot, oos, n, avg, act, uu, seconds):
     dl_tx = tot["dlR0"]; ul_tx = tot["ulR0"]
     dl_retx = tot["dlR1"] + tot["dlR2"] + tot["dlR3"]; ul_retx = tot["ulR1"] + tot["ulR2"] + tot["ulR3"]
     radio = [{"name": "Average CQI", "value": avg["cqi"]}, {"name": "Average UE SINR (dB)", "value": avg["sinrUe"]},
@@ -1224,6 +1309,176 @@ def ue_kpis(seconds):
                                             "activeMbps": ACTIVE}, "ues": ues, "kpis": [], "errors": {}}
 
 
+# ---- P1b: KPI windows and trends from Prometheus ---------------------------------------
+# Prometheus (P1a) keeps the counters 30 days. For a window or a trend the dashboard asks for the counter values at
+# bucket boundaries (query_range at the bucket step) and runs the same KPI code on them as on its in-memory samples,
+# so KPIs, counters and contributors mean the same whatever the source. Radio averages and "seconds with data" use
+# *_over_time sums and counts per bucket (the dashboard is scraped every DASH_SCRAPE seconds).
+PROM_URL = os.environ.get("PROM_URL", "http://prometheus.fct-dash.svc:9090").rstrip("/")
+DASH_SCRAPE = 5
+BUCKETS = 60
+
+
+def bucket_step(seconds, minimum):
+    return int(max(minimum, math.ceil(seconds / BUCKETS / 5) * 5))
+
+
+def prom_get(path, **params):
+    url = f"{PROM_URL}{path}?" + urllib.parse.urlencode(params)
+    with urllib.request.urlopen(url, timeout=8) as r:
+        d = json.loads(r.read())
+    if d.get("status") != "success":
+        raise RuntimeError(d.get("error", "query failed"))
+    return d["data"]["result"]
+
+
+def _range(query, seconds, step, offset=0):
+    """query_range over the window ending now; boundaries t0..tn every step with tn = now (the last bucket ends now)."""
+    end = math.floor(time.time())
+    return prom_get("/api/v1/query_range", query=query, start=end - math.ceil(seconds / step) * step + offset, end=end, step=step)
+
+
+def _num(v):
+    try:
+        x = float(v)
+    except (TypeError, ValueError):
+        return None
+    return None if math.isnan(x) or math.isinf(x) else x
+
+
+def prom_core_samples(seconds, step):
+    """Open5GS counters at every bucket boundary, in the in-memory sample format."""
+    by_t = {}
+    for r in _range('{job="open5gs"}', seconds, step):
+        m = r["metric"]
+        name, nf = m.get("__name__"), m.get("nf")
+        if not name or not nf:
+            continue
+        lab = {k: v for k, v in m.items() if k not in ("__name__", "job", "instance", "nf")}
+        labels = "{" + ",".join('%s="%s"' % kv for kv in sorted(lab.items())) + "}" if lab else ""
+        for t, v in r["values"]:
+            x = _num(v)
+            if x is not None:
+                by_t.setdefault(float(t), {}).setdefault(nf, {})[(name, labels)] = x
+    return [(t, by_t[t], {}) for t in sorted(by_t)]
+
+
+def _series_deltas(result, key):
+    """Per bucket (t_i-1, t_i] the counter change of each series, summed per `key` label (a reset counts from 0)."""
+    out = {}
+    for r in result:
+        k = r["metric"].get(key)
+        vals = [(float(t), _num(v)) for t, v in r["values"]]
+        for (ta, a), (tb, b) in zip(vals, vals[1:]):
+            if a is None or b is None:   # no start value (series new, or no data yet): skip, as Prometheus increase() does
+                continue
+            d = b if b < a else b - a
+            out.setdefault(tb, {}).setdefault(k, 0)
+            out[tb][k] += d
+    return out
+
+
+def _per_t(result, key=None):
+    out = {}
+    for r in result:
+        k = r["metric"].get(key) if key else None
+        for t, v in r["values"]:
+            x = _num(v)
+            if x is not None:
+                out.setdefault(float(t), {})[k] = x
+    return out
+
+
+def prom_ran_buckets(seconds, step):
+    """RAN inputs per bucket: counter changes, Uu events, radio sums/counts, active seconds, out-of-sync samples."""
+    w, sub = f"{step}s", f"[{step}s:{DASH_SCRAPE}s]"
+    mac = _series_deltas(_range("fct_gnb_mac_total", seconds, step), "counter")
+    uu = _series_deltas(_range("fct_uu_events_total", seconds, step), "msg")
+    rs = _per_t(_range(f"sum by (field) (sum_over_time(fct_ue_radio[{w}]))", seconds, step, step), "field")
+    rc = _per_t(_range(f"sum by (field) (count_over_time(fct_ue_radio[{w}]))", seconds, step, step), "field")
+    os_ = _per_t(_range(f"sum(sum_over_time(fct_ue_out_of_sync[{w}]))", seconds, step, step))
+    on = _per_t(_range(f"sum(count_over_time(fct_ue_out_of_sync[{w}]))", seconds, step, step))
+    act = {}
+    for name, val, gate, thr in (("tputDlAct", "goodputDl", "goodputDl", ACTIVE["dl"]), ("tputUlAct", "goodputUl", "goodputUl", ACTIVE["ul"]),
+                                 ("mcsDlAct", "mcsDl", "goodputDl", ACTIVE["dl"])):
+        sel = f'fct_ue_radio{{field="{val}"}} and ignoring(field) fct_ue_radio{{field="{gate}"}} >= {thr}' if val != gate \
+            else f'fct_ue_radio{{field="{val}"}} >= {thr}'
+        act[name] = (_per_t(_range(f"sum(sum_over_time(({sel}){sub}))", seconds, step, step)),
+                     _per_t(_range(f"sum(count_over_time(({sel}){sub}))", seconds, step, step)))
+    ts = sorted(set(rc) | set(mac) | set(on))
+    out = []
+    for t in ts:
+        sums = dict(rs.get(t, {})); cnts = dict(rc.get(t, {}))
+        for name, (sm, ct) in act.items():
+            sums[name] = sm.get(t, {}).get(None, 0.0); cnts[name] = ct.get(t, {}).get(None, 0.0)
+        out.append({"t": t, "mac": mac.get(t, {}), "uu": uu.get(t, {}), "sums": sums, "cnts": cnts,
+                    "oos": os_.get(t, {}).get(None, 0.0), "n": on.get(t, {}).get(None, 0.0)})
+    return out
+
+
+def ran_sum_buckets(buckets):
+    """Add buckets into the inputs of ran_eval (same meaning as the in-memory path; seconds = samples x scrape)."""
+    tot = {k: 0 for k in COUNTERS if k != "oos"}
+    uu = {k: 0 for k, _ in UU_KINDS}
+    sums, cnts, oos, n = {}, {}, 0.0, 0.0
+    for b in buckets:
+        for k, v in b["mac"].items():
+            if k in tot:
+                tot[k] += v
+        for k, v in b["uu"].items():
+            if k in uu:
+                uu[k] += int(v)
+        for k, v in b["sums"].items():
+            sums[k] = sums.get(k, 0.0) + v
+        for k, v in b["cnts"].items():
+            cnts[k] = cnts.get(k, 0.0) + v
+        oos += b["oos"]; n += b["n"]
+    keys = ("cqi", "mcsDl", "mcsUl", "sinrUe", "goodputDl", "goodputUl", "blerDl", "blerUl", "tputDlAct", "tputUlAct", "mcsDlAct")
+    avg = {k: (sums[k] / cnts[k] if cnts.get(k) else None) for k in keys}
+    act = {"dl": int(cnts.get("tputDlAct", 0) * DASH_SCRAPE), "ul": int(cnts.get("tputUlAct", 0) * DASH_SCRAPE)}
+    return tot, int(oos), int(n), avg, act, uu
+
+
+# ---- P1: RAN and UE metrics for Prometheus (history beyond the in-memory windows) ----------
+# Exposition text format. Counters are the cumulative OAI MAC counters per RNTI (a new RNTI starts at 0, which
+# Prometheus increase() handles like a counter reset); gauges are the latest per-second sample of each RNTI seen in
+# the last METRICS_FRESH seconds. RNTIs are radio identifiers, not subscriber identities; no IMSI is exported.
+METRICS_FRESH = 30
+GAUGES = ["sinrUe", "cqi", "ri", "mcsDl", "mcsUl", "blerDl", "blerUl", "goodputDl", "goodputUl", "rsrp", "ph", "pcmax",
+          "nprbUl", "snrPucch", "snrPusch"]
+
+
+def metrics_text():
+    cut = time.time() - METRICS_FRESH
+    with HISTORY.lock:
+        last = {r: d[-1] for r, d in HISTORY.by_rnti.items() if d and d[-1]["t"] >= cut}
+    with UU.lock:
+        uu = dict(UU.counts)
+    out = ["# HELP fct_gnb_mac_total Cumulative OAI gNB MAC counter per RNTI (dlR0..3 = DL HARQ rounds, dlErr, pucchDtx, cceDl, ulR0..3, ulErr, ulDtx, cceUl).",
+           "# TYPE fct_gnb_mac_total counter"]
+    for r, x in sorted(last.items()):
+        for k in COUNTERS:
+            if k != "oos" and x.get(k) is not None:
+                out.append('fct_gnb_mac_total{rnti="%s",counter="%s"} %d' % (r, k, x[k]))
+    out += ["# HELP fct_ue_radio Latest per-second radio value per RNTI (UE SINR dB, CQI, MCS, BLER 0-1, MAC goodput Mbit/s in simulated time, RSRP dBm, PH dB, ...).",
+            "# TYPE fct_ue_radio gauge"]
+    for r, x in sorted(last.items()):
+        for k in GAUGES:
+            if x.get(k) is not None:
+                out.append('fct_ue_radio{rnti="%s",field="%s"} %s' % (r, k, repr(float(x[k]))))
+    out += ["# HELP fct_ue_out_of_sync 1 when the gNB reports the RNTI out-of-sync.", "# TYPE fct_ue_out_of_sync gauge"]
+    for r, x in sorted(last.items()):
+        if x.get("oos") is not None:
+            out.append('fct_ue_out_of_sync{rnti="%s"} %d' % (r, x["oos"]))
+    out += ["# HELP fct_uu_events_total Uu procedure events seen in the gNB log since the dashboard started.",
+            "# TYPE fct_uu_events_total counter"]
+    for k, _ in UU_KINDS:
+        out.append('fct_uu_events_total{msg="%s"} %d' % (k, uu.get(k, 0)))
+    out += ["# HELP fct_ue_rntis Number of RNTIs with a sample in the last %d s." % METRICS_FRESH, "# TYPE fct_ue_rntis gauge",
+            "fct_ue_rntis %d" % len(last), ""]
+    return "\n".join(out)
+
+
 STATE = State()
 CONTROL = Control()
 
@@ -1331,15 +1586,20 @@ class Handler(BaseHTTPRequestHandler):
                 return self.send(502, json.dumps({"error": "Capture service: " + describe_error(e)}), "application/json")
         if url.path == "/api/kpi":
             dom = (q.get("domain") or ["core"])[0]
-            lo, hi = (60, PM_KEEP * PM_STEP) if dom == "core" else (30, HISTORY_SECONDS)
+            lo, hi = (60, 7 * 86400) if dom == "core" else (30, 7 * 86400) if dom == "ran" else (30, HISTORY_SECONDS)
             try:
                 seconds = max(lo, min(hi, int((q.get("seconds") or ["900"])[0])))
             except ValueError:
                 seconds = 900
             if dom not in ("core", "ran", "ue"):
                 return self.send(400, "domain must be core, ran or ue", "text/plain")
-            fn = {"core": core_kpis, "ran": ran_kpis, "ue": ue_kpis}[dom]
-            return self.send(200, json.dumps(fn(seconds)), "application/json")
+            src = (q.get("source") or [""])[0]
+            if src not in ("", "mem", "prom"):
+                return self.send(400, "source must be mem or prom", "text/plain")
+            res = ue_kpis(seconds) if dom == "ue" else (core_kpis if dom == "core" else ran_kpis)(seconds, src)
+            return self.send(200, json.dumps(res), "application/json")
+        if url.path == "/metrics":
+            return self.send(200, metrics_text(), "text/plain; version=0.0.4; charset=utf-8")
         if url.path == "/healthz":
             return self.send(200, "ok", "text/plain")
         self.send(404, "Not found", "text/plain")
