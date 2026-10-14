@@ -1,6 +1,6 @@
 # LAB-0: Downlink noise presets and dashboard control
 
-Status: **done** (2026-10-08 to 2026-10-11). Commits `6a37bdc` to `dba4729` on `main`; timeline experiment 2026-10-11 (PR `lab/00-noise-presets`).
+Status: **done** (2026-10-08 to 2026-10-11; rerun on the bench 2026-10-14, see "Bench rerun"). Commits `6a37bdc` to `dba4729` on `main`; timeline experiment 2026-10-11 (PR `lab/00-noise-presets`).
 
 ## Goal
 Offer three repeatable downlink channel conditions (Clean, Moderate, Poor) and switch between them
@@ -69,6 +69,43 @@ ssh fct0173 'bash -s' < ~/rdt/exp-noise-timeline.sh
 python3 plot-noise-timeline.py docs/labs/data/timeline-20261011T160138Z docs/labs/img/LAB-00-noise-timeline.png
 ```
 Do not press the dashboard DL channel buttons while it runs (about 4 minutes).
+
+## Bench rerun (2026-10-14)
+The testbed moved to the bench (core on the P3 Tiny, RAN on REDLAB, OAI 2026.w40, UE with the channel model since stage 4d).
+`infra/lab/lab00-timeline.sh` repeats the timeline above with the same schedule, CSV format and phase checks; the
+switches go through the dashboard API and the samples come from the dashboard's 1 s history.
+Run `bench-timeline-20261014T013731Z`: **RESULT: PASS** (every phase in its MCS range, one UE context `c79d`,
+no out-of-sync sample, 200 samples).
+
+![LAB-0 bench timeline](img/LAB-00-bench-timeline.png)
+
+Medians per phase (samples from 10 s after the switch, 30 per phase), next to the first run on the old lab:
+
+| Phase | `noise_power_dB` | UE SINR bench / old | CQI | DL MCS | DL MAC goodput bench / old |
+|---|---|---|---|---|---|
+| Off | -100 | 45.1 / 45.1 dB | 15 / 15 | 28 / 28 | 48.4 / 90.3 Mbit/s |
+| Clean | -11 | 22.1 / 21.6 dB | 14 / 14 | 26 / 26 | 44.6 / 84.1 Mbit/s |
+| Moderate | -6.5 | 13.8 / 13.3 dB | 9 / 9 | 15 / 15 | 38.8 / 39.7 Mbit/s |
+| Poor | -3 | 6.2 / 5.6 dB | 5 / 5 | 6 / 6 | 14.0 / 14.3 Mbit/s |
+| Off | -100 | 45.1 / 45.1 dB | 15 / 15 | 28 / 28 | 45.8 / 90.3 Mbit/s |
+
+Findings:
+- **The presets carry over unchanged.** UE SINR within 0.6 dB, CQI and MCS identical in every phase: no recalibration needed.
+- **The radio is not what limits Off and Clean on the bench.** At Moderate and Poor the goodput is flat (38.8 and 14.0,
+  the same as on the old lab): there the MCS sets the rate. At Off and Clean it swings between about 30 and 77 Mbit/s
+  (p10-p90 39.6-70.5 at Off) with MCS 28 and BLER 0. Right after the switch back to Off the goodput reached 83-88 Mbit/s
+  for about 4 s (162.8-165.8 s) and then fell back to about 40-50: the queue that built up during Poor drained at the
+  full rate. So the link carries about 88 Mbit/s at MCS 28 (as on the old lab), and in steady state the DL speed test
+  (one TCP flow, iperf3 `-R`) does not keep the gNB queue full. Hypothesis, to be tested before LAB-1: the TCP flow is
+  limited by its sender or round-trip time through rfsim (or the core path), not by the scheduler; a UDP test at a fixed
+  rate above 88 Mbit/s separates the two.
+- Consequence for the KPIs: the stage 3 baseline (DL 50.9 Mbit/s) is this TCP-limited rate, not the radio capacity.
+
+Reproduce (on REDLAB, repo root, about 3.5 min, no dashboard controls meanwhile):
+```
+MODE=run bash infra/lab/lab00-timeline.sh
+python3 plot-noise-timeline.py docs/labs/data/bench-timeline-<time> docs/labs/img/LAB-00-bench-timeline.png "LAB-0 on the bench: ..."
+```
 
 ## Lessons
 - `lab0-run.sh` re-creates the UE from `ran/oai-nr-ue-deploy.json`: change the source file, and run lab0 in the test.
