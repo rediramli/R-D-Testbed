@@ -1,0 +1,15 @@
+  info  PRB  MHz | MAC goodput median (p90)  per PRB | MCS  BLER   | iperf rx wall  loss  | wall/sim | CPU gNB  UE
+  info  273  100 |  226.5 (226.5) Mbit/s  0.830  |   28 0.0000 |  167.3 Mbit/s  72.1 % |  0.74 |   68 %  195 %
+  PASS  273 PRB: 23 MAC samples
+  PASS  273 PRB: DL MCS 28 with noise off (want >= 27)
+  PASS  273 PRB: DL BLER 0.0000 (want < 0.01)
+  PASS  273 PRB: link saturated, UDP loss 72.1 % (want >= 5 %; below that the offered rate was under the capacity and the goodput is only a lower bound)
+  info  106   40 |   87.5 (87.6) Mbit/s  0.826  |   28 0.0000 |  145.6 Mbit/s  27.2 % |  1.66 |   87 %  248 %
+  PASS  106 PRB: 23 MAC samples
+  PASS  106 PRB: DL MCS 28 with noise off (want >= 27)
+  PASS  106 PRB: DL BLER 0.0000 (want < 0.01)
+  PASS  106 PRB: link saturated, UDP loss 27.2 % (want >= 5 %; below that the offered rate was under the capacity and the goodput is only a lower bound)
+  info  273 PRB: UDP drops start after 8 s (wall clock): the path buffers that long before it drops
+  info  106 PRB: UDP drops start after 7 s (wall clock): the path buffers that long before it drops
+RESULT: PASS
+FINDING: 273 PRB carries 226.5 Mbit/s = 100 % of the PRB-proportional 225.4 (106 PRB: 87.5)

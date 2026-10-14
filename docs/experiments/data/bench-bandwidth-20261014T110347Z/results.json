@@ -1,0 +1,30 @@
+[
+ {
+  "prb": 273,
+  "mhz": 100,
+  "goodput": 226.5,
+  "mcs": 28.0,
+  "bler": 1e-05,
+  "rx": 167.34539110293235,
+  "loss": 72.1087109752835,
+  "cpuGnb": 68,
+  "cpuUe": 195,
+  "n": 23,
+  "firstDropS": 8,
+  "saturated": true
+ },
+ {
+  "prb": 106,
+  "mhz": 40,
+  "goodput": 87.52,
+  "mcs": 28.0,
+  "bler": 0.0,
+  "rx": 145.59709545717297,
+  "loss": 27.20029184738235,
+  "cpuGnb": 87,
+  "cpuUe": 248,
+  "n": 23,
+  "firstDropS": 7,
+  "saturated": true
+ }
+]

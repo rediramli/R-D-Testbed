@@ -1,0 +1,16 @@
+  info  PRB  MHz | MAC goodput median (p90)  per PRB | MCS  BLER   | iperf rx wall  loss  | wall/sim | CPU gNB  UE
+  info  24 PRB: iperf3 ended with 'unable to send control message - port may not be available, ' (results taken from 29 intervals)
+  info   24   10 |   18.1 (18.1) Mbit/s  0.754  |   28 0.0000 |   68.1 Mbit/s  43.6 % |  3.76 |  114 %  184 %
+  PASS  24 PRB: 26 MAC samples
+  PASS  24 PRB: DL MCS 28 with noise off (want >= 27)
+  PASS  24 PRB: DL BLER 0.0000 (want < 0.01)
+  PASS  24 PRB: link saturated, UDP loss 43.6 % (want >= 5 %; below that the offered rate was under the capacity and the goodput is only a lower bound)
+  info  106   40 |   87.5 (87.7) Mbit/s  0.826  |   28 0.0000 |  145.9 Mbit/s  27.1 % |  1.67 |   89 %  250 %
+  PASS  106 PRB: 24 MAC samples
+  PASS  106 PRB: DL MCS 28 with noise off (want >= 27)
+  PASS  106 PRB: DL BLER 0.0000 (want < 0.01)
+  PASS  106 PRB: link saturated, UDP loss 27.1 % (want >= 5 %; below that the offered rate was under the capacity and the goodput is only a lower bound)
+  info  24 PRB: UDP drops start after 10 s (wall clock): the path buffers that long before it drops
+  info  106 PRB: UDP drops start after 7 s (wall clock): the path buffers that long before it drops
+RESULT: PASS
+FINDING: 24 PRB carries 18.1 Mbit/s = 91 % of the PRB-proportional 19.8 (106 PRB: 87.5)

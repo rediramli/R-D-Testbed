@@ -1,7 +1,7 @@
 # Module 1: Carrier bandwidth, the resource grid and capacity
 
-Experiment: 1 (carrier bandwidth and capacity; script `infra/exp/exp01-bandwidth.sh`). Status: **theory and
-predictions ready; the measured results are added after the run.** Students should write down their own predictions
+Experiment: 1 (carrier bandwidth and capacity; script `infra/exp/exp01-bandwidth.sh`). Status: **measured
+2026-10-14** ([record](../experiments/EXP-01-bandwidth.md)). Students should write down their own predictions
 (Section 4) before looking at Section 6.
 
 ## 1. Why it matters
@@ -128,12 +128,12 @@ values check against the formulas above:
 **Example 4: predictions at MCS 28, noise off.** Two references: the 3GPP peak rate (TS 38.306, 1 layer, 64QAM,
 x 0.743 for TDD) and the PRB-proportional scaling of the measured 87.5 Mbit/s at 106 PRB.
 
-| PRB | 3GPP peak, TDD (Mbit/s) | PRB-proportional (Mbit/s) | Hypothesis |
-|---|---|---|---|
-| 24 | 28.6 | 19.8 | below 19.8 (fixed overheads weigh most) |
-| 51 | 60.8 | 42.1 | slightly below 42.1 |
-| 106 | 126.4 | 87.5 (measured) | reference |
-| 273 | 325.5 | 225.4 | close to 225, if the CPU keeps up |
+| PRB | 3GPP peak, TDD (Mbit/s) | PRB-proportional (Mbit/s) | Hypothesis | Measured (Section 6) |
+|---|---|---|---|---|
+| 24 | 28.6 | 19.8 | below 19.8 (fixed overheads weigh most) | 18.1: confirmed |
+| 51 | 60.8 | 42.1 | slightly below 42.1 | 43.3: wrong, 3 % above |
+| 106 | 126.4 | 87.5 (measured) | reference | 87.5 in three runs |
+| 273 | 325.5 | 225.4 | close to 225, if the CPU keeps up | 226.5: confirmed; simulation 0.74x real time |
 
 Students: fill in your own prediction column before the run, with a one-line reason.
 
@@ -158,12 +158,47 @@ For each bandwidth the script reconfigures gNB and UE (about 1 min without a UE 
 runs 30 s of UDP above the link rate, records MCS, BLER, goodput and the CPU of the gNB and UE processes, and at the
 end always restores the 106 PRB configuration. PASS per bandwidth: enough MAC samples, DL MCS 27 or higher, BLER below
 0.01. The FINDING lines compare each bandwidth with the PRB-proportional value. 273 PRB runs on its own
-(`BWS=273`) because of its CPU load. If anything is left in a wrong state: `MODE=restore bash infra/exp/exp01-bandwidth.sh`.
+(`BWS="273 106"`, with 106 PRB as the reference in the same run) because of its CPU load. 24 PRB runs without `-E`
+(3/4 sampling): see Section 6. If anything is left in a wrong state: `MODE=restore bash infra/exp/exp01-bandwidth.sh`.
 
 ## 6. Measured results
 
-*To be added after the run: goodput per PRB, $k(N_{\mathrm{RB}})$ and OH per bandwidth, the simulated/wall-clock ratio and
-CPU per bandwidth, compared with the predictions in Section 4.*
+Runs `bench-bandwidth-20261014T103040Z` (51 PRB), `...T104026Z` (24 PRB) and `...T110347Z` (273 PRB), each with 106 PRB as
+the reference; UDP above the link rate, noise off. MCS 28 and BLER 0 at every width.
+
+![Experiment 1](../experiments/img/EXP-01-bandwidth.png)
+
+| PRB | Goodput (Mbit/s) | per PRB | vs proportional | $k$ (M data RE/s) | OH | FFT | sim / wall | CPU per simulated s, gNB / UE |
+|---|---|---|---|---|---|---|---|---|
+| 24 | 18.1 | 0.754 | 91 % | 3.26 | 46 % | 512 | 3.76x | 0.30 / 0.49 |
+| 51 | 43.3 | 0.848 | 103 % | 7.80 | 39 % | 768 | 3.40x | 0.33 / 0.71 |
+| 106 | 87.5 | 0.826 | 100 % | 15.75 | 40 % | 1536 | 1.66x | 0.53 / 1.50 |
+| 273 | 226.5 | 0.830 | 100 % | 40.78 | 40 % | 6144 | 0.74x | 0.92 / 2.64 |
+
+$k = \text{goodput} / 5.5547$ (MCS 28) and $\mathrm{OH} = 1 - k / (N_{\mathrm{RB}} \times 12 \times 28\,000 \times 0.743)$, as in
+Module 0, Section 3.8.
+
+**6.1 The prediction mostly holds.** From 51 PRB up the overhead is about 40 % at every width (39-41 %), so capacity is
+proportional to the PRB count: 273 PRB is within 0.5 % of the value scaled from 106 PRB. 24 PRB has 46 % overhead and
+loses 9 %, as predicted from the fixed-size overheads.
+
+**6.2 One prediction was wrong.** 51 PRB came out 3 % *above* proportional instead of slightly below. The fixed-overhead
+argument alone does not explain it. Hypotheses, not tested: TBS rounding favours this width, or its CORESET0/PDCCH takes
+fewer resources. A good exercise: find a measurement that separates the two (the per-slot TBS in the gNB log).
+
+**6.3 Sampling rate is a hidden constraint.** The bench runs OAI with `-E` (3/4 sampling) to save CPU. For 24 PRB that gives
+$0.75 \times 512 \times 30$ kHz = 11.52 MHz, and the gNB stops at start-up: `sample rate 11.520000 MHz not supported for
+numerology 1` (PRACH code). 24 PRB therefore runs at full sampling, 15.36 MHz. The FFT sizes OAI chose are 512, 768,
+1536 and 6144: 273 PRB needs 3276 subcarriers, more than a 3/4-size FFT of 3072, so it jumps to 6144.
+
+**6.4 Bandwidth costs computing, but less than in proportion.** From 24 to 273 PRB (11 times the PRBs) the CPU needed per
+simulated second grows 5.4 times for the UE and 3 times for the gNB: a fixed part dominates small carriers (hypothesis).
+At 273 PRB the simulation runs at 0.74x real time. In rfsim that only costs time; a real radio would need at least
+2.6 CPU cores for the UE alone, which is the kind of number used to size a cloud RAN server.
+
+**6.5 Side finding: a deep buffer.** In every saturated run the UDP receiver saw no loss for the first 5-10 s (wall clock),
+then a steady loss: a queue of tens of MB fills first. Hypothesis: the same queue makes one TCP flow overshoot and lose
+packets in Experiment 0c (bufferbloat). This is a research topic for the module on user-plane traffic (Experiment 10).
 
 ## 7. From the lab to a live network
 
@@ -199,6 +234,8 @@ CPU per bandwidth, compared with the predictions in Section 4.*
    small carriers more?
 6. Using the TS 38.306 formula, what is the TDD peak rate of 273 PRB with 2 layers?
 7. Why does the script measure capacity with UDP and not with the dashboard's TCP speed test?
+8. With 3/4 sampling (`-E`), what sample rate does a 24 PRB carrier at 30 kHz get, and why did the gNB refuse it?
+9. Using Section 6, how many 20 MHz carriers give the same goodput as one 100 MHz carrier on this bench?
 
 <details><summary>Answers</summary>
 
@@ -211,6 +248,9 @@ CPU per bandwidth, compared with the predictions in Section 4.*
 6. Twice the 1-layer value: $2 \times 325.5 = 651$ Mbit/s.
 7. One TCP flow does not fill the link (Module 0, Section 6.5); UDP above the link rate keeps the gNB queue full, so
    the MAC goodput is the capacity of the carrier.
+8. FFT 512 x 0.75 = 384 points, $384 \times 30$ kHz = 11.52 MHz. OAI 2026.w40's PRACH code has no parameters for that
+   rate at numerology 1 and asserts; without `-E` the rate is 15.36 MHz.
+9. $226.5 / 43.3 = 5.2$: five 20 MHz carriers (255 PRB, 216.5 Mbit/s) give less than one 100 MHz carrier (273 PRB).
 
 </details>
 

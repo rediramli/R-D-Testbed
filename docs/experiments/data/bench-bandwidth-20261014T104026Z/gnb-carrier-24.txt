@@ -1,0 +1,3 @@
+        dl_carrierBandwidth: 24
+        ul_carrierBandwidth: 24
+450936.312466 [PHY]    I Init: N_RB_DL 24, first_carrier_offset 368, nb_prefix_samples 36,nb_prefix_samples0 44, ofdm_symbol_size 512
