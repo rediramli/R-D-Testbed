@@ -1,78 +1,28 @@
 # Experiment 0: Controlled downlink noise and link adaptation
 
-Status: **done** (2026-10-08 to 2026-10-11; rerun on the bench 2026-10-14, see "Bench rerun"). Commits `6a37bdc` to `dba4729` on `main`; timeline run 2026-10-11 (PR `lab/00-noise-presets`).
+Status: **done**. Bench runs 2026-10-14 (Experiments 0, 0b, 0c, PR #24); first runs on the old lab servers
+2026-10-08 to 2026-10-11 (commits `6a37bdc` to `dba4729`, PR `lab/00-noise-presets`).
+Everything here runs in **RF simulator mode only**: the noise is added in software on the UE receive path; nothing is transmitted.
+
+## Summary (2026-10-14, bench)
+| Question | Answer | Where |
+|---|---|---|
+| Do the four DL noise presets still give the same channel on the bench? | Yes: UE SINR, CQI and MCS match the old lab servers in every phase (Off 45 dB/15/28, Clean 22/14/26, Moderate 14/9/15, Poor 6/5/6) | [Experiment 0](#experiment-0-on-the-bench-presets-during-a-dl-speed-test-2026-10-14) |
+| What does the link carry at MCS 28? | 87.5 Mbit/s of MAC goodput (UDP above the link rate), BLER 0 | [Experiment 0c](#experiment-0c-link-capacity-vs-single-flow-tcp-2026-10-14) |
+| Why does the DL speed test show about 50 Mbit/s? | It is one TCP flow: it reaches 87.5 for 6-9 s, then loses packets and settles at 50-55 (radio still MCS 28, BLER 0) | [Experiment 0c](#experiment-0c-link-capacity-vs-single-flow-tcp-2026-10-14) |
+| How does SINR follow the noise setting? | 2.00 dB of SINR per dB of `noise_power_dB` (AWGN power would give 1): report results against the measured SINR | [Experiment 0b](#experiment-0b-sinr-to-cqimcs-curve-noise-sweep-2026-10-14) |
+| Does OAI report the CQI a typical receiver would? | Yes above ~18 dB SINR; 1-2 steps lower below it | [Experiment 0b](#experiment-0b-sinr-to-cqimcs-curve-noise-sweep-2026-10-14) |
+| Where does the link reach its peak? | MCS 28 / 87.5 Mbit/s from about 24 dB SINR; still up at 4.3 dB (MCS 4, 9.6 Mbit/s) | [Experiment 0b](#experiment-0b-sinr-to-cqimcs-curve-noise-sweep-2026-10-14) |
+
+![Experiment 0b noise sweep](img/EXP-00b-noise-sweep.png)
 
 ## Goal
 Offer three repeatable downlink channel conditions (Clean, Moderate, Poor) and switch between them
 from the dashboard, so the effect on CQI, MCS and throughput can be shown live.
 
-## Method
-- AWGN on the UE receive path through the OAI channel model (`channelmod`, model 0), changed through
-  the OAI telnet server on 127.0.0.1:9090. rfsim only.
-- `exp-noise.sh` sweeps `noise_power_dB`, idle and with the DL speed test, and saves raw statistics and logs.
-- Each preset was confirmed with 6 x 10 s samples (first discarded), same RNTI, always in-sync.
-
-## Results
-| Preset | `noise_power_dB` | CQI | DL MCS | DL MAC goodput |
-|---|---|---|---|---|
-| Off | -100 | 15 | 28 | ~78-86 Mbit/s |
-| Clean | -11 | 14 | 26 | ~84 Mbit/s |
-| Moderate | -6.5 | 9 | 15 | ~39.7 Mbit/s |
-| Poor | -3 | 5 | 6 | ~14.3 Mbit/s |
-
-Reproduced on the baseline UE after the integration (`run-20261010T144928Z`). The gNB uses the 64QAM
-MCS table (TS 38.214 Table 5.1.3.1-1). Down to -2 dB there was no link loss.
-
-## Integration
-1. **Stage A** `ue-chanmod.sh`: the baseline UE carries the channel model (AWGN, -100 dB) and telnet on 127.0.0.1.
-2. **Stage B** `noise-relay.py`: a relay on FCT0173 (10.0.129.7:8092) that accepts only the four preset
-   names and a shared token; no Kubernetes API access.
-3. **Stage C** dashboard v0.8.0: Controls bar "DL channel: Off / Clean / Moderate / Poor".
-
-Tests: `noise-relay.sh` MODE=test PASS; `d6-test.sh` step 6b (Moderate gives MCS 15, Off gives MCS 28) PASS;
-`iperf-regress.sh` and `uu-check.sh` PASS.
-
-## Timeline: presets switched during a running DL speed test
-`exp-noise-timeline.sh` keeps the DL speed test running and switches Off, Clean, Moderate, Poor, Off every 40 s
-through the noise relay (the same path as the dashboard buttons). It samples the gNB MAC statistics and the UE SINR
-about every 1.4 s and records the time of every switch. Run `timeline-20261011T160138Z`: **RESULT: PASS**
-(every phase in its MCS range, one UE context `607b` throughout, no out-of-sync sample).
-
-![Experiment 0 timeline, old lab servers](img/EXP-00-noise-timeline-oldlab.png)
-
-Raw data: [`data/timeline-20261011T160138Z/`](data/timeline-20261011T160138Z/). Medians per phase (samples from 10 s after the switch, 22 per phase):
-
-| Phase (switch time) | `noise_power_dB` | UE SINR | CQI | DL MCS | DL MAC goodput |
-|---|---|---|---|---|---|
-| Off (0.0 s) | -100 | 45.1 dB | 15 | 28 | 90.3 Mbit/s |
-| Clean (40.3 s) | -11 | 21.6 dB | 14 | 26 | 84.1 Mbit/s |
-| Moderate (80.6 s) | -6.5 | 13.3 dB | 9 | 15 | 39.7 Mbit/s |
-| Poor (120.9 s) | -3 | 5.6 dB | 5 | 6 | 14.3 Mbit/s |
-| Off (161.5 s) | -100 | 45.1 dB | 15 | 28 | 90.3 Mbit/s |
-
-Observations (from this run):
-- The chain is visible end to end: more noise lowers the UE SINR, the UE reports a lower CQI, the gNB picks a lower MCS,
-  and the goodput falls. CQI, MCS, BLER and goodput change; the UE stays attached and in sync.
-- A switch takes 1.0-1.5 s through the relay. CQI and MCS follow in the first or second sample after it.
-- Going down, MCS drops in one step (26 to 15, 15 to 6). Going back up to Off, CQI is 15 at once but MCS climbs over
-  about 5 s (7, 13, 25, 28 between 163.0 and 167.1 s). Hypothesis, not tested: the gNB raises MCS gradually after a low-BLER period.
-- BLER rises briefly after the switches to worse channels (peak 0.027 at Moderate, 0.006 at Poor) and falls below 0.001
-  within about 8 s; at Clean it stays 0.
-- Goodput reaches the new level 2-8 s after a switch, later than MCS; the goodput value appears to be averaged over a
-  window (hypothesis).
-- Off gave 90.3 Mbit/s here, above the 78-86 Mbit/s in the table above (different runs and days).
-
-Reproduce (from FCT0170):
-```
-ssh fct0173 'bash -s' < ~/rdt/exp-noise-timeline.sh
-# copy timeline.csv and events.csv from the run folder it names, then:
-python3 plot-noise-timeline.py docs/experiments/data/timeline-20261011T160138Z docs/experiments/img/EXP-00-noise-timeline-oldlab.png
-```
-Do not press the dashboard DL channel buttons while it runs (about 4 minutes).
-
-## Bench rerun (2026-10-14)
+## Experiment 0 on the bench: presets during a DL speed test (2026-10-14)
 The testbed moved to the bench (core on the P3 Tiny, RAN on REDLAB, OAI 2026.w40, UE with the channel model since stage 4d).
-`infra/exp/exp00-noise-timeline.sh` repeats the timeline above with the same schedule, CSV format and phase checks; the
+`infra/exp/exp00-noise-timeline.sh` repeats the first timeline run (see [Earlier runs](#earlier-runs-on-the-old-lab-servers-2026-10-08-to-2026-10-11)) with the same schedule, CSV format and phase checks; the
 switches go through the dashboard API and the samples come from the dashboard's 1 s history.
 Run `bench-timeline-20261014T013731Z`: **RESULT: PASS** (every phase in its MCS range, one UE context `c79d`,
 no out-of-sync sample, 200 samples).
@@ -186,6 +136,73 @@ MODE=run bash infra/exp/exp00b-noise-sweep.sh
 python3 plot-noise-sweep.py docs/experiments/data/bench-sweep-<time> docs/experiments/img/EXP-00b-noise-sweep.png
 ```
 
+## Earlier runs on the old lab servers (2026-10-08 to 2026-10-11)
+These ran on FCT0170/FCT0173 with the old dashboard (relay on 10.0.129.7). Kept for comparison; the bench results above replace them.
+
+### Method
+- AWGN on the UE receive path through the OAI channel model (`channelmod`, model 0), changed through
+  the OAI telnet server on 127.0.0.1:9090. rfsim only.
+- `exp-noise.sh` sweeps `noise_power_dB`, idle and with the DL speed test, and saves raw statistics and logs.
+- Each preset was confirmed with 6 x 10 s samples (first discarded), same RNTI, always in-sync.
+
+### Results
+| Preset | `noise_power_dB` | CQI | DL MCS | DL MAC goodput |
+|---|---|---|---|---|
+| Off | -100 | 15 | 28 | ~78-86 Mbit/s |
+| Clean | -11 | 14 | 26 | ~84 Mbit/s |
+| Moderate | -6.5 | 9 | 15 | ~39.7 Mbit/s |
+| Poor | -3 | 5 | 6 | ~14.3 Mbit/s |
+
+Reproduced on the baseline UE after the integration (`run-20261010T144928Z`). The gNB uses the 64QAM
+MCS table (TS 38.214 Table 5.1.3.1-1). Down to -2 dB there was no link loss.
+
+### Integration
+1. **Stage A** `ue-chanmod.sh`: the baseline UE carries the channel model (AWGN, -100 dB) and telnet on 127.0.0.1.
+2. **Stage B** `noise-relay.py`: a relay on FCT0173 (10.0.129.7:8092) that accepts only the four preset
+   names and a shared token; no Kubernetes API access.
+3. **Stage C** dashboard v0.8.0: Controls bar "DL channel: Off / Clean / Moderate / Poor".
+
+Tests: `noise-relay.sh` MODE=test PASS; `d6-test.sh` step 6b (Moderate gives MCS 15, Off gives MCS 28) PASS;
+`iperf-regress.sh` and `uu-check.sh` PASS.
+
+### Timeline: presets switched during a running DL speed test
+`exp-noise-timeline.sh` keeps the DL speed test running and switches Off, Clean, Moderate, Poor, Off every 40 s
+through the noise relay (the same path as the dashboard buttons). It samples the gNB MAC statistics and the UE SINR
+about every 1.4 s and records the time of every switch. Run `timeline-20261011T160138Z`: **RESULT: PASS**
+(every phase in its MCS range, one UE context `607b` throughout, no out-of-sync sample).
+
+![Experiment 0 timeline, old lab servers](img/EXP-00-noise-timeline-oldlab.png)
+
+Raw data: [`data/timeline-20261011T160138Z/`](data/timeline-20261011T160138Z/). Medians per phase (samples from 10 s after the switch, 22 per phase):
+
+| Phase (switch time) | `noise_power_dB` | UE SINR | CQI | DL MCS | DL MAC goodput |
+|---|---|---|---|---|---|
+| Off (0.0 s) | -100 | 45.1 dB | 15 | 28 | 90.3 Mbit/s |
+| Clean (40.3 s) | -11 | 21.6 dB | 14 | 26 | 84.1 Mbit/s |
+| Moderate (80.6 s) | -6.5 | 13.3 dB | 9 | 15 | 39.7 Mbit/s |
+| Poor (120.9 s) | -3 | 5.6 dB | 5 | 6 | 14.3 Mbit/s |
+| Off (161.5 s) | -100 | 45.1 dB | 15 | 28 | 90.3 Mbit/s |
+
+Observations (from this run):
+- The chain is visible end to end: more noise lowers the UE SINR, the UE reports a lower CQI, the gNB picks a lower MCS,
+  and the goodput falls. CQI, MCS, BLER and goodput change; the UE stays attached and in sync.
+- A switch takes 1.0-1.5 s through the relay. CQI and MCS follow in the first or second sample after it.
+- Going down, MCS drops in one step (26 to 15, 15 to 6). Going back up to Off, CQI is 15 at once but MCS climbs over
+  about 5 s (7, 13, 25, 28 between 163.0 and 167.1 s). Hypothesis, not tested: the gNB raises MCS gradually after a low-BLER period.
+- BLER rises briefly after the switches to worse channels (peak 0.027 at Moderate, 0.006 at Poor) and falls below 0.001
+  within about 8 s; at Clean it stays 0.
+- Goodput reaches the new level 2-8 s after a switch, later than MCS; the goodput value appears to be averaged over a
+  window (hypothesis).
+- Off gave 90.3 Mbit/s here, above the 78-86 Mbit/s in the table above (different runs and days).
+
+Reproduce (from FCT0170):
+```
+ssh fct0173 'bash -s' < ~/rdt/exp-noise-timeline.sh
+# copy timeline.csv and events.csv from the run folder it names, then:
+python3 plot-noise-timeline.py docs/experiments/data/timeline-20261011T160138Z docs/experiments/img/EXP-00-noise-timeline-oldlab.png
+```
+Do not press the dashboard DL channel buttons while it runs (about 4 minutes).
+
 ## Lessons
 - `lab0-run.sh` re-creates the UE from `ran/oai-nr-ue-deploy.json`: change the source file, and run lab0 in the test.
 - With no DL traffic the gNB reports MCS 0, goodput 0 and a decaying BLER; that is the idle state.
@@ -193,5 +210,8 @@ python3 plot-noise-sweep.py docs/experiments/data/bench-sweep-<time> docs/experi
   the relay test now fails if a change takes 5 s or more.
 
 ## Open
-- Steady-state UL goodput read 25-38 Mbit/s in the gates vs ~49 documented: to be measured.
+- Check in the OAI source how `noise_power_dB` is turned into noise (hypothesis: amplitude 10^(x/10), giving 2 dB of SINR per dB).
+- Why OAI's CQI is 1-2 below the typical value at low SINR (CQI margin, or SSB vs CSI-RS SINR).
+- Where the link is lost (below 4.3 dB SINR), and which queue drops the TCP packets in Experiment 0c.
+- Steady-state UL goodput on the bench (UL speed test and UDP).
 - Add the active preset as a column in the KPI CSV export.
