@@ -341,7 +341,7 @@ select, input { color: var(--ink); background: #111820; color-scheme: dark; }
       <rect x="572" y="60" width="120" height="24" rx="4" fill="#4a4128"/><text x="632" y="77" text-anchor="middle">AI/ML models</text>
       <rect x="700" y="60" width="150" height="24" rx="4" fill="#4a4128"/><text x="775" y="77" text-anchor="middle">rApps</text>
     </g>
-    <text x="585" y="112" text-anchor="middle" font-size="13" fill="#b9a970">Non-Real-Time RIC · planned (after Lab 3)</text>
+    <text x="585" y="112" text-anchor="middle" font-size="13" fill="#b9a970">Non-Real-Time RIC · planned (after Experiment 12)</text>
   </g>
   <g class="pbox" data-k="mec">
     <rect class="frame" x="950" y="30" width="300" height="80" rx="8" fill="#26313c" stroke="#5d6b79" stroke-dasharray="5 4"/>
@@ -353,9 +353,9 @@ select, input { color: var(--ink); background: #111820; color-scheme: dark; }
     <g font-size="12.5" fill="#bfe3c4">
       <rect x="336" y="182" width="150" height="24" rx="4" fill="#33473a"/><text x="411" y="199" text-anchor="middle">KPM monitor xApp</text>
       <rect x="494" y="182" width="150" height="24" rx="4" fill="#33473a"/><text x="569" y="199" text-anchor="middle">KPM-RC xApp</text>
-      <rect x="652" y="182" width="192" height="24" rx="4" fill="#33473a"/><text x="748" y="199" text-anchor="middle">IDS rules (Lab 4, core)</text>
+      <rect x="652" y="182" width="192" height="24" rx="4" fill="#33473a"/><text x="748" y="199" text-anchor="middle">IDS rules (Experiment 15, core)</text>
     </g>
-    <text x="590" y="234" text-anchor="middle" font-size="13" fill="#9fcfa6">Near-Real-Time RIC (FlexRIC) · planned · Lab 2 and Lab 3</text>
+    <text x="590" y="234" text-anchor="middle" font-size="13" fill="#9fcfa6">Near-Real-Time RIC (FlexRIC) · planned · Experiment 12</text>
   </g>
   <g class="pbox" data-k="gnb">
     <rect class="frame" x="330" y="290" width="550" height="230" rx="10" fill="rgba(0,0,0,0)" stroke="#2f6fb5" stroke-width="1.5"/>
@@ -405,7 +405,7 @@ select, input { color: var(--ink); background: #111820; color-scheme: dark; }
   <g id="wires"></g>
   <g id="tiles"></g>
 </svg>
-<div class="topo-legend"><span><i></i>live link</span><span><i class="c"></i>N2, captured</span><span><i class="p"></i>planned (lab not done yet)</span><span>Network functions, gNB and UE: select to read the log. Other boxes: select for details.</span></div>
+<div class="topo-legend"><span><i></i>live link</span><span><i class="c"></i>N2, captured</span><span><i class="p"></i>planned (experiment not done yet)</span><span>Network functions, gNB and UE: select to read the log. Other boxes: select for details.</span></div>
 <div id="topoInfo"></div>
 </div></div>
 <section class="flow" aria-label="5G SA message flow">
@@ -484,9 +484,9 @@ function el(tag, attrs, text) {
 function path(d, cls) { return el("path", {d, class: "wire " + (cls || "")}); }
 const INFO = {
   infra: "<b>Bench infrastructure</b>: two single-node k3s clusters on their own LAN (10.42.0.0/24, no link to the lab network). REDLAB runs the RAN, the P3 Tiny the core and this dashboard. The Jetson is reserved for MEC / AI.",
-  smo: "<b>SMO / Non-RT RIC</b>: not deployed. Planned after Lab 3, when there is a Near-RT RIC to give A1 policies to.",
+  smo: "<b>SMO / Non-RT RIC</b>: not deployed. Planned after Experiment 12, when there is a Near-RT RIC to give A1 policies to.",
   mec: "<b>MEC app server</b>: planned on the Jetson (10.42.0.3), reached through the UPF.",
-  ric: "<b>Near-RT RIC (FlexRIC)</b>: not deployed. Lab 2 adds FlexRIC, the E2 agent in the gNB and a KPM monitor xApp; Lab 3 the KPM-RC closed loop.",
+  ric: "<b>Near-RT RIC (FlexRIC)</b>: not deployed. Experiment 12 adds FlexRIC, the E2 agent in the gNB, a KPM monitor xApp, slice control and the KPM-RC closed loop.",
   gnb: "<b>OAI gNB 2026.w40</b>: one process; CU-CP, CU-UP and DU are drawn to show where F1 and E1 would be. n78, 106 PRB, 30 kHz, CSI-RS on. NGAP to the AMF on 10.42.0.2:38412, N3 GTP-U on 10.42.0.1. Select the gNB chip to read its log.",
   ru: "<b>RU replaced by the RF simulator</b>: IQ samples go over TCP 127.0.0.1:4043 between gNB and UE. No radio, no RF emission.",
   uebox: "<b>OAI nrUE</b>: test SIM (values masked in all logs), tunnel oaitun_ue1. Channel model 0 is AWGN on the downlink; the noise relay changes it. Select the UE chip to read its log.",

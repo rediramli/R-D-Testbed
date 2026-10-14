@@ -1,19 +1,19 @@
 #!/usr/bin/env bash
-# LAB-0c on the bench: is the DL speed test (one TCP flow) what keeps the DL MAC goodput near 50 Mbit/s while the link
-# carries about 88 Mbit/s at MCS 28 (LAB-0 bench rerun)? Three DL phases with noise off: TCP, UDP at a fixed rate above
+# Experiment 0c on the bench: is the DL speed test (one TCP flow) what keeps the DL MAC goodput near 50 Mbit/s while the link
+# carries about 88 Mbit/s at MCS 28 (Experiment 0 bench rerun)? Three DL phases with noise off: TCP, UDP at a fixed rate above
 # the link capacity, TCP again. Hypothesis supported when UDP reaches about the link capacity and TCP stays well below.
-# Client: a temporary pod lab0c-iperf (alpine + iperf3, host network on REDLAB, bound to oaitun_ue1), deleted at the end.
+# Client: a temporary pod exp0c-iperf (alpine + iperf3, host network on REDLAB, bound to oaitun_ue1), deleted at the end.
 # Server: the iperf3 UL server on the core host (10.45.0.1:5202), used with -R (server sends). Nothing else changes.
-# Run ON REDLAB from the repo root as the login user (no sudo):   MODE=run bash infra/lab/lab00c-tcp-udp.sh
+# Run ON REDLAB from the repo root as the login user (no sudo):   MODE=run bash infra/exp/exp00c-tcp-udp.sh
 #   MODE=preview  speed tests stopped, noise off, UE tunnel up, port 5202 listening on the core; changes nothing
-#   MODE=run      about 2.5 min; results in docs/labs/data/bench-tcpudp-<UTC time>/
+#   MODE=run      about 2.5 min; results in docs/experiments/data/bench-tcpudp-<UTC time>/
 # Options: T=30 (s per phase)  RATE=200M (UDP offered rate, wall clock; rfsim runs faster than real time, so
 # 88 Mbit/s of simulated-time goodput needs about 140-170 Mbit/s of wall-clock offered load). Do not use the dashboard
 # controls while it runs.
 set -u
 MODE=${MODE:-preview}; T=${T:-30}; RATE=${RATE:-200M}
 DIR=$(cd "$(dirname "$0")" && pwd); REPO=$(cd "$DIR/../.." && pwd)
-KC="k3s kubectl"; URL=http://10.42.0.2:30880; RELAY=http://10.42.0.1:8092; POD=lab0c-iperf
+KC="k3s kubectl"; URL=http://10.42.0.2:30880; RELAY=http://10.42.0.1:8092; POD=exp0c-iperf
 tiny(){ ssh -o BatchMode=yes -o ConnectTimeout=5 tiny "$@"; }
 F=0; ok(){ echo "  PASS  $1"; }; bad(){ echo "  FAIL  $1"; F=$((F+1)); }
 noise_db(){ curl -s -m 5 "$RELAY/noise" | python3 -c 'import json,sys; print(json.load(sys.stdin)["noiseDb"])' 2>/dev/null; }
@@ -34,7 +34,7 @@ pre(){
 
 run(){
   pre; [ $F = 0 ] || { echo "STOP: preconditions failed"; exit 1; }
-  OUT="$REPO/docs/labs/data/bench-tcpudp-$(date -u +%Y%m%dT%H%M%SZ)"; mkdir -p "$OUT"
+  OUT="$REPO/docs/experiments/data/bench-tcpudp-$(date -u +%Y%m%dT%H%M%SZ)"; mkdir -p "$OUT"
   trap '$KC delete pod $POD --wait=false >/dev/null 2>&1' EXIT
   $KC run $POD --restart=Never --image=docker.io/library/alpine:3.20 \
     --overrides='{"apiVersion":"v1","spec":{"hostNetwork":true,"terminationGracePeriodSeconds":1}}' \
@@ -64,7 +64,7 @@ out, t0, t1, T, rate = sys.argv[1], float(sys.argv[2]), float(sys.argv[3]), floa
 h = json.load(open(out + "/history.json"))["rows"]
 ph = list(csv.DictReader(open(out + "/phases.csv")))
 ues = [u["rnti"] for u in json.load(open(out + "/ue-kpi.json"))["ues"] if u["first"] <= t1 and u["last"] >= t0]
-# the same timeline/events format as LAB-0, so plot-noise-timeline.py can draw it (preset column = phase)
+# the same timeline/events format as Experiment 0, so plot-noise-timeline.py can draw it (preset column = phase)
 f = lambda v, n: "" if v is None else ("%." + str(n) + "f") % v
 def phase_at(t):
     p = ""

@@ -1,12 +1,12 @@
 #!/usr/bin/env bash
-# LAB-0 on the bench: switch the DL channel presets on a running DL speed test and record how UE SINR, CQI, MCS,
-# BLER and goodput follow, with the time of every switch. Same schedule and CSV format as the first LAB-0 run on the
+# Experiment 0 on the bench: switch the DL channel presets on a running DL speed test and record how UE SINR, CQI, MCS,
+# BLER and goodput follow, with the time of every switch. Same schedule and CSV format as the first run of Experiment 0 on the
 # old lab (exp-noise-timeline.sh), so the two can be compared and plotted with plot-noise-timeline.py.
 # The switches go through the dashboard API (the same path as the buttons); samples come from the dashboard's
 # 1 s history. rfsim only; nothing is installed or changed besides the noise preset and the speed test.
-# Run ON REDLAB from the repo root as the login user (no sudo):   MODE=run bash infra/lab/lab00-timeline.sh
+# Run ON REDLAB from the repo root as the login user (no sudo):   MODE=run bash infra/exp/exp00-noise-timeline.sh
 #   MODE=preview  dashboard, relay, UE and noise off; changes nothing
-#   MODE=run      the timeline (about 3.5 min) into docs/labs/data/bench-timeline-<UTC time>/, then the phase checks
+#   MODE=run      the timeline (about 3.5 min) into docs/experiments/data/bench-timeline-<UTC time>/, then the phase checks
 # Do not use the dashboard controls while it runs. Options: SCHEDULE="off:40 clean:40 moderate:40 poor:40 off:40" SKIP=10
 set -u
 MODE=${MODE:-preview}; SKIP=${SKIP:-10}
@@ -32,7 +32,7 @@ pre(){
 
 run(){
   pre; [ $F = 0 ] || { echo "STOP: preconditions failed"; exit 1; }
-  OUT="$REPO/docs/labs/data/bench-timeline-$(date -u +%Y%m%dT%H%M%SZ)"; mkdir -p "$OUT"
+  OUT="$REPO/docs/experiments/data/bench-timeline-$(date -u +%Y%m%dT%H%M%SZ)"; mkdir -p "$OUT"
   KEY=$(tiny "k3s kubectl -n fct-dash get secret fct-dash-admin -o jsonpath='{.data.password}'" 2>/dev/null | base64 -d)
   trap 'api noise-off >/dev/null; api speed-stop >/dev/null' EXIT
   echo "== Timeline: $SCHEDULE (do not use the dashboard controls until RESULT)"
@@ -82,7 +82,7 @@ PY
   python3 - "$OUT/timeline.csv" "$OUT/events.csv" "$SKIP" <<'PY' | tee "$OUT/summary.txt"
 import csv, sys, statistics as st
 rows = list(csv.DictReader(open(sys.argv[1]))); ev = list(csv.DictReader(open(sys.argv[2]))); skip = float(sys.argv[3])
-want = {"off": (26, 28), "clean": (23, 28), "moderate": (12, 18), "poor": (3, 9)}   # ranges of the first LAB-0 run
+want = {"off": (26, 28), "clean": (23, 28), "moderate": (12, 18), "poor": (3, 9)}   # ranges of the first run (old lab servers)
 fail = 0
 for e in ev:
     if e["http"] != "200": print(f"  FAIL  switch to {e['preset']} at {e['t_s']} s: HTTP {e['http']}"); fail += 1

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""LAB-0c: MAC goodput and iperf3 rate for the TCP / UDP / TCP phases of lab00c-tcp-udp.sh.
+"""Experiment 0c: MAC goodput and iperf3 rate for the TCP / UDP / TCP phases of infra/exp/exp00c-tcp-udp.sh.
 Usage: python3 plot-tcp-udp.py RUN_DIR OUT.png"""
 import csv, json, sys
 import matplotlib; matplotlib.use("Agg"); import matplotlib.pyplot as plt
@@ -25,7 +25,7 @@ for p in ph:
     ax[0].annotate(lab, xy=(s + 1, 0.98), xycoords=("data", "axes fraction"), va="top", fontsize=9, fontweight="bold")
 ax[1].set_ylabel("iperf3 at the UE\n(Mbit/s, wall clock)"); ax[1].set_ylim(bottom=0); ax[1].set_xlabel("time (s)")
 for a in ax: a.grid(alpha=0.3)
-fig.suptitle("LAB-0c on the bench: one TCP flow vs UDP, DL, noise off (OAI rfsim, n78 40 MHz, MCS 28)", fontsize=12)
+fig.suptitle("Experiment 0c on the bench: one TCP flow vs UDP, DL, noise off (OAI rfsim, n78 40 MHz, MCS 28)", fontsize=12)
 fig.text(0.01, 0.005, "TCP reaches the link rate for about 6-9 s, then loses packets (retransmissions) and settles near 60-90 Mbit/s wall clock; "
          "UDP holds ~128 Mbit/s wall clock = 87.5 Mbit/s MAC goodput.", fontsize=8, color="#555")
 fig.tight_layout(rect=(0, 0.03, 1, 0.96)); fig.savefig(outp, dpi=130); print("saved", outp)

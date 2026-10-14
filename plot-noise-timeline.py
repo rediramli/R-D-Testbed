@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""LAB-0: annotated timeline graph from exp-noise-timeline.sh output.
+"""Experiment 0: annotated timeline graph from exp-noise-timeline.sh output.
 
 Usage: python3 plot-noise-timeline.py RUN_DIR [OUT.png] [TITLE]
 RUN_DIR holds timeline.csv and events.csv. Four stacked panels share the time axis:
@@ -26,7 +26,7 @@ def num(v):
 
 def main():
     run = Path(sys.argv[1])
-    out = Path(sys.argv[2]) if len(sys.argv) > 2 else run / "LAB-00-noise-timeline.png"
+    out = Path(sys.argv[2]) if len(sys.argv) > 2 else run / "EXP-00-noise-timeline.png"
     rows = list(csv.DictReader(open(run / "timeline.csv")))
     ev = list(csv.DictReader(open(run / "events.csv")))
     t = [float(r["t_s"]) for r in rows]
@@ -59,7 +59,7 @@ def main():
                        va="top", fontsize=9, fontweight="bold")
     for a in axs:
         a.grid(alpha=0.3); a.set_xlim(0, t_end)
-    title = sys.argv[3] if len(sys.argv) > 3 else "LAB-0: DL channel presets switched during a DL speed test (OAI rfsim, n78 40 MHz)"
+    title = sys.argv[3] if len(sys.argv) > 3 else "Experiment 0: DL channel presets switched during a DL speed test (OAI rfsim, n78 40 MHz)"
     fig.suptitle(title, fontsize=12)
     fig.text(0.01, 0.005, "Noise: AWGN on the UE receive path (channelmod model 0), switched through the "
              "dashboard relay. SINR as reported by the UE. Goodput in simulated time (rfsim runs faster than real time).", fontsize=8, color="#555")

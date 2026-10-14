@@ -1,6 +1,6 @@
-# LAB-0: Downlink noise presets and dashboard control
+# Experiment 0: Controlled downlink noise and link adaptation
 
-Status: **done** (2026-10-08 to 2026-10-11; rerun on the bench 2026-10-14, see "Bench rerun"). Commits `6a37bdc` to `dba4729` on `main`; timeline experiment 2026-10-11 (PR `lab/00-noise-presets`).
+Status: **done** (2026-10-08 to 2026-10-11; rerun on the bench 2026-10-14, see "Bench rerun"). Commits `6a37bdc` to `dba4729` on `main`; timeline run 2026-10-11 (PR `lab/00-noise-presets`).
 
 ## Goal
 Offer three repeatable downlink channel conditions (Clean, Moderate, Poor) and switch between them
@@ -38,7 +38,7 @@ through the noise relay (the same path as the dashboard buttons). It samples the
 about every 1.4 s and records the time of every switch. Run `timeline-20261011T160138Z`: **RESULT: PASS**
 (every phase in its MCS range, one UE context `607b` throughout, no out-of-sync sample).
 
-![LAB-0 timeline](img/LAB-00-noise-timeline.png)
+![Experiment 0 timeline, old lab servers](img/EXP-00-noise-timeline-oldlab.png)
 
 Raw data: [`data/timeline-20261011T160138Z/`](data/timeline-20261011T160138Z/). Medians per phase (samples from 10 s after the switch, 22 per phase):
 
@@ -66,18 +66,18 @@ Reproduce (from FCT0170):
 ```
 ssh fct0173 'bash -s' < ~/rdt/exp-noise-timeline.sh
 # copy timeline.csv and events.csv from the run folder it names, then:
-python3 plot-noise-timeline.py docs/labs/data/timeline-20261011T160138Z docs/labs/img/LAB-00-noise-timeline.png
+python3 plot-noise-timeline.py docs/experiments/data/timeline-20261011T160138Z docs/experiments/img/EXP-00-noise-timeline-oldlab.png
 ```
 Do not press the dashboard DL channel buttons while it runs (about 4 minutes).
 
 ## Bench rerun (2026-10-14)
 The testbed moved to the bench (core on the P3 Tiny, RAN on REDLAB, OAI 2026.w40, UE with the channel model since stage 4d).
-`infra/lab/lab00-timeline.sh` repeats the timeline above with the same schedule, CSV format and phase checks; the
+`infra/exp/exp00-noise-timeline.sh` repeats the timeline above with the same schedule, CSV format and phase checks; the
 switches go through the dashboard API and the samples come from the dashboard's 1 s history.
 Run `bench-timeline-20261014T013731Z`: **RESULT: PASS** (every phase in its MCS range, one UE context `c79d`,
 no out-of-sync sample, 200 samples).
 
-![LAB-0 bench timeline](img/LAB-00-bench-timeline.png)
+![Experiment 0 bench timeline](img/EXP-00-noise-timeline-bench.png)
 
 Medians per phase (samples from 10 s after the switch, 30 per phase), next to the first run on the old lab:
 
@@ -96,25 +96,25 @@ Findings:
   (p10-p90 39.6-70.5 at Off) with MCS 28 and BLER 0. Right after the switch back to Off the goodput reached 83-88 Mbit/s
   for about 4 s (162.8-165.8 s) and then fell back to about 40-50: the queue that built up during Poor drained at the
   full rate. So the link carries about 88 Mbit/s at MCS 28 (as on the old lab), and in steady state the DL speed test
-  (one TCP flow, iperf3 `-R`) does not keep the gNB queue full. Hypothesis, to be tested before LAB-1: the TCP flow is
+  (one TCP flow, iperf3 `-R`) does not keep the gNB queue full. Hypothesis, tested in Experiment 0c: the TCP flow is
   limited by its sender or round-trip time through rfsim (or the core path), not by the scheduler; a UDP test at a fixed
   rate above 88 Mbit/s separates the two.
 - Consequence for the KPIs: the stage 3 baseline (DL 50.9 Mbit/s) is this TCP-limited rate, not the radio capacity.
 
 Reproduce (on REDLAB, repo root, about 3.5 min, no dashboard controls meanwhile):
 ```
-MODE=run bash infra/lab/lab00-timeline.sh
-python3 plot-noise-timeline.py docs/labs/data/bench-timeline-<time> docs/labs/img/LAB-00-bench-timeline.png "LAB-0 on the bench: ..."
+MODE=run bash infra/exp/exp00-noise-timeline.sh
+python3 plot-noise-timeline.py docs/experiments/data/bench-timeline-<time> docs/experiments/img/EXP-00-noise-timeline-bench.png "Experiment 0 on the bench: ..."
 ```
 
-## LAB-0c: one TCP flow vs UDP (2026-10-14)
-Question from the bench rerun: is the DL speed test (one TCP flow) what keeps the goodput near 50 Mbit/s at Off?
-`infra/lab/lab00c-tcp-udp.sh` runs three DL phases of 30 s with noise off through a temporary iperf3 client pod bound
+## Experiment 0c: link capacity vs single-flow TCP (2026-10-14)
+Question from the bench rerun of Experiment 0: is the DL speed test (one TCP flow) what keeps the goodput near 50 Mbit/s at Off?
+`infra/exp/exp00c-tcp-udp.sh` runs three DL phases of 30 s with noise off through a temporary iperf3 client pod bound
 to `oaitun_ue1` (server 10.45.0.1:5202, `-R`): TCP, UDP at 200 Mbit/s offered (wall clock), TCP again.
 Run `bench-tcpudp-20261014T025110Z`: **RESULT: PASS** (all phases complete, one UE context `c79d`, no out-of-sync).
 **Verdict: hypothesis supported.**
 
-![LAB-0c TCP vs UDP](img/LAB-00c-tcp-udp.png)
+![Experiment 0c TCP vs UDP](img/EXP-00c-tcp-udp.png)
 
 | Phase | iperf3 at the UE (wall clock) | MAC goodput median (p90), sim time | DL MCS | DL BLER |
 |---|---|---|---|---|
@@ -124,7 +124,7 @@ Run `bench-tcpudp-20261014T025110Z`: **RESULT: PASS** (all phases complete, one 
 
 Findings:
 - The link carries **87.5 Mbit/s** of MAC goodput at MCS 28, steady, with BLER 0: the same as the old lab (~88-90).
-  Use UDP at a fixed rate above the link rate when a lab measures capacity (LAB-1 onwards).
+  Use UDP at a fixed rate above the link rate when an experiment measures capacity (Experiment 1 onwards).
 - One TCP flow reaches that rate for about 6-9 s after its start (MAC 88 Mbit/s, iperf3 ~130 Mbit/s wall clock), then
   loses packets (1261 and 260 retransmissions) and settles at 60-90 Mbit/s wall clock, about 40-60 Mbit/s of MAC
   goodput. The radio stays at MCS 28 and BLER 0 throughout, so the losses are not on the air interface.
@@ -136,8 +136,8 @@ Findings:
 
 Reproduce (on REDLAB, repo root, about 2.5 min, dashboard speed tests stopped, no controls meanwhile):
 ```
-MODE=run bash infra/lab/lab00c-tcp-udp.sh
-python3 plot-tcp-udp.py docs/labs/data/bench-tcpudp-<time> docs/labs/img/LAB-00c-tcp-udp.png
+MODE=run bash infra/exp/exp00c-tcp-udp.sh
+python3 plot-tcp-udp.py docs/experiments/data/bench-tcpudp-<time> docs/experiments/img/EXP-00c-tcp-udp.png
 ```
 
 ## Lessons
