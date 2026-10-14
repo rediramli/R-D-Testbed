@@ -26,7 +26,7 @@ speed test is one TCP flow and shows what a single application gets.
 | # | Experiment | rfsim | Status | Results |
 |---|---|---|---|---|
 | 0 | Controlled downlink noise and link adaptation | yes | Done; bench rerun 2026-10-14 PASS | [EXP-00](EXP-00-downlink-noise.md) |
-| 0b | SINR to CQI/MCS curve (noise sweep) | yes | Next | |
+| 0b | SINR to CQI/MCS curve (noise sweep) | yes | Done 2026-10-14: SINR falls 2 dB per dB of the noise setting; CQI 1-2 below typical under 18 dB | [EXP-00, part 0b](EXP-00-downlink-noise.md#experiment-0b-sinr-to-cqimcs-curve-noise-sweep-2026-10-14) |
 | 0c | Link capacity vs single-flow TCP throughput | yes | Done 2026-10-14: the link carries 87.5 Mbit/s at MCS 28, one TCP flow 50-55 | [EXP-00, part 0c](EXP-00-downlink-noise.md#experiment-0c-link-capacity-vs-single-flow-tcp-2026-10-14) |
 | 1 | Carrier bandwidth (PRB count) and capacity | yes | Planned | |
 | 2 | Carrier placement: ARFCN and centre frequency | yes (configuration only) | Planned | |
@@ -45,4 +45,4 @@ speed test is one TCP flow and shows what a single application gets.
 | 15 | N2 control-plane flood and anomaly detection (isolated bench LAN only) | yes | Planned | |
 
 The rfsim column is a first assessment, to be confirmed in each experiment's issue before work starts.
-Order (decided 2026-10-14): 0 (bench rerun), 0c, 0b, then 1 to 15 in order.
+Order (decided 2026-10-14): 0 (bench rerun), 0c, 0b, then 1 to 15 in order. Next: Experiment 1.

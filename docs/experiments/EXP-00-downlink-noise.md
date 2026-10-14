@@ -140,6 +140,52 @@ MODE=run bash infra/exp/exp00c-tcp-udp.sh
 python3 plot-tcp-udp.py docs/experiments/data/bench-tcpudp-<time> docs/experiments/img/EXP-00c-tcp-udp.png
 ```
 
+## Experiment 0b: SINR to CQI/MCS curve, noise sweep (2026-10-14)
+`infra/exp/exp00b-noise-sweep.sh` keeps one UDP DL flow above the link rate (200 Mbit/s offered) running and steps the
+UE's noise from -100 dB through -20 ... -2 dB (1 dB steps, 20 s each, median of the last 12 s) and back to -100 dB.
+The noise is set through the UE telnet with the relay's own functions and read back at every step.
+Run `bench-sweep-20261014T064929Z`: **RESULT: PASS** (every value read back, 12 samples per step, one UE context `c79d`,
+no out-of-sync sample, BLER 0 at every step).
+
+![Experiment 0b noise sweep](img/EXP-00b-noise-sweep.png)
+
+| `noise_power_dB` | UE SINR | CQI (typical) | DL MCS | MAC goodput |
+|---|---|---|---|---|
+| -100 | 44.1 dB | 15 (15) | 28 | 87.5 Mbit/s |
+| -20 to -12 | 38.2 to 23.9 dB | 15 (15) | 28 | 87.5 |
+| -11 | 22.5 | 14 (14) | 26 | 81.6 |
+| -10 | 20.1 | 13 (13) | 24 | 72.5 |
+| -9 | 18.5 | 12 (12) | 21 | 54.5 |
+| -8 | 16.9 | 11 (12) | 20 | 52.3 |
+| -7 | 13.9 | 10 (10) | 18 | 43.7 |
+| -6 | 11.8 | 8 (10) | 13 | 30.4 |
+| -5 | 10.1 | 7 (8) | 11 | 23.5 |
+| -4 | 8.7 | 6 (8) | 8 | 18.6 |
+| -3 | 6.4 | 5 (7) | 6 | 13.9 |
+| -2 | 4.3 | 4 (6) | 4 | 9.6 |
+
+Full data: [`data/bench-sweep-20261014T064929Z/curve.csv`](data/bench-sweep-20261014T064929Z/curve.csv).
+"Typical" CQI uses the link-level SINR thresholds of the dashboard's CQI panel (BLER 10 %); they are not 3GPP values.
+
+Findings:
+- **The UE SINR falls 2.00 dB for every 1 dB of the `noise_power_dB` setting** (linear fit over the 13 steps below
+  30 dB SINR; with added AWGN power 1.00 is expected). So the setting does not behave as a noise power in dB: going
+  from -11 to -3 dB (8 dB) costs 16 dB of SINR. Hypothesis, not checked against the source: the OAI channel model
+  turns the setting into a noise amplitude with 10^(x/10) instead of 10^(x/20), so the noise power moves 2 dB per dB.
+  Consequence: report results against the measured SINR, not against the setting.
+- **CQI follows the typical table above about 18 dB SINR and sits 1-2 steps lower below it** (median -1, range -2 to 0
+  over the 10 steps below CQI 15). OAI is more conservative at low SINR. Hypothesis: a margin in OAI's CQI selection,
+  or the gap between the SSB SINR shown here and the CSI-RS SINR the CQI is computed from.
+- The gNB follows the CQI one to one: every step of CQI gives a lower MCS, and the BLER stays 0. The link reaches
+  MCS 28 and 87.5 Mbit/s at about 24 dB SINR; below that the goodput falls with the MCS (9.6 Mbit/s at 4.3 dB).
+- No link loss down to -2 dB (SINR 4.3 dB); the loss point is lower and not measured.
+
+Reproduce (on REDLAB, repo root, about 8 min, dashboard speed tests stopped, no controls meanwhile):
+```
+MODE=run bash infra/exp/exp00b-noise-sweep.sh
+python3 plot-noise-sweep.py docs/experiments/data/bench-sweep-<time> docs/experiments/img/EXP-00b-noise-sweep.png
+```
+
 ## Lessons
 - `lab0-run.sh` re-creates the UE from `ran/oai-nr-ue-deploy.json`: change the source file, and run lab0 in the test.
 - With no DL traffic the gNB reports MCS 0, goodput 0 and a decaying BLER; that is the idle state.
