@@ -1,0 +1,14 @@
+  info  phase | iperf3 receiver (wall clock)   loss | MAC goodput median (p90), sim time | MCS  BLER | samples
+  info  tcp   |    89.0 Mbit/s               |   54.6 (88.4) Mbit/s | 28  0.0000 | 24
+  PASS  tcp: iperf3 completed
+  PASS  tcp: 24 MAC samples (want >= 20)
+  info  udp   |   200.0 Mbit/s  loss  27.4 % |   87.5 (87.7) Mbit/s | 28  0.0000 | 26
+  PASS  udp: iperf3 completed
+  PASS  udp: 26 MAC samples (want >= 20)
+  info  tcp2  |    82.7 Mbit/s               |   49.8 (69.6) Mbit/s | 28  0.0000 | 23
+  PASS  tcp2: iperf3 completed
+  PASS  tcp2: 23 MAC samples (want >= 20)
+  PASS  one UE context throughout: ['c79d']
+  PASS  out-of-sync samples: 0
+RESULT: PASS
+VERDICT: hypothesis SUPPORTED: UDP MAC goodput 87.5 vs TCP 54.6 / 49.8 Mbit/s (supported if UDP >= 75 and >= 1.4 x TCP)
