@@ -1,5 +1,5 @@
 # Stage 4b, RAN cluster (REDLAB). Controller account for the dashboard: it may only change the replica count of
-# four named deployments (no pods, no manifests, no Secrets). Plus the iperf3 speed-test clients (replicas 0 until started);
+# six named deployments (no pods, no manifests, no Secrets). Plus the iperf3 speed-test clients (replicas 0 until started);
 # they bind to the UE tunnel oaitun_ue1 by device, so they follow whatever address the UE got.
 apiVersion: v1
 kind: ServiceAccount
@@ -24,7 +24,7 @@ metadata:
 rules:
 - apiGroups: ["apps"]
   resources: ["deployments/scale"]
-  resourceNames: ["oai-gnb", "oai-nr-ue", "speedtest-dl", "speedtest-ul"]
+  resourceNames: ["oai-gnb", "oai-nr-ue", "speedtest-dl", "speedtest-ul", "speedtest-dl-udp", "speedtest-ul-udp"]
   verbs: ["get", "patch", "update"]
 ---
 apiVersion: rbac.authorization.k8s.io/v1
@@ -78,3 +78,40 @@ spec:
       - name: iperf
         image: docker.io/library/alpine:3.20
         command: ["sh", "-c", "apk add --no-cache iperf3 >/dev/null\n# run IPERF3_ARGS... : loop iperf3 forever under a watchdog that restarts it when\n#  (a) it reports 5 one-second intervals in a row with 0 bytes (peer vanished mid-test), or\n#  (b) a connection on the test port is open but the log has not moved for 10 s\n#      (peer vanished during test setup, before any interval was reported).\nrun(){\n  L=/tmp/iperf-$$.log\n  PORT=5201; prev=\"\"; for a in \"$@\"; do [ \"$prev\" = \"-p\" ] && PORT=$a; prev=$a; done\n  HEX=$(printf '%04X' $PORT)\n  while true; do\n    : > $L\n    iperf3 \"$@\" -i 1 --forceflush --logfile $L & P=$!\n    tail -f $L & T=$!\n    last=0; still=0\n    while kill -0 $P 2>/dev/null; do\n      sleep 1\n      size=$(wc -c < $L)\n      # count seconds without log progress, but only while a connection on the test port is open\n      if [ \"$size\" = \"$last\" ] && cat /proc/net/tcp /proc/net/tcp6 2>/dev/null | grep -qE \":$HEX [0-9A-F]+:[0-9A-F]+ 01 |:[0-9A-F]+ [0-9A-F]+:$HEX 01 \"; then\n        still=$((still+1)); else still=0; fi\n      last=$size; why=\"\"\n      [ \"$(tail -n 5 $L | grep -c ' 0.00 Bytes')\" -ge 5 ] && why=\"5 s without data\"\n      [ $still -ge 10 ] && why=\"connection open but no progress for 10 s\"\n      if [ -n \"$why\" ]; then\n        echo \"watchdog: $why, restarting iperf3\"; kill $P; sleep 1; kill -9 $P 2>/dev/null\n      fi\n    done\n    wait $P 2>/dev/null; sleep 1; kill $T 2>/dev/null   # let tail print the summary first\n  done\n}\nrun -c 10.45.0.1 -p 5202 --bind-dev oaitun_ue1 -t 600 --connect-timeout 3000 --snd-timeout 5000\n"]
+# UDP clients for the Experiments page (stage E2).
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: speedtest-dl-udp
+  namespace: default
+spec:
+  replicas: 0
+  selector: {matchLabels: {app: speedtest-dl-udp}}
+  template:
+    metadata: {labels: {app: speedtest-dl-udp}}
+    spec:
+      hostNetwork: true
+      terminationGracePeriodSeconds: 2
+      containers:
+      - name: iperf
+        image: docker.io/library/alpine:3.20
+        command: ["sh", "-c", "apk add --no-cache iperf3 >/dev/null\n# UDP at a fixed offered load above the link rate (Experiment 1 method). The rate follows the carrier profile that\n# the RAN profile relay reports (read without a token); re-read every 60 s. UL offers half the DL rate.\nwhile true; do\n  j=$(wget -qO- -T 3 http://10.42.0.1:8093/profile 2>/dev/null)\n  cur=$(echo \"$j\" | grep -o '\"current\": \"[^\"]*\"' | cut -d'\"' -f4)\n  rate=$(echo \"$j\" | grep -o \"\\\"$cur\\\": {[^}]*}\" | grep -o '\"udp\": \"[0-9]*M\"' | cut -d'\"' -f4)\n  [ -n \"$rate\" ] || rate=200M\n  r=$rate; echo \"profile ${cur:-unknown}: offered UDP DL $r\"\n  iperf3 -c 10.45.0.1 -p 5201 --bind-dev oaitun_ue1 -u -b $r -t 60 -i 1 --forceflush --connect-timeout 3000 -R --rcv-timeout 5000\n  sleep 1\ndone\n"]
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: speedtest-ul-udp
+  namespace: default
+spec:
+  replicas: 0
+  selector: {matchLabels: {app: speedtest-ul-udp}}
+  template:
+    metadata: {labels: {app: speedtest-ul-udp}}
+    spec:
+      hostNetwork: true
+      terminationGracePeriodSeconds: 2
+      containers:
+      - name: iperf
+        image: docker.io/library/alpine:3.20
+        command: ["sh", "-c", "apk add --no-cache iperf3 >/dev/null\n# UDP at a fixed offered load above the link rate (Experiment 1 method). The rate follows the carrier profile that\n# the RAN profile relay reports (read without a token); re-read every 60 s. UL offers half the DL rate.\nwhile true; do\n  j=$(wget -qO- -T 3 http://10.42.0.1:8093/profile 2>/dev/null)\n  cur=$(echo \"$j\" | grep -o '\"current\": \"[^\"]*\"' | cut -d'\"' -f4)\n  rate=$(echo \"$j\" | grep -o \"\\\"$cur\\\": {[^}]*}\" | grep -o '\"udp\": \"[0-9]*M\"' | cut -d'\"' -f4)\n  [ -n \"$rate\" ] || rate=200M\n  r=$((${rate%M} / 2))M; echo \"profile ${cur:-unknown}: offered UDP UL $r\"\n  iperf3 -c 10.45.0.1 -p 5202 --bind-dev oaitun_ue1 -u -b $r -t 60 -i 1 --forceflush --connect-timeout 3000\n  sleep 1\ndone\n"]
