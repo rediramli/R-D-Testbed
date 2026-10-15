@@ -280,7 +280,7 @@ class State:
     def _controls(self):
         """Replica state of the deployments the dashboard may scale."""
         res = {"enabled": CONTROL.enabled, "reason": CONTROL.reason, "radioMode": RADIO_MODE, "targets": {},
-               "noise": CONTROL.noise_state()}
+               "noise": CONTROL.noise_state(), "profile": CONTROL.profile_state()}
         cl, ns, err = self.clusters["ran"]
         if err:
             return res
@@ -375,7 +375,7 @@ def mock_state():
                         "goodputDl": 90.2, "goodputUl": 2.98}]}
     ctl = {"enabled": True, "reason": None, "radioMode": RADIO_MODE,
            "targets": {t: {"want": n, "ready": n} for t, n in CONTROL.mock.items()},
-           "noise": CONTROL.noise_state()} if "CONTROL" in globals() else {}
+           "noise": CONTROL.noise_state(), "profile": CONTROL.profile_state()} if "CONTROL" in globals() else {}
     return {"time": now_iso(), "radioMode": RADIO_MODE, "pods": pods, "errors": {}, "ran": ran, "controls": ctl}
 
 
@@ -383,6 +383,10 @@ CAPTURE_URL = os.environ.get("CAPTURE_URL", "http://10.0.129.7:8091").rstrip("/"
 # Noise relay on the RAN host (stage B). It accepts only these preset names.
 NOISE_URL = os.environ.get("NOISE_URL", "http://10.0.129.7:8092").rstrip("/")
 NOISE_PRESETS = ("off", "clean", "moderate", "poor")
+# RAN profile relay on the RAN host (stage E1). It switches the carrier between the tested Experiment 1 profiles.
+PROFILE_URL = os.environ.get("PROFILE_URL", "http://10.42.0.1:8093").rstrip("/")
+PROFILES = ("bw-24", "bw-51", "bw-106", "bw-273")
+MOCK_PROFILES = {"bw-24": (24, 10, "150M"), "bw-51": (51, 20, "250M"), "bw-106": (106, 40, "200M"), "bw-273": (273, 100, "600M")}
 MOCK_FLOW = [
     ("ul", "NGAP", "NGSetupRequest"), ("dl", "NGAP", "NGSetupResponse"),
     ("ul", "NGAP/NAS-5GS", "InitialUEMessage, Registration request"),
@@ -496,13 +500,16 @@ class Control:
     """Starts and stops the approved RAN deployments by changing their replica
     count. The RAN-cluster account behind it may only scale these names; it
     cannot create pods or change a manifest, so it cannot reach the X410."""
-    TARGETS = ("oai-gnb", "oai-nr-ue", "speedtest-dl", "speedtest-ul")
+    TARGETS = ("oai-gnb", "oai-nr-ue", "speedtest-dl", "speedtest-ul", "speedtest-dl-udp", "speedtest-ul-udp")
+    SPEED = ("speedtest-dl", "speedtest-ul", "speedtest-dl-udp", "speedtest-ul-udp")
 
     def __init__(self):
         self.token_file = os.environ.get("CTL_TOKEN_FILE", "/etc/fct-dash/ctl/token")
         self.admin_file = os.environ.get("ADMIN_KEY_FILE", "/etc/fct-dash/admin/password")
         self.noise_token_file = os.environ.get("NOISE_TOKEN_FILE", "/etc/fct-dash/noise/token")
+        self.profile_token_file = os.environ.get("PROFILE_TOKEN_FILE", "/etc/fct-dash/profile/token")
         self.mock_noise = "off"
+        self.mock_profile = {"current": "bw-106", "state": "idle", "target": None, "since": 0.0}
         self.log = collections.deque(maxlen=50)
         self.lock = threading.Lock()
         self.enabled, self.reason = False, None
@@ -580,19 +587,88 @@ class Control:
             return False, "Noise relay not reachable: " + describe_error(e)
         return True, f"Downlink channel set to {d.get('preset')} ({d.get('noiseDb'):g} dB noise)."
 
+    def profile_state(self):
+        """Carrier profile as reported by the RAN profile relay (no token needed to read)."""
+        if MOCK:
+            m = self.mock_profile
+            if m["state"] == "switching" and time.time() - m["since"] > 6:
+                m.update(current=m["target"], state="ok")
+            return {"available": True, "current": None if m["state"] == "switching" else m["current"],
+                    "state": m["state"], "target": m["target"], "error": None, "baseline": "bw-106",
+                    "profiles": {k: {"prb": v[0], "mhz": v[1], "udp": v[2]} for k, v in MOCK_PROFILES.items()}}
+        if not os.path.exists(self.profile_token_file):
+            return {"available": False, "reason": "Profile relay token not installed"}
+        try:
+            with urllib.request.urlopen(f"{PROFILE_URL}/profile", timeout=1.5) as r:
+                d = json.loads(r.read())
+        except Exception as e:
+            return {"available": False, "reason": "Profile relay: " + describe_error(e)}
+        out = {k: d.get(k) for k in ("current", "state", "target", "error", "steps", "stepNames", "since",
+                                       "baseline", "profiles", "apiError")}
+        out["available"] = True
+        return out
+
+    def set_profile(self, name):
+        """Ask the relay to switch the carrier. Returns (ok, message)."""
+        if name not in PROFILES:
+            raise ValueError("unknown profile")
+        if MOCK:
+            m = self.mock_profile
+            if m["state"] == "switching":
+                return False, "A profile switch is already running."
+            m.update(state="switching", target=name, since=time.time())
+            return True, f"Switching the carrier to {MOCK_PROFILES[name][0]} PRB."
+        try:
+            with open(self.profile_token_file) as f:
+                token = f.read().strip()
+        except OSError:
+            return False, "Profile relay token not installed."
+        req = urllib.request.Request(f"{PROFILE_URL}/profile", data=json.dumps({"profile": name}).encode(), method="POST",
+                                     headers={"Content-Type": "application/json", "X-Relay-Token": token})
+        try:
+            with urllib.request.urlopen(req, timeout=8) as r:
+                d = json.loads(r.read())
+        except urllib.error.HTTPError as e:
+            try:
+                why = json.loads(e.read()).get("error")
+            except Exception:
+                why = None
+            return False, {401: "Profile relay refused the dashboard token.",
+                           409: "Profile relay is busy or the gNB/UE are not running: %s" % why}.get(
+                               e.code, f"Profile relay answered {e.code}: {why}")
+        except Exception as e:
+            return False, "Profile relay not reachable: " + describe_error(e)
+        prb = (d.get("profile") or name).split("-")[-1]
+        return True, f"Switching the carrier to {prb} PRB. The gNB and UE restart; this takes about 30 s."
+
     def act(self, action):
         """Run one named action. Returns a sentence for the operator."""
         ready = lambda role: any(p["cluster"] == "ran" and p["role"] == role and p["state"] == "running"
                                  for p in STATE.snapshot()["pods"])
         steps = {
             "gnb-start": [("oai-gnb", 1)],
-            "gnb-stop": [("speedtest-dl", 0), ("speedtest-ul", 0), ("oai-nr-ue", 0), ("oai-gnb", 0)],
+            "gnb-stop": [(t, 0) for t in self.SPEED] + [("oai-nr-ue", 0), ("oai-gnb", 0)],
             "ue-start": [("oai-nr-ue", 1)],
-            "ue-stop": [("speedtest-dl", 0), ("speedtest-ul", 0), ("oai-nr-ue", 0)],
-            "speed-dl": [("speedtest-ul", 0), ("speedtest-dl", 1)],
-            "speed-ul": [("speedtest-dl", 0), ("speedtest-ul", 1)],
-            "speed-stop": [("speedtest-dl", 0), ("speedtest-ul", 0)],
+            "ue-stop": [(t, 0) for t in self.SPEED] + [("oai-nr-ue", 0)],
+            "speed-stop": [(t, 0) for t in self.SPEED],
         }
+        for act, dep in (("speed-dl", "speedtest-dl"), ("speed-ul", "speedtest-ul"),
+                         ("speed-dl-udp", "speedtest-dl-udp"), ("speed-ul-udp", "speedtest-ul-udp")):
+            steps[act] = [(t, 0) for t in self.SPEED if t != dep] + [(dep, 1)]
+        if action.startswith("profile-"):
+            if action[len("profile-"):] not in PROFILES:
+                raise ValueError("unknown profile")
+            if not MOCK and not (ready("gnb") and ready("ue")):
+                return False, "Start the gNB and the UE first; the switch restarts both and checks the tunnel."
+            with self.lock:
+                for t in self.SPEED:  # no test traffic during the restart
+                    self.scale(t, 0)
+                ok, msg = self.set_profile(action[len("profile-"):])
+                if ok:
+                    self.log.append({"t": now_iso(), "action": action})
+            if ok:
+                print(f"{now_iso()} CONTROL {action}", flush=True)
+            return ok, msg
         if action.startswith("noise-"):
             if not MOCK and not ready("ue"):
                 return False, "Start the UE first; the noise is applied to its receiver."
@@ -630,6 +706,8 @@ class Control:
                       "ue-stop": "UE and speed tests stopping.",
                       "speed-dl": "Downlink speed test running.",
                       "speed-ul": "Uplink speed test running.",
+                      "speed-dl-udp": "Downlink UDP test running (offered load above the link rate).",
+                      "speed-ul-udp": "Uplink UDP test running (offered load above the link rate).",
                       "speed-stop": "Speed test stopped."}[action]
 
 
@@ -1479,8 +1557,84 @@ def metrics_text():
     return "\n".join(out)
 
 
+# ---- E2: experiment results (Record button) --------------------------------
+RECORD_SECONDS = 20
+RECORD_FIELDS = ["sinrUe", "cqi", "ri", "mcsDl", "mcsUl", "blerDl", "blerUl", "nprbUl", "goodputDl", "goodputUl"]
+RESULT_COLS = ["id", "exp", "time_utc", "profile", "prb", "noise", "test", "samples"] + RECORD_FIELDS + ["note"]
+EXP_RE = re.compile(r"^[0-9]{1,2}[a-z]?$")
+
+
+class Results:
+    """Recorded measurements, one row per Record press. Kept in a JSON file on the dashboard's volume;
+    without a writable volume they live in memory only (and the page says so)."""
+    MAX_ROWS = 2000
+
+    def __init__(self, path):
+        self.path, self.lock, self.rows, self.persistent = path, threading.Lock(), [], False
+        try:
+            if os.path.exists(path):
+                with open(path) as f:
+                    self.rows = json.load(f)["rows"]
+            os.makedirs(os.path.dirname(path), exist_ok=True)
+            with open(path + ".probe", "w") as f:
+                f.write("ok")
+            os.remove(path + ".probe")
+            self.persistent = True
+        except Exception as e:
+            print(f"{now_iso()} RESULTS not persistent ({path}): {describe_error(e)}", flush=True)
+
+    def _save(self):
+        if not self.persistent:
+            return
+        tmp = self.path + ".tmp"
+        with open(tmp, "w") as f:
+            json.dump({"rows": self.rows}, f)
+        os.replace(tmp, self.path)
+
+    def record(self, exp, note):
+        """Average the newest UE's last RECORD_SECONDS of samples. Returns (ok, row or message)."""
+        h = HISTORY.get("", RECORD_SECONDS)
+        rows = h["rows"]
+        if len(rows) < RECORD_SECONDS // 2:
+            return False, f"Only {len(rows)} samples in the last {RECORD_SECONDS} s; is the UE connected?"
+        ctl = STATE.snapshot().get("controls") or {}
+        prof = ctl.get("profile") or {}
+        if prof.get("state") in ("switching", "rolling-back"):
+            return False, "A profile switch is running; record after it has finished."
+        cur = prof.get("current")
+        tests = [t for t, v in (ctl.get("targets") or {}).items() if t.startswith("speedtest") and v.get("want")]
+        row = {"exp": exp, "time_utc": now_iso(), "profile": cur,
+               "prb": ((prof.get("profiles") or {}).get(cur) or {}).get("prb"),
+               "noise": (ctl.get("noise") or {}).get("preset"), "test": ",".join(tests) or "none",
+               "samples": len(rows), "note": note}
+        for k in RECORD_FIELDS:
+            v = [r[k] for r in rows if isinstance(r.get(k), (int, float))]
+            row[k] = round(sum(v) / len(v), 3) if v else None
+        with self.lock:
+            row["id"] = max((r["id"] for r in self.rows), default=0) + 1
+            self.rows.append(row)
+            del self.rows[:-self.MAX_ROWS]
+            self._save()
+        print(f"{now_iso()} RESULT exp {exp} id {row['id']}", flush=True)
+        return True, row
+
+    def delete(self, rid):
+        with self.lock:
+            n = len(self.rows)
+            self.rows = [r for r in self.rows if r["id"] != rid]
+            if len(self.rows) == n:
+                return False
+            self._save()
+        return True
+
+    def list(self, exp):
+        with self.lock:
+            return [dict(r) for r in self.rows if not exp or r["exp"] == exp]
+
+
 STATE = State()
 CONTROL = Control()
+RESULTS = Results(os.environ.get("RESULTS_FILE", "/tmp/fct-dash-results.json" if MOCK else "/data/results.json"))
 
 
 class Handler(BaseHTTPRequestHandler):
@@ -1500,7 +1654,7 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         url = urllib.parse.urlparse(self.path)
-        if url.path != "/api/control":
+        if url.path not in ("/api/control", "/api/exp"):
             return self.send(404, "Not found", "text/plain")
         try:
             length = min(int(self.headers.get("Content-Length") or 0), 4096)
@@ -1516,6 +1670,8 @@ class Handler(BaseHTTPRequestHandler):
             return self.send(401, json.dumps({"ok": False, "msg": "Wrong admin password"}), "application/json")
         if body.get("action") == "check":
             return self.send(200, json.dumps({"ok": True, "msg": "Controls unlocked"}), "application/json")
+        if url.path == "/api/exp":
+            return self.exp_post(body)
         try:
             ok, msg = CONTROL.act(str(body.get("action", "")))
         except ValueError:
@@ -1525,6 +1681,25 @@ class Handler(BaseHTTPRequestHandler):
         with STATE.lock:
             STATE.cached_at = 0  # show the change on the next poll
         return self.send(200 if ok else 409, json.dumps({"ok": ok, "msg": msg}), "application/json")
+
+    def exp_post(self, body):
+        """Record or delete one experiment result (admin key already checked)."""
+        j = lambda code, d: self.send(code, json.dumps(d), "application/json")
+        act = body.get("action")
+        if act == "record":
+            exp = str(body.get("exp", ""))
+            if not EXP_RE.match(exp):
+                return j(400, {"ok": False, "msg": "Invalid experiment id"})
+            note = re.sub(r"[^\w .,:;()%+/=-]", "", str(body.get("note", "")))[:80]
+            ok, res = RESULTS.record(exp, note)
+            return j(200, {"ok": True, "row": res, "msg": f"Recorded row {res['id']}."}) if ok else j(409, {"ok": False, "msg": res})
+        if act == "delete":
+            try:
+                rid = int(body.get("id"))
+            except (TypeError, ValueError):
+                return j(400, {"ok": False, "msg": "Invalid row id"})
+            return j(200, {"ok": True, "msg": f"Row {rid} deleted."}) if RESULTS.delete(rid) else j(404, {"ok": False, "msg": "No such row"})
+        return j(400, {"ok": False, "msg": "Unknown action"})
 
     def do_GET(self):
         url = urllib.parse.urlparse(self.path)
@@ -1598,6 +1773,20 @@ class Handler(BaseHTTPRequestHandler):
                 return self.send(400, "source must be mem or prom", "text/plain")
             res = ue_kpis(seconds) if dom == "ue" else (core_kpis if dom == "core" else ran_kpis)(seconds, src)
             return self.send(200, json.dumps(res), "application/json")
+        if url.path in ("/api/exp/results", "/api/exp/results.csv"):
+            exp = (q.get("exp") or [""])[0]
+            if exp and not EXP_RE.match(exp):
+                return self.send(400, "Invalid experiment id", "text/plain")
+            rows = RESULTS.list(exp)
+            if url.path.endswith(".csv"):
+                buf = io.StringIO()
+                w = csv.writer(buf)
+                w.writerow(RESULT_COLS + ["radio_mode"])
+                for r in rows:
+                    w.writerow([r.get(k) for k in RESULT_COLS] + [RADIO_MODE])
+                return self.send(200, buf.getvalue(), "text/csv; charset=utf-8")
+            return self.send(200, json.dumps({"persistent": RESULTS.persistent, "recordSeconds": RECORD_SECONDS,
+                                              "rows": rows}), "application/json")
         if url.path == "/metrics":
             return self.send(200, metrics_text(), "text/plain; version=0.0.4; charset=utf-8")
         if url.path == "/healthz":

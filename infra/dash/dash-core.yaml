@@ -1,7 +1,9 @@
 # Stage 4a, core cluster (P3 Tiny): the dashboard (app.py + index.html from the repo root), read-only.
 # It reads the open5gs namespace in its own cluster and the RAN cluster (REDLAB) through the token in Secret fct-dash-ran.
 # Reachable only on the bench LAN: hostPort 30880 bound to 10.42.0.2 (no NodePort, so not on other interfaces).
-# The ctl / admin / noise Secrets are optional and come with stage 4b-4d; without them the controls stay disabled.
+# The ctl / admin / noise / profile Secrets are optional and come with stage 4b-4d and E1; without them the controls stay disabled.
+# Experiment results (Record button, stage E2) live in the PVC fct-dash-results. dash.sh MODE=remove deletes the namespace,
+# and with it these results and the Prometheus data: download the CSV first.
 apiVersion: v1
 kind: Namespace
 metadata:
@@ -40,6 +42,17 @@ subjects:
   name: fct-dash-reader
   namespace: fct-dash
 ---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: fct-dash-results
+  namespace: fct-dash
+spec:
+  accessModes: [ReadWriteOnce]
+  storageClassName: local-path    # k3s default: a directory on the Tiny disk
+  resources:
+    requests: {storage: 64Mi}
+---
 apiVersion: apps/v1
 kind: Deployment
 metadata:
@@ -67,6 +80,8 @@ spec:
         - {name: RAN_NAMESPACE, value: default}
         - {name: CAPTURE_URL, value: "http://10.42.0.1:8091"}
         - {name: NOISE_URL, value: "http://10.42.0.1:8092"}
+        - {name: PROFILE_URL, value: "http://10.42.0.1:8093"}
+        - {name: RESULTS_FILE, value: /data/results.json}
         - {name: PYTHONDONTWRITEBYTECODE, value: "1"}
         - {name: PYTHONUNBUFFERED, value: "1"}
         ports:
@@ -88,9 +103,13 @@ spec:
         - {name: ctl, mountPath: /etc/fct-dash/ctl, readOnly: true}
         - {name: admin, mountPath: /etc/fct-dash/admin, readOnly: true}
         - {name: noise, mountPath: /etc/fct-dash/noise, readOnly: true}
+        - {name: profile, mountPath: /etc/fct-dash/profile, readOnly: true}
+        - {name: results, mountPath: /data}
       volumes:
       - {name: app, configMap: {name: fct-dash-app}}
       - {name: ran, secret: {secretName: fct-dash-ran}}
       - {name: ctl, secret: {secretName: fct-dash-ctl, optional: true}}
       - {name: admin, secret: {secretName: fct-dash-admin, optional: true}}
       - {name: noise, secret: {secretName: fct-dash-noise, optional: true}}
+      - {name: profile, secret: {secretName: fct-dash-profile, optional: true}}
+      - {name: results, persistentVolumeClaim: {claimName: fct-dash-results}}

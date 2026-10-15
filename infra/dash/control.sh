@@ -8,7 +8,7 @@
 #   MODE=check     account limits, controls enabled, one DL and one UL speed test started and stopped through the dashboard API
 #   MODE=baseline  RUNS=3 DL and UL tests of DUR seconds each through the dashboard API; prints a table (stage 3 baseline)
 #   MODE=remove    delete the speed-test clients, controller account, iperf servers and the two Secrets
-# Safety: the controller may only scale oai-gnb, oai-nr-ue, speedtest-dl, speedtest-ul. Tokens and the password are never
+# Safety: the controller may only scale oai-gnb, oai-nr-ue, speedtest-dl, speedtest-ul, speedtest-dl-udp, speedtest-ul-udp. Tokens and the password are never
 # printed; the test reads the password from the core Secret into a variable only.
 set -u
 MODE=${MODE:-preview}; RUNS=${RUNS:-3}; DUR=${DUR:-20}
@@ -25,7 +25,7 @@ pre(){
   echo "== Preconditions"
   [ "$(id -u)" = 0 ] && ok "running as root (sudo)" || { bad "run with sudo"; exit 1; }
   for f in control-ran.yaml iperf-core.yaml; do [ -f "$DIR/$f" ] && ok "$f ($(sha256sum "$DIR/$f" | cut -c1-16))" || bad "missing $DIR/$f"; done
-  [ "$(grep -c -- '--bind-dev oaitun_ue1' "$DIR/control-ran.yaml")" = 2 ] && ! grep -q -- ' -B 10\.45' "$DIR/control-ran.yaml" \
+  [ "$(grep -c -- '--bind-dev oaitun_ue1' "$DIR/control-ran.yaml")" = 4 ] && ! grep -q -- ' -B 10\.45' "$DIR/control-ran.yaml" \
     && ok "speed-test clients bind to oaitun_ue1 by device (no fixed UE address)" || bad "speed-test clients still use a fixed address"
   [ "$(curl -s -m 5 $URL/healthz)" = ok ] && ok "dashboard answers (stage 4a)" || bad "dashboard not answering (run dash.sh first)"
   ip -4 -br addr show oaitun_ue1 2>/dev/null | grep -q "10\.45\." && ok "UE tunnel up: $(ip -4 -br addr show oaitun_ue1 | awk '{print $3}')" || bad "no UE tunnel"
@@ -69,16 +69,16 @@ print(f(g, 1), f(m, 0), f(b, 3), len(rows))' "$d" "$t0" "$t1")
 
 check(){
   echo "== Checks"
-  for n in oai-gnb oai-nr-ue speedtest-dl speedtest-ul; do
+  for n in oai-gnb oai-nr-ue speedtest-dl speedtest-ul speedtest-dl-udp speedtest-ul-udp; do
     [ "$($KC auth can-i patch deployments/$n --subresource=scale -n default --as=$CTL 2>/dev/null)" = yes ] || bad "controller may NOT scale $n"; done
-  ok "controller may scale the four approved deployments"
+  ok "controller may scale the six approved deployments"
   for q in "patch deployments/coredns --subresource=scale -n kube-system" "patch deployments/oai-gnb -n default" "create pods -n default" "get secrets -n default"; do
     [ "$($KC auth can-i $q --as=$CTL 2>/dev/null)" = no ] && ok "controller may not: $q" || bad "controller MAY: $q"; done
   tiny "ss -Hltn '( sport = :5201 or sport = :5202 )'" 2>/dev/null | awk '{print $4}' | sort | tr '\n' ' ' | grep -q "10.45.0.1:5201 10.45.0.1:5202" \
     && ok "iperf3 servers listen on 10.45.0.1:5201/5202 only" || bad "iperf3 servers not listening on 10.45.0.1:5201/5202"
   st=$(curl -s -m 8 $URL/api/state)
-  echo "$st" | python3 -c 'import json,sys; c=json.load(sys.stdin)["controls"]; sys.exit(0 if c["enabled"] and len(c["targets"])==4 else 1)' 2>/dev/null \
-    && ok "dashboard controls enabled, 4 targets visible" || bad "dashboard controls not enabled: $(echo "$st" | python3 -c 'import json,sys; print(json.load(sys.stdin)["controls"]["reason"])' 2>/dev/null)"
+  echo "$st" | python3 -c 'import json,sys; c=json.load(sys.stdin)["controls"]; sys.exit(0 if c["enabled"] and len(c["targets"])==6 else 1)' 2>/dev/null \
+    && ok "dashboard controls enabled, 6 targets visible" || bad "dashboard controls not enabled: $(echo "$st" | python3 -c 'import json,sys; print(json.load(sys.stdin)["controls"]["reason"])' 2>/dev/null)"
   KEY=$(admin_key)
   [ -n "$KEY" ] || bad "cannot read the admin password Secret on the core"
   r=$(curl -s -m 5 -o /dev/null -w '%{http_code}' -X POST $URL/api/control -H "X-Admin-Key: wrong-$RANDOM" --data-binary '{"action":"check"}')
@@ -105,7 +105,7 @@ preview)
   pre
   echo "== Would do"
   echo "  core (tiny): apply iperf-core.yaml (iperf-server, host network, 10.45.0.1:5201/5202)"
-  echo "  RAN: apply control-ran.yaml (fct-dash-controller + token, Role scale 4 names, speedtest-dl/ul at 0 replicas)"
+  echo "  RAN: apply control-ran.yaml (fct-dash-controller + token, Role scale 6 names, speedtest-dl/ul (TCP) and -dl-udp/-ul-udp at 0 replicas)"
   echo "  core: Secret fct-dash-ctl (controller token), Secret fct-dash-admin (password asked here, hidden), restart fct-dash"
   echo "  undo: sudo MODE=remove bash infra/dash/control.sh" ;;
 apply)
@@ -136,7 +136,7 @@ baseline)
   echo "dir  iperf3_Mbps  MAC_goodput_Mbps  median_MCS  median_BLER  samples"
   for n in $(seq 1 "$RUNS"); do for d in dl ul; do one_test $d | awk '{printf "%-4s %11s %17s %11s %12s %8s\n", $1, $2, $3, $4, $5, $6}'; sleep 3; done; done ;;
 remove)
-  $KC -n default scale deploy speedtest-dl speedtest-ul --replicas=0 2>/dev/null
+  $KC -n default scale deploy speedtest-dl speedtest-ul speedtest-dl-udp speedtest-ul-udp --replicas=0 2>/dev/null
   $KC delete -f "$DIR/control-ran.yaml" --ignore-not-found
   tiny 'k3s kubectl -n fct-dash delete -f - --ignore-not-found; k3s kubectl -n fct-dash delete secret fct-dash-ctl fct-dash-admin --ignore-not-found; k3s kubectl -n fct-dash rollout restart deploy/fct-dash' < "$DIR/iperf-core.yaml" ;;
 *) echo "MODE must be preview, apply, check, baseline or remove"; exit 1 ;;
