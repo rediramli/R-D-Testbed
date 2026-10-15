@@ -1,0 +1,20 @@
+  info  cell                  size | frames ok/sent | total median p90 p99 (ms) | server  inference | network median | detections | SINR MCS
+  info  lan|none               720 |  100/100  |    32.1    33.8    41.8 |   30.0   14.3 |     2.0 | 5      | - -
+  PASS  lan|none 720: 100 answered frames (want >= 20)
+  PASS  lan|none 720: the same detection count on every frame (5)
+  info  off|none               720 |  100/100  |    77.1    86.7   226.7 |   37.6   14.3 |    39.3 | 5      | 44.1 0
+  PASS  off|none 720: 100 answered frames (want >= 20)
+  PASS  off|none 720: the same detection count on every frame (5)
+  info  off|udp                720 |  100/100  |    81.8    87.0   130.5 |   41.1   14.4 |    40.9 | 5      | 44.1 28
+  info  off|udp 720: 100 of 100 frames answered under background load (timeouts are data, not a failure)
+  info  moderate|none          720 |  100/100  |    79.6    96.6   250.2 |   38.9   14.4 |    41.5 | 5      | 13.3 0
+  PASS  moderate|none 720: 100 answered frames (want >= 20)
+  PASS  moderate|none 720: the same detection count on every frame (5)
+  info  moderate|udp           720 |    0/1    |       -       -       - |      -      - |       - |        | 13.8 15
+  info  moderate|udp 720: 0 of 1 frames answered under background load (timeouts are data, not a failure)
+  PASS  out-of-sync samples during the run: 0
+  PASS  UE kept its tunnel address (10.45.0.27/24 -> 10.45.0.27/24)
+RESULT: PASS
+FINDING: 720p, 5G noise off: total 77.1 ms, of which inference 14.3 ms (19 %) and server 37.6 ms; network 39.3 ms
+FINDING: 720p network: 5G 39.3 ms vs bench LAN 2.0 ms (5G adds 37.3 ms)
+FINDING: 720p with background UDP at Off: total median 82 ms, p99 131 ms, answered 100/100 (no load: 77.1 ms)

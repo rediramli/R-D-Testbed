@@ -1,0 +1,3 @@
+[10/15/2026-08:45:19] [TRT] [I] [MemUsageChange] Init cuDNN: CPU +0, GPU +0, now: CPU 988, GPU 11866 (MiB)
+[10/15/2026-08:45:19] [TRT] [I] [MemUsageChange] TensorRT-managed allocation in IExecutionContext creation: CPU +0, GPU +9, now: CPU 0, GPU 14 (MiB)
+edge_server: model yolo11n.engine, warm-up 10, port 8500

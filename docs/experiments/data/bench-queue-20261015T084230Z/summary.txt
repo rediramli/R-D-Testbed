@@ -1,0 +1,10 @@
+  info  phase | ping RTT median / max (ms) | answers | Tiny ogstun backlog max | Tiny N3 backlog max | gNB socket Recv-Q max
+  info  idle  |     18.8 / 22.0     |   46 |          0 B |          0 B |          0 B
+  info  load  |     96.9 / 936.0    |  205 |     137268 B |          0 B |      12544 B
+  info  drain |     18.8 / 29.6     |  137 |          0 B |          0 B |          0 B
+  info  drops during the run: Tiny ogstun 1, Tiny N3 0, REDLAB UDP receive-buffer errors 430
+  PASS  84 queue samples
+  PASS  205 ping answers during the load
+  info  RTT back under 100 ms 0.1 s after the load stopped
+RESULT: PASS
+FINDING: ping RTT under load median 97 ms (idle 18.8 ms); largest queue outside the gNB process 0.14 MB

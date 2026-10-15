@@ -1,0 +1,80 @@
+  info  cell                  size | frames ok/sent | total median p90 p99 (ms) | server  inference | network median | detections | SINR MCS
+  info  lan|none               360 |  100/100  |    19.2    26.2    30.3 |   17.8    9.2 |     1.3 | 5      | - -
+  PASS  lan|none 360: 100 answered frames (want >= 20)
+  PASS  lan|none 360: the same detection count on every frame (5)
+  info  lan|none               720 |  100/100  |    24.3    25.3    32.9 |   22.3    9.2 |     1.9 | 5      | - -
+  PASS  lan|none 720: 100 answered frames (want >= 20)
+  PASS  lan|none 720: the same detection count on every frame (5)
+  info  lan|none              1080 |  100/100  |    31.9    32.8    36.0 |   28.4    9.2 |     3.4 | 4      | - -
+  PASS  lan|none 1080: 100 answered frames (want >= 20)
+  PASS  lan|none 1080: the same detection count on every frame (4)
+  info  off|none               360 |  100/100  |    52.5    65.5   114.0 |   29.2   14.3 |    23.6 | 5      | 44.1 28
+  PASS  off|none 360: 100 answered frames (want >= 20)
+  PASS  off|none 360: the same detection count on every frame (5)
+  info  off|none               720 |  100/100  |    70.8    77.9    91.5 |   32.1   11.1 |    38.5 | 5      | 44.1 28
+  PASS  off|none 720: 100 answered frames (want >= 20)
+  PASS  off|none 720: the same detection count on every frame (5)
+  info  off|none              1080 |  100/100  |   108.2   114.2   134.6 |   48.7   11.1 |    60.6 | 4      | 44.1 28
+  PASS  off|none 1080: 100 answered frames (want >= 20)
+  PASS  off|none 1080: the same detection count on every frame (4)
+  info  off|udp                360 |   19/19   |  3079.5  3158.5  6147.8 |   30.9   14.4 |  3048.8 | 5      | 44.1 28
+  info  off|udp 360: 19 of 19 frames answered under background load (timeouts are data, not a failure)
+  info  off|udp                720 |   13/13   |  3100.1  6168.5 21063.5 |   41.5   14.5 |  3056.9 | 5      | 44.1 28
+  info  off|udp 720: 13 of 13 frames answered under background load (timeouts are data, not a failure)
+  info  off|udp               1080 |    0/1    |       -       -       - |      -      - |       - |        | 44.1 28
+  info  off|udp 1080: 0 of 1 frames answered under background load (timeouts are data, not a failure)
+  info  clean|none             360 |  100/100  |    54.7    65.7   143.9 |   27.0   14.4 |    27.9 | 5      | 22.1 26
+  PASS  clean|none 360: 100 answered frames (want >= 20)
+  PASS  clean|none 360: the same detection count on every frame (5)
+  info  clean|none             720 |  100/100  |    80.5    84.1   105.0 |   36.5   11.1 |    44.4 | 5      | 22.1 26
+  PASS  clean|none 720: 100 answered frames (want >= 20)
+  PASS  clean|none 720: the same detection count on every frame (5)
+  info  clean|none            1080 |  100/100  |   115.0   121.0   166.3 |   48.5   11.2 |    67.6 | 4      | 22.1 26
+  PASS  clean|none 1080: 100 answered frames (want >= 20)
+  PASS  clean|none 1080: the same detection count on every frame (4)
+  info  clean|udp              360 |   17/17   |  3498.7  3622.2  6911.1 |   30.8   14.4 |  3472.4 | 5      | 22.2 26
+  info  clean|udp 360: 17 of 17 frames answered under background load (timeouts are data, not a failure)
+  info  clean|udp              720 |    0/4    |       -       -       - |      -      - |       - |        | 22.2 26
+  info  clean|udp 720: 0 of 4 frames answered under background load (timeouts are data, not a failure)
+  info  clean|udp             1080 |    0/4    |       -       -       - |      -      - |       - |        | 22.2 26
+  info  clean|udp 1080: 0 of 4 frames answered under background load (timeouts are data, not a failure)
+  info  moderate|none          360 |  100/100  |    55.1    70.5   121.5 |   29.4   14.3 |    25.9 | 5      | 13.2 15
+  PASS  moderate|none 360: 100 answered frames (want >= 20)
+  PASS  moderate|none 360: the same detection count on every frame (5)
+  info  moderate|none          720 |  100/100  |    75.5    80.4   113.9 |   36.1   11.1 |    40.3 | 5      | 13.2 15
+  PASS  moderate|none 720: 100 answered frames (want >= 20)
+  PASS  moderate|none 720: the same detection count on every frame (5)
+  info  moderate|none         1080 |  100/100  |   111.5   117.0   134.7 |   48.9   11.2 |    63.9 | 4      | 13.2 15
+  PASS  moderate|none 1080: 100 answered frames (want >= 20)
+  PASS  moderate|none 1080: the same detection count on every frame (4)
+  info  moderate|udp           360 |    0/1    |       -       -       - |      -      - |       - |        | 13.2 15
+  info  moderate|udp 360: 0 of 1 frames answered under background load (timeouts are data, not a failure)
+  info  moderate|udp           720 |    0/1    |       -       -       - |      -      - |       - |        | 13.2 15
+  info  moderate|udp 720: 0 of 1 frames answered under background load (timeouts are data, not a failure)
+  info  moderate|udp          1080 |    0/1    |       -       -       - |      -      - |       - |        | 13.2 15
+  info  moderate|udp 1080: 0 of 1 frames answered under background load (timeouts are data, not a failure)
+  info  poor|none              360 |  100/100  |    48.4    65.0   129.0 |   23.5    9.5 |    25.2 | 5      | 6.2 6
+  PASS  poor|none 360: 100 answered frames (want >= 20)
+  PASS  poor|none 360: the same detection count on every frame (5)
+  info  poor|none              720 |  100/100  |    76.0    79.8    94.2 |   36.3   11.1 |    40.4 | 5      | 6.2 6
+  PASS  poor|none 720: 100 answered frames (want >= 20)
+  PASS  poor|none 720: the same detection count on every frame (5)
+  info  poor|none             1080 |  100/100  |   109.8   116.5   131.8 |   47.2   11.1 |    63.4 | 4      | 6.2 6
+  PASS  poor|none 1080: 100 answered frames (want >= 20)
+  PASS  poor|none 1080: the same detection count on every frame (4)
+  info  poor|udp               360 |    0/1    |       -       -       - |      -      - |       - |        | 6.6 6
+  info  poor|udp 360: 0 of 1 frames answered under background load (timeouts are data, not a failure)
+  info  poor|udp               720 |    0/1    |       -       -       - |      -      - |       - |        | 6.6 6
+  info  poor|udp 720: 0 of 1 frames answered under background load (timeouts are data, not a failure)
+  info  poor|udp              1080 |    0/1    |       -       -       - |      -      - |       - |        | 6.6 6
+  info  poor|udp 1080: 0 of 1 frames answered under background load (timeouts are data, not a failure)
+  PASS  out-of-sync samples during the run: 0
+  PASS  UE kept its tunnel address (10.45.0.27/24 -> 10.45.0.27/24)
+RESULT: PASS
+FINDING: 720p, 5G noise off: total 70.8 ms, of which inference 11.1 ms (16 %) and server 32.1 ms; network 38.5 ms
+FINDING: 720p network: 5G 38.5 ms vs bench LAN 1.9 ms (5G adds 36.5 ms)
+FINDING: 720p total: Poor 76.0 ms vs Off 70.8 ms (x 1.1)
+FINDING: 720p with background UDP at Off: total median 3100 ms, p99 21063 ms, answered 13/13 (no load: 70.8 ms)
+FINDING: 1080p, 5G noise off: total 108.2 ms, of which inference 11.1 ms (10 %) and server 48.7 ms; network 60.6 ms
+FINDING: 1080p network: 5G 60.6 ms vs bench LAN 3.4 ms (5G adds 57.2 ms)
+FINDING: 1080p total: Poor 109.8 ms vs Off 108.2 ms (x 1.0)

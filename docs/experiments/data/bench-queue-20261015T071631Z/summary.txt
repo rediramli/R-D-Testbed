@@ -1,0 +1,11 @@
+  info  phase | ping RTT median / max (ms) | answers | Tiny ogstun backlog max | Tiny N3 backlog max | gNB socket Recv-Q max
+  info  idle  |     19.3 / 22.7     |   46 |          0 B |          0 B |          0 B
+  info  load  |   3014.0 / 3090.0   |  218 |          0 B |       1622 B |      43904 B
+  info  drain |     18.4 / 26.4     |  136 |          0 B |          0 B |          0 B
+  info  drops during the run: Tiny ogstun 0, Tiny N3 0, REDLAB UDP receive-buffer errors 48255
+  PASS  91 queue samples
+  PASS  218 ping answers during the load
+  info  RTT back under 100 ms 0.2 s after the load stopped
+RESULT: PASS
+FINDING: ping RTT under load median 3014 ms (idle 19.3 ms); largest queue outside the gNB process 0.04 MB
+FINDING: the delay is not in the core host's qdiscs or the gNB's socket buffer: the queue sits inside the gNB process (PDCP/RLC) (inference from the readings above)
