@@ -1,0 +1,98 @@
+# Stage E1, RAN cluster (REDLAB): RAN profile relay for the dashboard Experiments page.
+# Host network, listens only on the bench LAN address 10.42.0.1:8093. It switches the carrier between the tested
+# Experiment 1 profiles (ran-profile-relay.py). Its ServiceAccount may only read and patch the gNB ConfigMap and the
+# two RAN Deployments (no Secrets, no pods, no other objects). rfsim only.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: fct-profile-relay
+  namespace: fct-dash
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: fct-profile-relay
+  namespace: default
+rules:
+- apiGroups: [""]
+  resources: ["configmaps"]
+  resourceNames: ["oai-gnb-config"]
+  verbs: ["get", "patch"]
+- apiGroups: ["apps"]
+  resources: ["deployments"]
+  resourceNames: ["oai-gnb", "oai-nr-ue"]
+  verbs: ["get", "patch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: fct-profile-relay
+  namespace: default
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: fct-profile-relay
+subjects:
+- kind: ServiceAccount
+  name: fct-profile-relay
+  namespace: fct-dash
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ran-profile-relay
+  namespace: fct-dash
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: ran-profile-relay
+  template:
+    metadata:
+      labels:
+        app: ran-profile-relay
+      annotations:
+        fct-dash/code-hash: "CODE_HASH"
+    spec:
+      hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
+      serviceAccountName: fct-profile-relay
+      containers:
+      - name: relay
+        image: docker.io/library/alpine:3.20
+        command: ["sh", "-c", "apk add --no-cache python3 >/dev/null && exec python3 /app/ran-profile-relay.py"]
+        env:
+        - name: RELAY_BIND
+          value: 10.42.0.1
+        - name: RELAY_PORT
+          value: "8093"
+        - name: PYTHONUNBUFFERED
+          value: "1"
+        readinessProbe:
+          httpGet:
+            host: 10.42.0.1
+            path: /healthz
+            port: 8093
+          initialDelaySeconds: 10
+          periodSeconds: 5
+        resources:
+          requests: {cpu: 10m, memory: 32Mi}
+          limits: {cpu: 200m, memory: 128Mi}
+        securityContext:
+          allowPrivilegeEscalation: false
+        volumeMounts:
+        - {name: app, mountPath: /app, readOnly: true}
+        - {name: base, mountPath: /base, readOnly: true}
+        - {name: token, mountPath: /etc/profile-relay, readOnly: true}
+      volumes:
+      - name: app
+        configMap: {name: ran-profile-relay-app}
+      - name: base
+        configMap: {name: ran-profile-base}
+      - name: token
+        secret:
+          secretName: profile-relay-token
+          items:
+          - {key: token, path: token}
