@@ -246,6 +246,70 @@ select, input { color: var(--ink); background: #111820; color-scheme: dark; }
 .chipnf rect.body { fill: #2a2142; stroke: #6a52a8; }
 .uecard .k { font: 400 12.5px var(--sans); fill: var(--muted); }
 .uecard .k tspan.n { fill: var(--ink); font-weight: 600; }
+/* E3: Experiments menu (sidebar + one page per experiment) */
+.exppage { padding: 14px 28px 28px; }
+.expwrap { display: grid; grid-template-columns: 250px minmax(0, 1fr); gap: 16px; align-items: start; }
+.expnav { background: var(--panel); border: 1px solid #2f3d4c; border-radius: 6px; padding: 10px 8px; position: sticky; top: 8px; }
+.expnav h2 { margin: 2px 8px 8px; font: 600 12px var(--sans); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+.expnav button { all: unset; box-sizing: border-box; display: flex; gap: 8px; align-items: baseline; width: 100%; padding: 6px 8px; border-radius: 4px; font: 500 13.5px/1.3 var(--sans); color: var(--ink); cursor: pointer; }
+.expnav button:hover { background: #26323f; }
+.expnav button:focus-visible { outline: 3px solid var(--rf); outline-offset: 1px; }
+.expnav button .n { flex: none; width: 26px; font-weight: 700; color: var(--muted); }
+.expnav button .s { margin-left: auto; flex: none; font-size: 11px; font-weight: 600; }
+.expnav button.on { background: #1d3a5c; }
+.expnav button.proven { color: #b8c4cf; }
+.expnav button.proven .s { color: var(--warn); }
+.expnav button.ready .s { color: var(--ok); }
+.expnav button.planned { color: #5d6d7d; cursor: default; }
+.expnav button.planned:hover { background: transparent; }
+.expnav .navnote { margin: 10px 8px 2px; font-size: 12px; color: var(--muted); }
+.expmain { display: grid; gap: 12px; min-width: 0; }
+.xcard { background: var(--panel); border: 1px solid #2f3d4c; border-radius: 6px; padding: 12px 16px; min-width: 0; }
+.xcard h2 { margin: 0; font: 700 24px/1.15 var(--cond); }
+.xcard h3 { margin: 0 0 10px; font: 700 18px var(--cond); }
+.xsub { margin: 4px 0 0; color: var(--muted); }
+.xsub a { color: #8fc1ff; }
+.xgrid2 { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.15fr); gap: 12px; }
+.xcfg { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); border: 1px solid #2f3d4c; border-radius: 5px; overflow: hidden; }
+.xcfg > div { padding: 8px 10px; border-bottom: 1px solid #2f3d4c; border-right: 1px solid #2f3d4c; min-width: 0; }
+.xcfg label, .xcfg .lb { display: block; font: 600 12px var(--sans); color: var(--muted); margin-bottom: 3px; }
+.xcfg select { width: 100%; font: 600 14px var(--sans); color: var(--ink); background: #141c25; border: 1px solid var(--rf); border-radius: 4px; padding: 5px 6px; }
+.xcfg .fx { color: #c9d6e2; }
+.xcfg .lock { display: block; font-size: 11.5px; color: var(--muted); }
+.xderived { margin-top: 8px; font-size: 13px; color: var(--muted); }
+.xderived b { color: var(--ink); font-weight: 600; }
+.xbtns { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; align-items: center; }
+.xbtns button:disabled { opacity: .45; cursor: not-allowed; }
+.xbtns button.active { background: var(--ink); color: var(--bg); border-color: var(--ink); }
+.xbtns input { font: 14px var(--sans); color: var(--ink); background: #141c25; border: 1px solid #3a4a5c; border-radius: 4px; padding: 6px 8px; min-width: 0; flex: 1 1 180px; }
+.xsteps { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; font-size: 12.5px; }
+.xsteps span { padding: 3px 9px; border-radius: 4px; background: #26323f; color: var(--muted); }
+.xsteps span.done { background: #1f4634; color: #8fe3b8; }
+.xsteps span.now { background: #4a3a17; color: #f3c66b; }
+.xsteps span.bad { background: #4c2224; color: #ff9b93; }
+.xnote { font-size: 12.5px; color: var(--muted); margin: 8px 0 0; }
+.xmsg { font-size: 13px; color: var(--muted); }
+.xmsg.ok { color: var(--ok); } .xmsg.bad { color: var(--fault); }
+.xtiles { display: grid; grid-template-columns: repeat(auto-fill, minmax(110px, 1fr)); gap: 8px; margin: 10px 0; }
+.xtiles .ut { padding: 7px 10px; }
+.xtiles .ut .v { font-size: 22px; }
+.xtable { overflow-x: auto; }
+.xtable table { width: 100%; border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; }
+.xtable th, .xtable td { padding: 6px 8px; border-bottom: 1px solid #2f3d4c; text-align: right; white-space: nowrap; }
+.xtable th { color: var(--muted); font-weight: 600; font-size: 12px; vertical-align: bottom; }
+.xtable th:nth-child(-n+4), .xtable td:nth-child(-n+4) { text-align: left; }
+.xtable td.dim { color: #66778a; }
+.xtable td.pct { color: var(--warn); font-weight: 600; }
+.xtable td.ok { color: var(--ok); } .xtable td.warn { color: var(--warn); }
+.xtable td.note { text-align: left; white-space: normal; min-width: 120px; color: var(--muted); }
+.xtable button { padding: 2px 8px; font-size: 12px; }
+.xtable .empty td { text-align: left; color: var(--muted); white-space: normal; }
+.xtheory { font-size: 14px; }
+.xtheory ul, .xtheory ol { margin: 6px 0 0; padding-left: 20px; }
+.xtheory li { margin: 3px 0; }
+.xtheory code { font: 13px var(--mono); background: #141c25; padding: 1px 5px; border-radius: 3px; }
+@media (max-width: 1250px) { .xgrid2 { grid-template-columns: 1fr; } }
+@media (max-width: 900px) { .expwrap { grid-template-columns: 1fr; } .expnav { position: static; } .exppage { padding: 12px 12px 20px; } .xcfg { grid-template-columns: 1fr; } }
 </style>
 </head>
 <body>
@@ -257,6 +321,7 @@ select, input { color: var(--ink); background: #111820; color-scheme: dark; }
       <button class="tab on" data-page="overview" aria-current="page">Overview</button>
       <button class="tab" data-page="ue">UE KPIs</button>
       <button class="tab" data-page="kpi">KPIs</button>
+      <button class="tab" data-page="exp">Experiments</button>
     </nav>
   </div>
   <div class="radio" id="radio">
@@ -451,6 +516,110 @@ select, input { color: var(--ink); background: #111820; color-scheme: dark; }
   <div class="cqiv" id="cqiView" hidden></div>
   <div class="charts" id="charts"></div>
   <div id="tip" class="tip" hidden></div>
+</section>
+<section id="exp" class="exppage" hidden>
+  <div class="expwrap">
+    <nav class="expnav" aria-label="Experiments">
+      <h2>Experiments</h2>
+      <div id="expList"></div>
+      <p class="navnote">Green: page ready. Amber: proven on the bench, page in preparation. Grey: not available yet.</p>
+    </nav>
+    <div class="expmain" id="expMain">
+      <div class="xcard" id="expOther" hidden>
+        <h2 id="expOtherTitle"></h2>
+        <p class="xsub" id="expOtherText"></p>
+      </div>
+      <div id="exp1" class="expmain">
+        <div class="xcard">
+          <h2>Experiment 1: Carrier bandwidth (PRB count) and capacity</h2>
+          <p class="xsub">Change the carrier width, measure the downlink and uplink capacity, and compare it with theory.
+            Reading: <a href="https://github.com/rediramli/R-D-Testbed/blob/main/docs/training/MOD-01-bandwidth.md" target="_blank" rel="noopener">Training Module 1</a>.
+            The lecturer or assistant runs the bench (unlock Controls above); students observe and fill in their own tables.</p>
+        </div>
+        <div class="xgrid2">
+          <div class="xcard">
+            <h3>1. gNB configuration</h3>
+            <div class="xcfg">
+              <div><span class="lb">3GPP band</span><span class="fx">n78</span><span class="lock">fixed</span></div>
+              <div><label for="e1Bw">Bandwidth (changed in this experiment)</label><select id="e1Bw"></select></div>
+              <div><span class="lb">Subcarrier spacing</span><span class="fx">30 kHz</span><span class="lock">fixed</span></div>
+              <div><span class="lb">TDD pattern</span><span class="fx">7 DL · 1 S (6 DL + 4 UL symbols) · 2 UL</span><span class="lock">changed in Experiment 3</span></div>
+              <div><span class="lb">MIMO layers</span><span class="fx">1 × 1</span><span class="lock">changed in Experiment 8</span></div>
+              <div><span class="lb">MCS table</span><span class="fx">64QAM</span><span class="lock">changed in Experiment 5</span></div>
+              <div><span class="lb">Radio mode</span><span class="fx">RF simulator</span><span class="lock">locked: no over-the-air transmission</span></div>
+              <div><span class="lb">Active now</span><span class="fx" id="e1Cur">–</span></div>
+            </div>
+            <p class="xderived" id="e1Derived"></p>
+            <div class="xbtns">
+              <button id="e1Apply" type="button" disabled>Apply configuration</button>
+              <button id="e1Base" type="button" disabled>Return to baseline (106 PRB)</button>
+              <span id="e1Msg" class="xmsg" role="status"></span>
+            </div>
+            <div class="xsteps" id="e1Steps" aria-label="Switch progress"></div>
+            <p class="xnote">Only configurations that passed a bench test are offered. The UE is disconnected for about 30 s while the carrier changes; if it does not come back, the bench returns to the baseline by itself.</p>
+          </div>
+          <div class="xcard">
+            <h3>2. Run a measurement</h3>
+            <div class="xbtns" id="e1Tests">
+              <button type="button" data-x="speed-dl-udp" disabled title="Fixed offered load above the link rate: shows the link capacity">UDP downlink (capacity)</button>
+              <button type="button" data-x="speed-dl" disabled title="One TCP flow, like one application">TCP downlink (one flow)</button>
+              <button type="button" data-x="speed-ul-udp" disabled title="Fixed offered load above the uplink rate">UDP uplink (capacity)</button>
+              <button type="button" data-x="speed-stop" disabled>Stop</button>
+            </div>
+            <div class="xtiles" id="e1Tiles"></div>
+            <div class="chart" id="e1Chart"></div>
+            <div class="xbtns">
+              <input id="e1Note" type="text" maxlength="80" placeholder="Note for this row (optional)" aria-label="Note for this row">
+              <button id="e1Rec" type="button" disabled>Record (mean of the last 20 s)</button>
+            </div>
+            <p class="xnote" id="e1RecMsg">Start a test, wait until the chart has been flat for 20 s, then record.</p>
+          </div>
+        </div>
+        <div class="xcard">
+          <h3>3. Results: measured vs theory</h3>
+          <div class="xtable">
+            <table>
+              <thead><tr>
+                <th>#</th><th>Time</th><th>Carrier</th><th>Test</th><th>SINR<br>dB</th><th>CQI</th><th>MCS<br>DL / UL</th><th>BLER %<br>DL / UL</th><th>UL<br>PRB</th>
+                <th>DL<br>Mbit/s</th><th>DL<br>theory*</th><th>DL /<br>theory</th><th>UL<br>Mbit/s</th><th>UL<br>theory*</th><th>UL /<br>theory</th>
+                <th>Offered</th><th>DL<br>loss %</th><th>Note</th><th></th>
+              </tr></thead>
+              <tbody id="e1Rows"></tbody>
+            </table>
+          </div>
+          <div class="xbtns">
+            <a class="btn" href="api/exp/results.csv?exp=1" download="experiment-1-results.csv">Download CSV</a>
+            <span class="xmsg" id="e1Store"></span>
+          </div>
+          <p class="xnote">* Theory: TS 38.306 §4.1.2 peak rate for 1 layer, 64QAM, R<sub>max</sub> = 948/1024, overhead 14 % DL / 8 % UL, times the TDD share of the slots (DL 104/140, UL 32/140).
+            Goodput is MAC goodput reported by the gNB, in simulated time. DL loss of 5 % or more shows that the UDP test saturated the link.
+            Reference bench run (Experiment 1, 14 Oct 2026): UDP DL 18.1 / 43.3 / 87.5 / 226.5 Mbit/s at 24 / 51 / 106 / 273 PRB.</p>
+        </div>
+        <div class="xgrid2">
+          <div class="xcard xtheory">
+            <h3>Theory in short</h3>
+            <ul>
+              <li>At 30 kHz subcarrier spacing a carrier holds 24 PRB in 10 MHz, 51 in 20 MHz, 106 in 40 MHz and 273 in 100 MHz (TS 38.101-1). One PRB is 12 subcarriers.</li>
+              <li>Peak rate: <code>Qm × Rmax × N_PRB × 12 × 28 000 symbols/s × (1 − OH)</code>, then times the share of DL or UL symbols in the TDD pattern.</li>
+              <li>Hypothesis to test: the rate grows in proportion to the PRB count, except that a small carrier loses a larger share to fixed overhead (SSB, CORESET 0).</li>
+              <li>The radio is simulated (rfsim): the channel is set in software and goodput is counted in simulated time, so it does not depend on how fast the PC runs.</li>
+            </ul>
+          </div>
+          <div class="xcard xtheory">
+            <h3>Discussion</h3>
+            <ol>
+              <li>Does the goodput grow in proportion to the bandwidth? Which bandwidth deviates, and why?</li>
+              <li>What share of the theoretical rate is reached? Which overheads explain the gap?</li>
+              <li>Compute the Shannon capacity from the measured SINR. Why is it far above the measured goodput?</li>
+              <li>Compute the thermal noise power −174 dBm/Hz + 10·log<sub>10</sub>(B) for each bandwidth. What would a wider carrier mean for the SNR on a real radio?</li>
+              <li>Why does the TCP test give a lower number than the UDP test?</li>
+              <li>Compare the share of theory reached in the uplink and in the downlink. If the uplink share is larger, which downlink overheads does the uplink not carry?</li>
+            </ol>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
 </section>
 <aside id="drawer" aria-label="Pod log">
   <div class="bar">
@@ -1044,16 +1213,203 @@ document.querySelectorAll("[data-kd]").forEach(b => b.onclick = () => {
 document.querySelectorAll("[data-kw]").forEach(b => b.onclick = () => {
   document.querySelectorAll("[data-kw]").forEach(x => x.classList.toggle("on", x === b)); kpiWin = Number(b.dataset.kw); pollKpi();
 });
+// E3: Experiments menu. One page per experiment; the lecturer drives the bench with the admin key (Controls above).
+const EXPS = [
+  ["0", "Controlled downlink noise and link adaptation", "proven"],
+  ["0b", "SINR to CQI/MCS curve (noise sweep)", "proven"],
+  ["0c", "Link capacity vs single-flow TCP throughput", "proven"],
+  ["1", "Carrier bandwidth (PRB count) and capacity", "ready"],
+  ["2", "Carrier placement: ARFCN and centre frequency", "planned"],
+  ["3", "TDD DL/UL pattern and the throughput split", "planned"],
+  ["4", "Paired spectrum (FDD) operation", "planned"],
+  ["5", "Fixed vs adaptive MCS", "planned"],
+  ["6", "Bandwidth parts and PDCCH resources (CORESET)", "planned"],
+  ["7", "Random access and PRACH settings", "planned"],
+  ["8", "Spatial layers (MIMO rank)", "planned"],
+  ["9", "Uplink channel decoding (LDPC) and UL errors", "planned"],
+  ["10", "User-plane traffic inspection (GTP-U and application flows)", "planned"],
+  ["11", "NAS and AS security: keys, ciphering, integrity", "planned"],
+  ["12", "Near-RT RIC: E2 monitoring, slice control and closed loop", "planned"],
+  ["13", "Network identity: PLMN, TAC and subscriber provisioning", "planned"],
+  ["14", "Core network procedures end to end", "planned"],
+  ["15", "N2 control-plane flood and anomaly detection", "planned"],
+];
+const XSTATE = {ready: "ready", proven: "proven", planned: ""};
+const STEP_LABEL = {"build": "Build config", "gnb-config": "Write gNB config", "gnb-restart": "Restart gNB",
+                    "ue-restart": "Restart UE", "ue-register": "UE registered, tunnel up"};
+const TEST_LABEL = {"speedtest-dl-udp": "UDP DL", "speedtest-dl": "TCP DL", "speedtest-ul-udp": "UDP UL", "speedtest-ul": "TCP UL", "none": "idle"};
+const thDl = n => 6 * 948 / 1024 * n * 12 * 28000 * 0.86 / 1e6 * 104 / 140;
+const thUl = n => 6 * 948 / 1024 * n * 12 * 28000 * 0.92 / 1e6 * 32 / 140;
+let expSel = "1", expTimer = null, expHist = [], expRows = [], expStore = null, e1BwTouched = false;
+
+function expNav() {
+  const box = $("expList"); box.innerHTML = "";
+  for (const [id, title, st] of EXPS) {
+    const b = document.createElement("button");
+    b.type = "button"; b.className = st + (id === expSel ? " on" : "");
+    b.innerHTML = `<span class="n">${esc(id)}</span><span>${esc(title)}</span><span class="s">${XSTATE[st]}</span>`;
+    if (st === "planned") b.setAttribute("aria-disabled", "true");
+    else b.onclick = () => { expSel = id; expNav(); expShow(); };
+    if (id === expSel) b.setAttribute("aria-current", "page");
+    box.append(b);
+  }
+}
+function expShow() {
+  const one = expSel === "1";
+  $("exp1").hidden = !one; $("expOther").hidden = one;
+  if (!one) {
+    const e = EXPS.find(x => x[0] === expSel);
+    $("expOtherTitle").textContent = `Experiment ${e[0]}: ${e[1]}`;
+    $("expOtherText").textContent = "This experiment passed its bench test; its page is being prepared. The results are in the repository (docs/experiments) and in Training Module 0.";
+  }
+}
+function profInfo() { return (latest && latest.controls && latest.controls.profile) || {}; }
+function profLabel(name, p) {
+  const q = (p.profiles || {})[name];
+  return q ? `${q.mhz} MHz · ${q.prb} PRB` : (name || "–");
+}
+function renderE1Config() {
+  const c = (latest && latest.controls) || {}, p = profInfo(), sel = $("e1Bw");
+  const names = Object.keys(p.profiles || {});
+  if (names.length && sel.options.length !== names.length) {
+    sel.innerHTML = "";
+    for (const n of names) {
+      const q = p.profiles[n], o = document.createElement("option");
+      o.value = n; o.textContent = `${q.mhz} MHz · ${q.prb} PRB` + (n === p.baseline ? " (baseline)" : "") + (q.prb >= 273 ? " (heavy on the CPU)" : "");
+      sel.append(o);
+    }
+  }
+  if (!e1BwTouched && p.current && sel.value !== p.current) sel.value = p.current;
+  const busy = p.state === "switching" || p.state === "rolling-back";
+  $("e1Cur").textContent = !p.available ? (p.reason || "profile relay not available")
+    : busy ? `switching to ${profLabel(p.target, p)}…` : profLabel(p.current, p) + (p.current === p.baseline ? " (baseline)" : "");
+  const q = (p.profiles || {})[sel.value];
+  $("e1Derived").innerHTML = q ? `Derived: <b>${q.prb} PRB</b> · point A ARFCN <b>${q.pointA}</b> · SSB ARFCN <b>${q.ssb}</b> · centre <b>${(q.centre / 1e6).toFixed(2)} MHz</b> · ` +
+    `UDP offered load <b>${esc(q.udp)}</b> DL · theory DL <b>${thDl(q.prb).toFixed(1)}</b>, UL <b>${thUl(q.prb).toFixed(1)}</b> Mbit/s` : "";
+  const unlocked = !!adminKey && c.enabled && p.available;
+  $("e1Apply").disabled = !unlocked || busy || !sel.value || sel.value === p.current;
+  $("e1Base").disabled = !unlocked || busy || p.current === p.baseline;
+  const done = new Set((p.steps || []).filter(s => s.end).map(s => s.step));
+  const now = (p.steps || []).find(s => !s.end);
+  const failed = p.state === "failed" || p.state === "rolled-back";
+  $("e1Steps").innerHTML = (p.stepNames || []).map(n => {
+    const cls = now && now.step === n ? (failed ? "bad" : "now") : done.has(n) ? "done" : "";
+    return `<span class="${cls}">${esc(STEP_LABEL[n] || n)}</span>`;
+  }).join("") + (p.state && p.state !== "idle" ? `<span class="${failed ? "bad" : p.state === "ok" ? "done" : "now"}">${esc(p.state)}${p.error ? ": " + esc(p.error) : ""}</span>` : "");
+  const t = c.targets || {};
+  document.querySelectorAll("#e1Tests button").forEach(b => {
+    const a = b.dataset.x, dep = {"speed-dl-udp": "speedtest-dl-udp", "speed-dl": "speedtest-dl", "speed-ul-udp": "speedtest-ul-udp"}[a];
+    b.disabled = !(!!adminKey && c.enabled) || busy;
+    b.classList.toggle("active", !!dep && !!t[dep] && t[dep].want > 0);
+  });
+  $("e1Rec").disabled = !(!!adminKey && c.enabled) || busy;
+}
+async function expAct(action, msgId) {
+  const ok = await control(action);
+  $(msgId).textContent = $("ctlMsg").textContent; $(msgId).className = "xmsg " + (ok ? "ok" : "bad");
+  renderE1Config();
+  return ok;
+}
+function e1Tiles(rows) {
+  const last = k => { for (let i = rows.length - 1; i >= 0 && i >= rows.length - 3; i--) if (rows[i][k] !== null && rows[i][k] !== undefined) return rows[i][k]; return null; };
+  const T = [["SINR at the UE", "sinrUe", "dB", 1], ["CQI", "cqi", "", 0], ["MCS DL", "mcsDl", "", 0], ["MCS UL", "mcsUl", "", 0],
+             ["BLER DL", "blerDl", "%", 2, 100], ["BLER UL", "blerUl", "%", 2, 100], ["UL PRB", "nprbUl", "", 0],
+             ["Goodput DL", "goodputDl", "Mbit/s", 1], ["Goodput UL", "goodputUl", "Mbit/s", 1]];
+  $("e1Tiles").innerHTML = T.map(([n, k, u, d, m]) => {
+    const v = last(k);
+    return `<div class="ut"><div class="n">${n}</div><div class="v">${v === null ? "–" : fmt(v * (m || 1), d)}${u && v !== null ? `<small>${u}</small>` : ""}</div></div>`;
+  }).join("");
+}
+function e1Chart(rows) {
+  const Wc = 560, Hc = 200, L = 46, R = 12, T = 10, B = 24, span = 120, t1 = Date.now() / 1000, t0 = t1 - span;
+  const box = $("e1Chart"); box.innerHTML = "";
+  const h = document.createElement("h3");
+  h.innerHTML = `Goodput <small>MAC, last 2 minutes</small><span class="lg"><span><i style="background:${SERIES.a}"></i>Downlink</span><span><i style="background:${SERIES.b}"></i>Uplink</span></span>`;
+  box.append(h);
+  const vals = rows.flatMap(r => [r.goodputDl, r.goodputUl]).filter(v => typeof v === "number");
+  const yr = niceRange(0, Math.max(10, ...vals), 0);
+  const X = t => L + (t - t0) / span * (Wc - L - R), Y = v => T + (1 - (v - yr.lo) / (yr.hi - yr.lo)) * (Hc - T - B);
+  const svg = el("svg", {viewBox: `0 0 ${Wc} ${Hc}`, role: "img", "aria-label": "Downlink and uplink MAC goodput over the last 2 minutes"});
+  for (const v of yr.ticks) svg.append(el("line", {class: "grid", x1: L, x2: Wc - R, y1: Y(v), y2: Y(v)}), el("text", {class: "axis", x: L - 6, y: Y(v) + 4, "text-anchor": "end"}, v.toFixed(yr.dec)));
+  for (let i = 0; i <= 4; i++) { const t = t0 + i * span / 4; svg.append(el("text", {class: "axis", x: X(t), y: Hc - 6, "text-anchor": i === 0 ? "start" : i === 4 ? "end" : "middle"}, hhmmss(t))); }
+  if (!vals.length) svg.append(el("text", {class: "empty", x: Wc / 2, y: Hc / 2, "text-anchor": "middle"}, "No samples yet: is the UE connected?"));
+  for (const [k, col] of [["goodputDl", SERIES.a], ["goodputUl", SERIES.b]]) {
+    let d = "", prev = null;
+    for (const r of rows) {
+      const v = r[k]; if (typeof v !== "number" || r.t < t0) { prev = null; continue; }
+      d += `${prev === null || r.t - prev > 3 ? "M" : "L"}${X(r.t).toFixed(1)} ${Y(v).toFixed(1)}`; prev = r.t;
+    }
+    svg.append(el("path", {class: "ln", d, stroke: col}));
+  }
+  box.append(svg);
+}
+function n1(v, d) { return v === null || v === undefined ? "–" : Number(v).toFixed(d); }
+function renderE1Rows() {
+  const tb = $("e1Rows"), unlocked = !!adminKey && latest && latest.controls && latest.controls.enabled;
+  if (!expRows.length) { tb.innerHTML = `<tr class="empty"><td colspan="19">No results yet. Choose a bandwidth, apply it, run a test and press Record.</td></tr>`; }
+  else tb.innerHTML = expRows.slice().reverse().map(r => {
+    const n = r.prb, dl = (r.test || "").includes("-dl"), ul = (r.test || "").includes("-ul");
+    const tD = n ? thDl(n) : null, tU = n ? thUl(n) : null;
+    const pc = (v, t, on) => `<td class="${on ? "pct" : "dim"}">${v === null || !t ? "–" : Math.round(100 * v / t) + " %"}</td>`;
+    const loss = r.lossDl === null || r.lossDl === undefined ? `<td class="dim">–</td>`
+      : `<td class="${r.lossDl >= 5 ? "ok" : "warn"}" title="${r.lossDl >= 5 ? "Link saturated" : "Below 5 %: the link may not be saturated"}">${n1(r.lossDl, 1)}</td>`;
+    const t = new Date(r.time_utc).toLocaleTimeString([], {hour12: false});
+    return `<tr><td>${r.id}</td><td>${esc(t)}</td><td>${n ? `${n} PRB` : esc(r.profile || "–")}</td><td>${esc(TEST_LABEL[r.test] || r.test)}</td>` +
+      `<td>${n1(r.sinrUe, 1)}</td><td>${n1(r.cqi, 1)}</td><td>${n1(r.mcsDl, 1)} / ${n1(r.mcsUl, 1)}</td>` +
+      `<td>${n1(r.blerDl === null ? null : r.blerDl * 100, 2)} / ${n1(r.blerUl === null ? null : r.blerUl * 100, 2)}</td><td>${n1(r.nprbUl, 0)}</td>` +
+      `<td class="${dl ? "" : "dim"}">${n1(r.goodputDl, 1)}</td><td class="dim">${n1(tD, 1)}</td>${pc(r.goodputDl, tD, dl)}` +
+      `<td class="${ul ? "" : "dim"}">${n1(r.goodputUl, 1)}</td><td class="dim">${n1(tU, 1)}</td>${pc(r.goodputUl, tU, ul)}` +
+      `<td>${esc(r.offered || "–")}</td>${loss}<td class="note">${esc(r.note || "")}</td>` +
+      `<td>${unlocked ? `<button type="button" data-del="${r.id}" title="Delete row ${r.id}">Delete</button>` : ""}</td></tr>`;
+  }).join("");
+  tb.querySelectorAll("button[data-del]").forEach(b => b.onclick = () => expDelete(Number(b.dataset.del)));
+  $("e1Store").textContent = expStore === false ? "Results are kept in memory only: they are lost when the dashboard restarts." : "";
+}
+async function expPost(body) {
+  try {
+    const r = await fetch("api/exp", {method: "POST", headers: {"Content-Type": "application/json", "X-Admin-Key": adminKey}, body: JSON.stringify(body)});
+    const d = await r.json();
+    if (r.status === 401) { adminKey = ""; try { sessionStorage.removeItem("fctAdminKey"); } catch (e) {} renderControls(latest && latest.controls); }
+    return d;
+  } catch (e) { return {ok: false, msg: "No contact with the dashboard backend."}; }
+}
+async function expDelete(id) {
+  if (!confirm(`Delete row ${id}? This cannot be undone.`)) return;
+  const d = await expPost({action: "delete", id});
+  $("e1RecMsg").textContent = d.msg; $("e1RecMsg").className = "xnote xmsg " + (d.ok ? "ok" : "bad");
+  pollExpRows();
+}
+async function pollExpRows() {
+  try { const r = await fetch("api/exp/results?exp=1", {cache: "no-store"}); if (r.ok) { const d = await r.json(); expRows = d.rows; expStore = d.persistent; renderE1Rows(); } } catch (e) {}
+}
+async function pollExp() {
+  renderE1Config();
+  try { const r = await fetch("api/history?seconds=120", {cache: "no-store"}); if (r.ok) expHist = (await r.json()).rows; } catch (e) {}
+  e1Tiles(expHist); e1Chart(expHist);
+}
+$("e1Bw").onchange = () => { e1BwTouched = true; renderE1Config(); };
+$("e1Apply").onclick = async () => { if (await expAct("profile-" + $("e1Bw").value, "e1Msg")) e1BwTouched = false; };
+$("e1Base").onclick = async () => { e1BwTouched = false; await expAct("profile-bw-106", "e1Msg"); };
+document.querySelectorAll("#e1Tests button").forEach(b => b.onclick = () => expAct(b.dataset.x, "e1RecMsg"));
+$("e1Rec").onclick = async () => {
+  $("e1RecMsg").textContent = "Recording…"; $("e1RecMsg").className = "xnote xmsg";
+  const d = await expPost({action: "record", exp: "1", note: $("e1Note").value});
+  $("e1RecMsg").textContent = d.msg; $("e1RecMsg").className = "xnote xmsg " + (d.ok ? "ok" : "bad");
+  if (d.ok) $("e1Note").value = "";
+  pollExpRows();
+};
+expNav(); expShow();
 function showPage(p) {
   document.querySelectorAll(".tab").forEach(t => { const on = t.dataset.page === p; t.classList.toggle("on", on); on ? t.setAttribute("aria-current", "page") : t.removeAttribute("aria-current"); });
-  $("overview").hidden = p !== "overview"; $("ue").hidden = p !== "ue"; $("kpi").hidden = p !== "kpi";
-  clearInterval(ueTimer); clearInterval(kpiTimer);
+  $("overview").hidden = p !== "overview"; $("ue").hidden = p !== "ue"; $("kpi").hidden = p !== "kpi"; $("exp").hidden = p !== "exp";
+  clearInterval(ueTimer); clearInterval(kpiTimer); clearInterval(expTimer);
+  if (p === "exp") { pollExp(); pollExpRows(); expTimer = setInterval(() => { pollExp(); if (Date.now() % 10000 < 2000) pollExpRows(); }, 2000); }
   if (p === "kpi") { pollKpi(); kpiTimer = setInterval(pollKpi, 15000); }
   if (p === "ue") { pollUe(); ueTimer = setInterval(pollUe, 2000); }
   history.replaceState(null, "", p === "overview" ? "#" : "#" + p);
 }
 document.querySelectorAll(".tab").forEach(t => t.onclick = () => showPage(t.dataset.page));
-if (["#ue", "#kpi"].includes(location.hash)) showPage(location.hash.slice(1));
+if (["#ue", "#kpi", "#exp"].includes(location.hash)) showPage(location.hash.slice(1));
 
 drawWires();
 drawTiles();
