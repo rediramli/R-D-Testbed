@@ -551,7 +551,8 @@ class Control:
     def noise_state(self):
         """Current downlink noise preset as reported by the relay (no token needed to read)."""
         if MOCK:
-            return {"preset": self.mock_noise, "available": True}
+            return {"preset": self.mock_noise, "available": True,
+                    "noiseDb": {"off": -100.0, "clean": -11.0, "moderate": -6.5, "poor": -3.0}[self.mock_noise]}
         if not os.path.exists(self.noise_token_file):
             return {"available": False, "reason": "Noise relay token not installed"}
         try:
@@ -1568,7 +1569,7 @@ def metrics_text():
 RECORD_SECONDS = 20
 RECORD_FIELDS = ["sinrUe", "cqi", "ri", "mcsDl", "mcsUl", "blerDl", "blerUl", "nprbUl", "goodputDl", "goodputUl"]
 RESULT_COLS = ["id", "exp", "time_utc", "profile", "prb", "noise", "test", "samples"] + RECORD_FIELDS + \
-    ["offered", "lossDl", "note"]
+    ["offered", "lossDl", "noiseDb", "note"]
 EXP_RE = re.compile(r"^[0-9]{1,2}[a-z]?$")
 RE_UDP_IV = re.compile(r"sec .*?bits/sec\s+[\d.]+ ms\s+(\d+)/(\d+) \([^)]*\)[ \t]*$", re.M)  # intervals, not the summary
 RE_UDP_OFFER = re.compile(r"offered UDP (?:DL|UL) (\d+M)")
@@ -1631,7 +1632,8 @@ class Results:
         tests = [t for t, v in (ctl.get("targets") or {}).items() if t.startswith("speedtest") and v.get("want")]
         row = {"exp": exp, "time_utc": now_iso(), "profile": cur,
                "prb": ((prof.get("profiles") or {}).get(cur) or {}).get("prb"),
-               "noise": (ctl.get("noise") or {}).get("preset"), "test": ",".join(tests) or "none",
+               "noise": (ctl.get("noise") or {}).get("preset"), "noiseDb": (ctl.get("noise") or {}).get("noiseDb"),
+               "test": ",".join(tests) or "none",
                "samples": len(rows), "note": note}
         for k in RECORD_FIELDS:
             v = [r[k] for r in rows if isinstance(r.get(k), (int, float))]
