@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Stage E2 of the dashboard Experiments menu: the backend API (no page yet). Needs stages 4a-4d and E1 (profile.sh).
 # Run ON REDLAB from the repo root as the login user (no sudo):   MODE=check bash infra/dash/exp-api.sh
-#   MODE=check   relay visible through the dashboard, 6 control targets, results on the volume, admin key enforced,
+#   MODE=check   Experiments page served, relay visible through the dashboard, 6 control targets, results on the volume, admin key enforced,
 #                UDP DL and UDP UL started through the dashboard, one Record each, CSV, results survive a dashboard
 #                restart, test rows deleted again
 #   FULL=1       also switch to bw-51 through the dashboard, record UDP DL there, and switch back to bw-106
@@ -50,6 +50,9 @@ udp_record(){
   echo "  info  $(echo "$row" | jget '"row %s: %s PRB, test %s, goodput DL %s UL %s Mbit/s, MCS DL %s UL %s, BLER DL %s UL %s, %s samples" % tuple(d["row"][k] for k in ("id","prb","test","goodputDl","goodputUl","mcsDl","mcsUl","blerDl","blerUl","samples"))')"
   [ "$(echo "$row" | jget 'd["row"]["test"]')" = "$dep" ] && ok "row notes the running test ($dep)" || bad "row test field: $(echo "$row" | jget 'd["row"]["test"]')"
   [ "$(echo "$row" | jget 'd["row"]["prb"]')" = "$4" ] && ok "row notes the carrier ($4 PRB)" || bad "row PRB: $(echo "$row" | jget 'd["row"]["prb"]') (want $4)"
+  off=$(echo "$row" | jget 'd["row"]["offered"]'); loss=$(echo "$row" | jget 'd["row"]["lossDl"]')
+  echo "$off" | grep -qE '^[0-9]+M$' && ok "row notes the offered UDP rate ($off)" || bad "offered rate missing: $off"
+  if [ "$d" = dl ]; then awk -v v="$loss" 'BEGIN{exit !(v+0 >= 5)}' && ok "DL loss $loss % (>= 5 %: link saturated)" || bad "DL loss $loss % (want >= 5 %)"; fi
   [ "$d" = dl ] && g=$(echo "$row" | jget 'd["row"]["goodputDl"]') || g=$(echo "$row" | jget 'd["row"]["goodputUl"]')
   awk -v v="$g" -v m="$3" 'BEGIN{exit !(v+0 > m+0)}' && ok "$d MAC goodput $g Mbit/s (> $3)" || bad "$d MAC goodput $g Mbit/s (want > $3)"
   r=$(post /api/control '{"action":"speed-stop"}')
@@ -61,6 +64,8 @@ udp_record(){
 check(){
   echo "== Checks"
   [ -n "$KEY" ] || { bad "cannot read the admin password Secret on the core"; echo "RESULT: FAIL ($F)"; exit 1; }
+  pg=$(curl -s -m 5 $URL/)
+  echo "$pg" | grep -q 'data-page="exp"' && echo "$pg" | grep -q 'id="e1Rec"' && ok "page has the Experiments tab and the Experiment 1 page" || bad "Experiments page missing in index.html"
   st=$(state)
   [ "$(echo "$st" | jget 'len(d["controls"]["targets"])')" = 6 ] && ok "6 control targets (TCP and UDP speed tests)" \
     || bad "control targets: $(echo "$st" | jget 'sorted(d["controls"]["targets"])')"

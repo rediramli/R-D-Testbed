@@ -386,7 +386,9 @@ NOISE_PRESETS = ("off", "clean", "moderate", "poor")
 # RAN profile relay on the RAN host (stage E1). It switches the carrier between the tested Experiment 1 profiles.
 PROFILE_URL = os.environ.get("PROFILE_URL", "http://10.42.0.1:8093").rstrip("/")
 PROFILES = ("bw-24", "bw-51", "bw-106", "bw-273")
-MOCK_PROFILES = {"bw-24": (24, 10, "150M"), "bw-51": (51, 20, "250M"), "bw-106": (106, 40, "200M"), "bw-273": (273, 100, "600M")}
+MOCK_PROFILES = {"bw-24": (24, 10, "150M", 640032, 640320, 3604800000), "bw-51": (51, 20, "250M", 639996, 640704, 3609120000),
+                 "bw-106": (106, 40, "200M", 620040, 621312, 3319680000), "bw-273": (273, 100, "600M", 626772, 630048, 3450720000)}
+MOCK_STEPS = ("build", "gnb-config", "gnb-restart", "ue-restart", "ue-register")
 MOCK_FLOW = [
     ("ul", "NGAP", "NGSetupRequest"), ("dl", "NGAP", "NGSetupResponse"),
     ("ul", "NGAP/NAS-5GS", "InitialUEMessage, Registration request"),
@@ -593,9 +595,14 @@ class Control:
             m = self.mock_profile
             if m["state"] == "switching" and time.time() - m["since"] > 6:
                 m.update(current=m["target"], state="ok")
+            el = time.time() - m["since"]
+            steps = [{"step": s, "start": m["since"] + i, "end": m["since"] + i + 1 if el > i + 1 or m["state"] != "switching" else None}
+                     for i, s in enumerate(MOCK_STEPS) if el > i or m["state"] != "switching"] if m["target"] else []
             return {"available": True, "current": None if m["state"] == "switching" else m["current"],
                     "state": m["state"], "target": m["target"], "error": None, "baseline": "bw-106",
-                    "profiles": {k: {"prb": v[0], "mhz": v[1], "udp": v[2]} for k, v in MOCK_PROFILES.items()}}
+                    "steps": steps, "stepNames": MOCK_STEPS,
+                    "profiles": {k: {"prb": v[0], "mhz": v[1], "udp": v[2], "pointA": v[3], "ssb": v[4], "centre": v[5]}
+                                 for k, v in MOCK_PROFILES.items()}}
         if not os.path.exists(self.profile_token_file):
             return {"available": False, "reason": "Profile relay token not installed"}
         try:
@@ -1560,8 +1567,27 @@ def metrics_text():
 # ---- E2: experiment results (Record button) --------------------------------
 RECORD_SECONDS = 20
 RECORD_FIELDS = ["sinrUe", "cqi", "ri", "mcsDl", "mcsUl", "blerDl", "blerUl", "nprbUl", "goodputDl", "goodputUl"]
-RESULT_COLS = ["id", "exp", "time_utc", "profile", "prb", "noise", "test", "samples"] + RECORD_FIELDS + ["note"]
+RESULT_COLS = ["id", "exp", "time_utc", "profile", "prb", "noise", "test", "samples"] + RECORD_FIELDS + \
+    ["offered", "lossDl", "note"]
 EXP_RE = re.compile(r"^[0-9]{1,2}[a-z]?$")
+RE_UDP_IV = re.compile(r"sec .*?bits/sec\s+[\d.]+ ms\s+(\d+)/(\d+) \([^)]*\)[ \t]*$", re.M)  # intervals, not the summary
+RE_UDP_OFFER = re.compile(r"offered UDP (?:DL|UL) (\d+M)")
+
+
+def udp_client_stats(dep, seconds):
+    """Offered rate and receiver loss (%) of the last `seconds` one-second intervals of a UDP client.
+    Only the DL client (-R) receives, so only it reports loss; the UL loss is seen by the server on the core."""
+    if MOCK:
+        return ("200M", 56.3) if dep == "speedtest-dl-udp" else ("100M", None)
+    pod = next((p["pod"] for p in STATE.snapshot().get("pods", []) if p["cluster"] == "ran"
+                and p["pod"].startswith(dep + "-") and p["state"] == "running"), None)
+    if not pod:
+        return None, None
+    text = STATE.logs("ran", pod, 400)
+    offer = RE_UDP_OFFER.findall(text)
+    iv = RE_UDP_IV.findall(text)[-seconds:]
+    lost, total = sum(int(a) for a, b in iv), sum(int(b) for a, b in iv)
+    return (offer[-1] if offer else None), (round(100.0 * lost / total, 2) if dep == "speedtest-dl-udp" and total else None)
 
 
 class Results:
@@ -1610,6 +1636,13 @@ class Results:
         for k in RECORD_FIELDS:
             v = [r[k] for r in rows if isinstance(r.get(k), (int, float))]
             row[k] = round(sum(v) / len(v), 3) if v else None
+        row["offered"], row["lossDl"] = None, None
+        udp = [t for t in tests if t.endswith("-udp")]
+        if udp:
+            try:
+                row["offered"], row["lossDl"] = udp_client_stats(udp[0], RECORD_SECONDS)
+            except Exception as e:
+                print(f"{now_iso()} RESULT udp stats: {describe_error(e)}", flush=True)
         with self.lock:
             row["id"] = max((r["id"] for r in self.rows), default=0) + 1
             self.rows.append(row)
