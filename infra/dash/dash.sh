@@ -192,7 +192,9 @@ apply)
   $KC create secret generic fct-dash-ran -n fct-dash --from-file="$T/server" --from-file="$T/token" --from-file="$T/ca.crt" --dry-run=client -o yaml \
     | tiny 'k3s kubectl apply -f -' >/dev/null && echo "secret/fct-dash-ran applied on the core (not shown)"
   rm -rf "$T"
-  $KC create configmap fct-dash-app -n fct-dash --from-file="$REPO/app.py" --from-file="$REPO/index.html" --dry-run=client -o yaml | tiny 'k3s kubectl apply -f -'
+  $KC create configmap fct-dash-app -n fct-dash --from-file="$REPO/app.py" --from-file="$REPO/index.html" --dry-run=client -o yaml \
+    | tiny 'k3s kubectl apply --server-side --force-conflicts --field-manager=fct-dash -f -' \
+    || { echo "STOP: ConfigMap fct-dash-app not applied"; exit 1; }  # server-side: no last-applied annotation (256 KiB limit)
   HASH=$(cat "$REPO/app.py" "$REPO/index.html" "$DIR/dash-core.yaml" | sha256sum | cut -c1-12)
   sed "s/CODE_HASH/$HASH/" "$DIR/dash-core.yaml" | tiny 'k3s kubectl apply -f -'
   tiny 'k3s kubectl -n fct-dash rollout status deploy/fct-dash --timeout=180s'
