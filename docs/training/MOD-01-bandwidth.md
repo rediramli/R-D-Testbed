@@ -200,6 +200,11 @@ At 273 PRB the simulation runs at 0.74x real time. In rfsim that only costs time
 then a steady loss: a queue of tens of MB fills first. Hypothesis: the same queue makes one TCP flow overshoot and lose
 packets in Experiment 0c (bufferbloat). This is a research topic for the module on user-plane traffic (Experiment 10).
 
+**6.6 Uplink (measured 2026-10-15 from the dashboard).** ### Uplink (measured 2026-10-15 from the dashboard)
+
+UDP uplink at 106 PRB: **35.3 Mbit/s** MAC goodput (MCS 28, BLER 0, 100 Mbit/s offered), about 85 % of the TS 38.306 estimate (41.6 Mbit/s with the 32/140 UL share). The downlink reaches about 69 % of its estimate.
+Hypothesis for the class: the uplink symbols carry less overhead (no PDCCH, SSB or CSI-RS); only DMRS and PUCCH take a share. Open point: UL saturation is not verified yet (the UL loss is seen by the server on the core).
+
 ## 7. From the lab to a live network
 
 - **Spectrum value.** Operators compare offers in MHz, but the network delivers bits. The utilisation table (Section

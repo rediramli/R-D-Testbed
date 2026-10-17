@@ -52,7 +52,7 @@ r(not d["errors"], "API errors per cluster: %s" % (d["errors"] or "none"))
 core = {p["role"] for p in d["pods"] if p["cluster"] == "core" and p["state"] == "running"}
 want = {"mongodb", "nrf", "scp", "ausf", "udm", "udr", "pcf", "bsf", "nssf", "smf", "amf", "upf"}
 r(want <= core, "core NFs running (%d/12)%s" % (len(want & core), "" if want <= core else ", missing " + " ".join(sorted(want - core))))
-ran = {p["role"] for p in d["pods"] if p["cluster"] == "ran" and p["state"] == "running"}
+ran = {p["role"] for p in d["pods"] if p["cluster"] == "ran" and p["state"] == "running"} - {None}  # speed test pods have no role
 r({"gnb", "ue"} <= ran, "RAN: gNB and UE running (%s)" % " ".join(sorted(ran)))
 m = d["ran"]
 r((m.get("gnbs") or 0) >= 1 and (m.get("ues") or 0) >= 1, "AMF view: gNBs %s, UEs %s" % (m.get("gnbs"), m.get("ues")))
@@ -192,8 +192,13 @@ apply)
   $KC create secret generic fct-dash-ran -n fct-dash --from-file="$T/server" --from-file="$T/token" --from-file="$T/ca.crt" --dry-run=client -o yaml \
     | tiny 'k3s kubectl apply -f -' >/dev/null && echo "secret/fct-dash-ran applied on the core (not shown)"
   rm -rf "$T"
-  $KC create configmap fct-dash-app -n fct-dash --from-file="$REPO/app.py" --from-file="$REPO/index.html" --dry-run=client -o yaml | tiny 'k3s kubectl apply -f -'
-  HASH=$(cat "$REPO/app.py" "$REPO/index.html" "$DIR/dash-core.yaml" | sha256sum | cut -c1-12)
+  $KC create configmap fct-dash-app -n fct-dash --from-file="$REPO/app.py" --from-file="$REPO/index.html" --dry-run=client -o yaml \
+    | tiny 'k3s kubectl apply --server-side --force-conflicts --field-manager=fct-dash -f -' \
+    || { echo "STOP: ConfigMap fct-dash-app not applied"; exit 1; }  # server-side: no last-applied annotation (256 KiB limit)
+  # The ConfigMap's resourceVersion is in the hash: a ConfigMap that changes without a code change (e.g. after a
+  # rejected apply that already rolled the new hash) still restarts the pod, which loads app.py only at start.
+  RV=$(tiny 'k3s kubectl -n fct-dash get configmap fct-dash-app -o jsonpath={.metadata.resourceVersion}')
+  HASH=$({ cat "$REPO/app.py" "$REPO/index.html" "$DIR/dash-core.yaml"; echo "$RV"; } | sha256sum | cut -c1-12)
   sed "s/CODE_HASH/$HASH/" "$DIR/dash-core.yaml" | tiny 'k3s kubectl apply -f -'
   tiny 'k3s kubectl -n fct-dash rollout status deploy/fct-dash --timeout=180s'
   sleep 5; F=0; check ;;
