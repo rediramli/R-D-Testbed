@@ -96,6 +96,24 @@ python3 plot-bandwidth.py docs/experiments/img/EXP-01-bandwidth.png docs/experim
 `MODE=analyze OUT=docs/experiments/data/<run>` recomputes the summary of a finished run without touching the bench;
 `MODE=restore` puts the 106 PRB repo configuration back. Each width restarts gNB and UE (about 1-2 min without a UE).
 
+
+## Running Experiment 1 from the dashboard
+
+Since the dashboard stages E1-E4 the lecturer can run this experiment from the dashboard (Experiments → 1 in the object tree); students only watch and fill in their tables.
+
+1. Unlock the controls with the admin password in the toolbar. gNB and UE must be running.
+2. Choose the bandwidth and press **Apply configuration**. The RAN profile relay (10.42.0.1:8093) writes the tested configuration, restarts gNB and UE and waits for the UE tunnel (about 25-30 s). If the UE does not come back, it returns to the 106 PRB baseline by itself.
+3. Press **UDP downlink (capacity)**. The offered load follows the profile (150M / 250M / 200M / 600M for 24 / 51 / 106 / 273 PRB). Wait until the goodput chart has been flat for 20 s.
+4. Press **Record**: the dashboard stores the mean of the last 20 s (SINR, CQI, MCS, BLER, UL PRB, goodput), the offered rate and the DL loss. A DL loss of 5 % or more shows that the link was saturated.
+5. Repeat for **UDP uplink** (offered load is half the DL rate) and, if wanted, **TCP downlink** (one flow).
+6. Download the CSV. Press **Return to baseline** at the end.
+
+Bench check of this path: `MODE=check bash infra/dash/exp-api.sh` (with `FULL=1` it also switches to 51 PRB and back).
+
+Dashboard results (2026-10-15/16, rfsim, noise off): UDP DL 87.5 Mbit/s at 106 PRB and 43.3 Mbit/s at 51 PRB, the same as the scripted run above; DL loss 35.8 % at 200M offered (saturated).
+First uplink measurement: **UDP UL 35.3 Mbit/s at 106 PRB** (MCS 28, BLER 0, 100M offered), about 85 % of the TS 38.306 estimate of 41.6 Mbit/s, while the downlink reaches about 69 % of its estimate.
+Hypothesis: the uplink carries less overhead (no PDCCH, SSB or CSI-RS in the UL symbols). Not yet proven: the UL loss is seen only by the server on the core, so UL saturation is not checked yet.
+
 ## Lessons
 - Check that a UDP capacity test saturates the link (loss > 0) before reading its rate; rfsim's speed changes with the
   carrier width, so a fixed offered rate can fall below the capacity.

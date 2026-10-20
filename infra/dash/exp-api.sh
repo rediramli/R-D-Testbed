@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 # Stage E2 of the dashboard Experiments menu: the backend API (no page yet). Needs stages 4a-4d and E1 (profile.sh).
 # Run ON REDLAB from the repo root as the login user (no sudo):   MODE=check bash infra/dash/exp-api.sh
-#   MODE=check   Experiments page served, relay visible through the dashboard, 6 control targets, results on the volume, admin key enforced,
-#                UDP DL and UDP UL started through the dashboard, one Record each, CSV, results survive a dashboard
+#   MODE=check   Experiments pages (0 and 1) served, relay visible through the dashboard, 6 control targets, results on the volume, admin key enforced,
+#                UDP DL and UDP UL started through the dashboard, one Record each, Experiment 0 (noise Moderate, MCS
+#                down, goodput within 20 % of the MCS prediction, back to Off), CSV, results survive a dashboard
 #                restart, test rows deleted again
 #   FULL=1       also switch to bw-51 through the dashboard, record UDP DL there, and switch back to bw-106
 # Install first:  sudo MODE=apply bash infra/dash/control.sh   (UDP clients + RBAC)
@@ -61,11 +62,41 @@ udp_record(){
   sleep 5
 }
 
+# noise_record PRESET NOISEDB -> Experiment 0: UDP DL with a noise preset, one Record (exp 0), checks, back to Off
+noise_record(){
+  local r row
+  r=$(post /api/control '{"action":"speed-dl-udp"}'); [ "$(code "$r")" = 200 ] || { bad "speed-dl-udp for Experiment 0: $r"; return; }
+  for i in $(seq 1 40); do [ "$(ready speedtest-dl-udp)" = 1 ] && break; sleep 1; done
+  r=$(post /api/control "{\"action\":\"noise-$1\"}")
+  [ "$(code "$r")" = 200 ] && ok "noise preset $1 set through the dashboard" || { bad "noise-$1: $r"; post /api/control '{"action":"speed-stop"}' >/dev/null; return; }
+  sleep 28
+  r=$(post /api/exp "{\"action\":\"record\",\"exp\":\"0\",\"note\":\"exp-api check noise $1\"}")
+  post /api/control '{"action":"noise-off"}' >/dev/null
+  post /api/control '{"action":"speed-stop"}' >/dev/null
+  [ "$(code "$r")" = 200 ] || { bad "record Experiment 0: $r"; return; }
+  row=$(body "$r")
+  IDS="$IDS $(echo "$row" | jget 'd["row"]["id"]')"
+  echo "  info  $(echo "$row" | jget '"row %s: noise %s (%s dB), SINR %s, CQI %s, MCS DL %s, BLER DL %s, goodput DL %s Mbit/s, DL loss %s %%" % tuple(d["row"][k] for k in ("id","noise","noiseDb","sinrUe","cqi","mcsDl","blerDl","goodputDl","lossDl"))')"
+  [ "$(echo "$row" | jget 'd["row"]["noise"]')" = "$1" ] && [ "$(echo "$row" | jget 'd["row"]["noiseDb"]')" = "$2" ] && ok "row notes the noise preset ($1, $2 dB)" || bad "noise fields: $(echo "$row" | jget '(d["row"]["noise"], d["row"]["noiseDb"])')"
+  awk -v m="$(echo "$row" | jget 'd["row"]["mcsDl"]')" 'BEGIN{exit !(m+0 <= 25)}' && ok "MCS DL went down with the noise (link adaptation)" || bad "MCS DL did not go down: $(echo "$row" | jget 'd["row"]["mcsDl"]')"
+  echo "$row" | python3 -c '
+import json, sys
+r = json.load(sys.stdin)["row"]
+eta = [0.2344,0.3066,0.3770,0.4902,0.6016,0.7402,0.8770,1.0273,1.1758,1.3262,1.3281,1.4766,1.6953,1.9141,2.1602,2.4063,2.5703,2.5664,2.7305,3.0293,3.3223,3.6094,3.9023,4.2129,4.5234,4.8164,5.1152,5.3320,5.5547]
+m = max(0.0, min(28.0, r["mcsDl"])); i = int(m); e = eta[28] if i >= 28 else eta[i] + (m - i) * (eta[i + 1] - eta[i])
+pred = 15.9 * (r["prb"] or 106) / 106 * e * (1 - (r["blerDl"] or 0))
+ratio = r["goodputDl"] / pred
+print("  info  predicted %.1f Mbit/s from MCS %.1f (eta %.2f): measured/predicted %.0f %%" % (pred, r["mcsDl"], e, 100 * ratio))
+sys.exit(0 if 0.8 <= ratio <= 1.2 else 1)' && ok "goodput within 20 % of the MCS prediction (Module 0 formula)" || bad "goodput not within 20 % of the MCS prediction"
+  sleep 5
+}
+
 check(){
   echo "== Checks"
   [ -n "$KEY" ] || { bad "cannot read the admin password Secret on the core"; echo "RESULT: FAIL ($F)"; exit 1; }
   pg=$(curl -s -m 5 $URL/)
   echo "$pg" | grep -q 'data-page="exp"' && echo "$pg" | grep -q 'id="e1Rec"' && ok "page has the Experiments tab and the Experiment 1 page" || bad "Experiments page missing in index.html"
+  echo "$pg" | grep -q 'id="e0Rec"' && ok "page has the Experiment 0 page" || bad "Experiment 0 page missing in index.html"
   st=$(state)
   [ "$(echo "$st" | jget 'len(d["controls"]["targets"])')" = 6 ] && ok "6 control targets (TCP and UDP speed tests)" \
     || bad "control targets: $(echo "$st" | jget 'sorted(d["controls"]["targets"])')"
@@ -80,15 +111,16 @@ check(){
   r=$(post /api/control '{"action":"profile-bw-999"}'); [ "$(code "$r")" = 400 ] && ok "unknown profile refused (400)" || bad "unknown profile got $r"
   ueip=$(ip -4 -br addr show oaitun_ue1 2>/dev/null | awk '{print $3}')
   udp_record dl "bw-106" 40 106
+  noise_record moderate -6.5
   udp_record ul "bw-106" 1 106
   [ "$(ip -4 -br addr show oaitun_ue1 2>/dev/null | awk '{print $3}')" = "$ueip" ] && ok "UE kept its address ($ueip)" || bad "UE address changed"
-  csv=$(curl -s -m 5 "$URL/api/exp/results.csv?exp=1")
+  csv=$(curl -s -m 5 "$URL/api/exp/results.csv")
   echo "$csv" | head -1 | grep -q "^id,exp,time_utc,profile,prb" && ok "CSV header" || bad "CSV header: $(echo "$csv" | head -1)"
-  for id in $IDS; do echo "$csv" | grep -q "^$id,1," || bad "row $id missing in the CSV"; done; ok "CSV holds rows$IDS"
+  for id in $IDS; do echo "$csv" | grep -q "^$id,[0-9]*," || bad "row $id missing in the CSV"; done; ok "CSV holds rows$IDS"
   echo "== Dashboard restart (results must survive)"
   tiny 'k3s kubectl -n fct-dash rollout restart deploy/fct-dash && k3s kubectl -n fct-dash rollout status deploy/fct-dash --timeout=120s' >/dev/null
   for i in $(seq 1 30); do [ "$(curl -s -m 3 $URL/healthz)" = ok ] && break; sleep 2; done
-  have=$(curl -s -m 5 "$URL/api/exp/results?exp=1" | jget '" ".join(str(r["id"]) for r in d["rows"])')
+  have=$(curl -s -m 5 "$URL/api/exp/results" | jget '" ".join(str(r["id"]) for r in d["rows"])')
   miss=""; for id in $IDS; do echo " $have " | grep -q " $id " || miss="$miss $id"; done
   [ -z "$miss" ] && ok "rows$IDS still there after the restart" || bad "rows lost after restart:$miss"
   if [ "$FULL" = 1 ]; then

@@ -136,6 +136,19 @@ MODE=run bash infra/exp/exp00b-noise-sweep.sh
 python3 plot-noise-sweep.py docs/experiments/data/bench-sweep-<time> docs/experiments/img/EXP-00b-noise-sweep.png
 ```
 
+
+## Running Experiment 0 from the dashboard
+
+The lecturer can run this experiment from the dashboard (Experiments → 0 in the object tree); students only watch and fill in their tables.
+
+1. Unlock the controls with the admin password in the toolbar. gNB and UE must be running; use the 106 PRB baseline carrier.
+2. Press **UDP downlink (capacity)** (200M offered at 106 PRB).
+3. Choose a noise preset (Off −100 dB, Clean −11 dB, Moderate −6.5 dB, Poor −3 dB) and press **Apply noise preset**. The noise relay changes the UE channel model within a second; no restart.
+4. Wait until MCS and goodput have been flat for 20 s, then press **Record**. The row holds SINR, CQI, MCS, BLER, goodput, the noise preset and level and the DL loss; the page adds the spectral efficiency η(MCS) and the prediction k × η × (1 − BLER) with k = 15.9 M RE/s (Module 0).
+5. Repeat for each preset, press **Back to Off**, and download the CSV.
+
+Bench check of this path: `MODE=check bash infra/dash/exp-api.sh` (sets Moderate, checks that the MCS goes down and that the goodput is within 20 % of the MCS prediction, then sets Off again).
+
 ## Earlier runs on the old lab servers (2026-10-08 to 2026-10-11)
 These ran on FCT0170/FCT0173 with the old dashboard (relay on 10.0.129.7). Kept for comparison; the bench results above replace them.
 
