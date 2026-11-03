@@ -1,0 +1,908 @@
+T_messages.txt md5 f09c4e4669eeec4be2ef68844e17b00e; 1707 messages, 68.6 MB in 6.65 s; 65 DL and 63 UL slot grids
+DL      936.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      936.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+UL      936.8  PRB 0-105          (106)  symbols 13       max  54.2 dB  
+DL      938.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      938.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+MAC-UL  939.2  PRB -              (  0)  symbols -        max  None dB  ch=PUSCH-sched rnti=b7f4 mcs=13 tbs=165
+UL      939.8  PRB 0-105          (106)  symbols 0-12     max  53.2 dB  ch=PUSCH rnti=b7f4 rb=[0, 4] sym=[0, 12] mcs=13
+DL      940.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      940.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      942.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      942.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      944.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      944.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+UL      944.8  PRB 0-105          (106)  symbols 13       max  54.2 dB  
+DL      946.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      946.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+MAC-UL  947.1  PRB -              (  0)  symbols -        max  None dB  ch=PUSCH-sched rnti=b7f4 mcs=13 tbs=36
+MAC-UL  947.11 PRB -              (  0)  symbols -        max  None dB  ch=PUSCH-sched rnti=b7f4 mcs=13 tbs=36
+UL      947.7  PRB -              (  0)  symbols -        max  None dB  ch=PUSCH rnti=b7f4 rb=[0, 4] sym=[10, 12] mcs=13
+DL      948.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      948.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+MAC-UL  948.1  PRB -              (  0)  symbols -        max  None dB  ch=PUSCH-sched rnti=b7f4 mcs=13 tbs=57
+UL      947.17 PRB -              (  0)  symbols -        max  None dB  ch=PUSCH rnti=b7f4 rb=[0, 4] sym=[10, 12] mcs=13
+MAC-UL  948.11 PRB -              (  0)  symbols -        max  None dB  ch=PUSCH-sched rnti=b7f4 mcs=13 tbs=36
+UL      948.7  PRB -              (  0)  symbols -        max  None dB  ch=PUSCH rnti=b7f4 rb=[0, 7] sym=[10, 12] mcs=13
+DL      948.14 PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=b7f4 bytes=437; ch=PDSCH rnti=b7f4 mcs=25 tbs=437
+DL      948.16 PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=b7f4 bytes=437; ch=PDSCH rnti=b7f4 mcs=25 tbs=437
+UL      948.17 PRB -              (  0)  symbols -        max  None dB  ch=PUSCH rnti=b7f4 rb=[0, 4] sym=[10, 12] mcs=13
+DL      950.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      950.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+MAC-UL  950.11 PRB -              (  0)  symbols -        max  None dB  ch=PUSCH-sched rnti=b7f4 mcs=14 tbs=40
+MAC-UL  951.1  PRB -              (  0)  symbols -        max  None dB  ch=PUSCH-sched rnti=b7f4 mcs=14 tbs=40
+UL      950.17 PRB -              (  0)  symbols -        max  None dB  ch=PUSCH rnti=b7f4 rb=[0, 4] sym=[10, 12] mcs=14
+MAC-UL  951.11 PRB -              (  0)  symbols -        max  None dB  ch=PUSCH-sched rnti=b7f4 mcs=14 tbs=201
+UL      951.7  PRB -              (  0)  symbols -        max  None dB  ch=PUSCH rnti=b7f4 rb=[0, 4] sym=[10, 12] mcs=14
+DL      951.16 PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=b7f4 bytes=437; ch=PDSCH rnti=b7f4 mcs=25 tbs=437
+DL      952.0  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=b7f4 bytes=405; ch=PDSCH rnti=b7f4 mcs=25 tbs=405; ch=SSB/PBCH
+DL      952.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+MAC-UL  952.1  PRB -              (  0)  symbols -        max  None dB  ch=PUSCH-sched rnti=b7f4 mcs=14 tbs=145
+UL      951.17 PRB -              (  0)  symbols -        max  None dB  ch=PUSCH rnti=b7f4 rb=[0, 23] sym=[10, 12] mcs=14
+DL      952.4  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=b7f4 bytes=437; ch=PDSCH rnti=b7f4 mcs=25 tbs=437
+DL      952.5  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=b7f4 bytes=437; ch=PDSCH rnti=b7f4 mcs=25 tbs=437
+UL      952.7  PRB -              (  0)  symbols -        max  None dB  ch=PUSCH rnti=b7f4 rb=[0, 17] sym=[10, 12] mcs=14
+UL      952.8  PRB 0-105          (106)  symbols 13       max  54.2 dB  
+DL      952.16 PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=b7f4 bytes=437; ch=PDSCH rnti=b7f4 mcs=25 tbs=437
+MAC-UL  953.11 PRB -              (  0)  symbols -        max  None dB  ch=PUSCH-sched rnti=b7f4 mcs=14 tbs=40
+DL      953.15 PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=b7f4 bytes=437; ch=PDSCH rnti=b7f4 mcs=25 tbs=437
+DL      954.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      954.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+MAC-UL  954.1  PRB -              (  0)  symbols -        max  None dB  ch=PUSCH-sched rnti=b7f4 mcs=14 tbs=40
+UL      953.17 PRB -              (  0)  symbols -        max  None dB  ch=PUSCH rnti=b7f4 rb=[0, 4] sym=[10, 12] mcs=14
+UL      954.7  PRB -              (  0)  symbols -        max  None dB  ch=PUSCH rnti=b7f4 rb=[0, 4] sym=[10, 12] mcs=14
+DL      956.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      956.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      958.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      958.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      960.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      960.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+UL      960.8  PRB 0-105          (106)  symbols 13       max  54.2 dB  
+DL      962.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      962.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      964.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      964.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+MAC-UL  964.2  PRB -              (  0)  symbols -        max  None dB  ch=PUSCH-sched rnti=b7f4 mcs=15 tbs=209
+UL      964.8  PRB 0-105          (106)  symbols 0-12     max  52.8 dB  ch=PUSCH rnti=b7f4 rb=[0, 4] sym=[0, 12] mcs=15
+DL      966.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      966.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      968.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      968.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+UL      968.8  PRB 0-105          (106)  symbols 13       max  54.2 dB  
+DL      970.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      970.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      972.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      972.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      974.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      974.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+MAC-UL  974.2  PRB -              (  0)  symbols -        max  None dB  ch=PUSCH-sched rnti=b7f4 mcs=14 tbs=193
+UL      974.8  PRB 0-105          (106)  symbols 0-12     max  52.4 dB  ch=PUSCH rnti=b7f4 rb=[0, 4] sym=[0, 12] mcs=14
+DL      976.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      976.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+UL      976.8  PRB 0-105          (106)  symbols 13       max  54.2 dB  
+DL      978.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      978.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      980.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      980.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      982.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      982.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      984.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      984.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+MAC-UL  984.2  PRB -              (  0)  symbols -        max  None dB  ch=PUSCH-sched rnti=b7f4 mcs=13 tbs=165
+UL      984.8  PRB 0-105          (106)  symbols 0-13     max  54.2 dB  ch=PUSCH rnti=b7f4 rb=[0, 4] sym=[0, 12] mcs=13
+DL      986.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      986.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      988.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      988.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      990.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      990.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      992.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      992.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+UL      992.8  PRB 0-105          (106)  symbols 13       max  54.2 dB  
+DL      994.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      994.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+MAC-UL  994.2  PRB -              (  0)  symbols -        max  None dB  ch=PUSCH-sched rnti=b7f4 mcs=12 tbs=149
+UL      994.8  PRB 0-105          (106)  symbols 0-12     max  52.6 dB  ch=PUSCH rnti=b7f4 rb=[0, 4] sym=[0, 12] mcs=12
+DL      996.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      996.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      998.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      998.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL     1000.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL     1000.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+UL     1000.8  PRB 0-105          (106)  symbols 13       max  54.2 dB  
+MAC-UL 1001.11 PRB -              (  0)  symbols -        max  None dB  ch=PUSCH-sched rnti=b7f4 mcs=12 tbs=32
+DL     1002.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL     1002.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+MAC-UL 1002.1  PRB -              (  0)  symbols -        max  None dB  ch=PUSCH-sched rnti=b7f4 mcs=12 tbs=32
+UL     1001.17 PRB -              (  0)  symbols -        max  None dB  ch=PUSCH rnti=b7f4 rb=[0, 4] sym=[10, 12] mcs=12
+DL     1002.4  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=b7f4 bytes=469; ch=PDSCH rnti=b7f4 mcs=26 tbs=469
+UL     1002.7  PRB -              (  0)  symbols -        max  None dB  ch=PUSCH rnti=b7f4 rb=[0, 4] sym=[10, 12] mcs=12
+DL     1004.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL     1004.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL     1006.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL     1006.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL     1008.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL     1008.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+UL     1008.8  PRB 0-105          (106)  symbols 13       max  54.2 dB  
+DL     1010.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL     1010.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL     1012.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL     1012.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+MAC-UL 1012.2  PRB -              (  0)  symbols -        max  None dB  ch=PUSCH-sched rnti=b7f4 mcs=11 tbs=129
+UL     1012.8  PRB 0-105          (106)  symbols 0-12     max  52.6 dB  ch=PUSCH rnti=b7f4 rb=[0, 4] sym=[0, 12] mcs=11
+DL     1014.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL     1014.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL     1016.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL     1016.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+UL     1016.8  PRB 0-105          (106)  symbols 13       max  54.2 dB  
+DL     1018.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL     1018.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL     1020.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL     1020.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL     1022.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL     1022.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+MAC-UL 1022.2  PRB -              (  0)  symbols -        max  None dB  ch=PUSCH-sched rnti=b7f4 mcs=10 tbs=116
+UL     1022.8  PRB 0-105          (106)  symbols 0-12     max  52.6 dB  ch=PUSCH rnti=b7f4 rb=[0, 4] sym=[0, 12] mcs=10
+DL        0.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL        0.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+UL        0.8  PRB 0-105          (106)  symbols 13       max  54.2 dB  
+DL        2.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL        2.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL        4.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL        4.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL        6.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL        6.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL        8.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL        8.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+MAC-UL    8.2  PRB -              (  0)  symbols -        max  None dB  ch=PUSCH-sched rnti=b7f4 mcs=9 tbs=116
+UL        8.8  PRB 0-105          (106)  symbols 0-13     max  54.2 dB  ch=PUSCH rnti=b7f4 rb=[0, 4] sym=[0, 12] mcs=9
+DL       10.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL       10.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL       12.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL       12.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL       14.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL       14.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL       16.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL       16.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+UL       16.8  PRB 0-105          (106)  symbols 13       max  54.2 dB  
+DL       18.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL       18.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+MAC-UL   18.2  PRB -              (  0)  symbols -        max  None dB  ch=PUSCH-sched rnti=b7f4 mcs=8 tbs=101
+UL       18.8  PRB 0-105          (106)  symbols 0-12     max  51.2 dB  ch=PUSCH rnti=b7f4 rb=[0, 4] sym=[0, 12] mcs=8
+DL       20.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL       20.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL       22.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL       22.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL       24.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL       24.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+UL       24.8  PRB 0-105          (106)  symbols 13       max  54.2 dB  
+DL       26.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL       26.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL       28.0  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=b7f4 bytes=437; ch=PDSCH rnti=b7f4 mcs=25 tbs=437; ch=SSB/PBCH
+DL       28.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+MAC-UL   28.2  PRB -              (  0)  symbols -        max  None dB  ch=PUSCH-sched rnti=b7f4 mcs=7 tbs=88
+UL       28.8  PRB 0-105          (106)  symbols 0-12     max  51.2 dB  ch=PUSCH rnti=b7f4 rb=[0, 4] sym=[0, 12] mcs=7
+DL       30.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL       30.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL       32.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL       32.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+UL       32.8  PRB 0-105          (106)  symbols 13       max  54.2 dB  
+MAC-UL   33.1  PRB -              (  0)  symbols -        max  None dB  ch=PUSCH-sched rnti=b7f4 mcs=7 tbs=19
+MAC-UL   33.11 PRB -              (  0)  symbols -        max  None dB  ch=PUSCH-sched rnti=b7f4 mcs=7 tbs=19
+UL       33.7  PRB -              (  0)  symbols -        max  None dB  ch=PUSCH rnti=b7f4 rb=[0, 4] sym=[10, 12] mcs=7
+DL       34.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL       34.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+MAC-UL   34.1  PRB -              (  0)  symbols -        max  None dB  ch=PUSCH-sched rnti=b7f4 mcs=7 tbs=76
+UL       33.17 PRB -              (  0)  symbols -        max  None dB  ch=PUSCH rnti=b7f4 rb=[0, 4] sym=[10, 12] mcs=7
+MAC-UL   34.11 PRB -              (  0)  symbols -        max  None dB  ch=PUSCH-sched rnti=b7f4 mcs=7 tbs=54
+UL       34.7  PRB -              (  0)  symbols -        max  None dB  ch=PUSCH rnti=b7f4 rb=[0, 18] sym=[10, 12] mcs=7
+DL       34.14 PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=b7f4 bytes=437; ch=PDSCH rnti=b7f4 mcs=25 tbs=437
+UL       34.17 PRB -              (  0)  symbols -        max  None dB  ch=PUSCH rnti=b7f4 rb=[0, 13] sym=[10, 12] mcs=7
+DL       36.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL       36.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL       38.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL       38.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL       40.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL       40.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+UL       40.8  PRB 0-105          (106)  symbols 13       max  54.2 dB  
+DL       42.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL       42.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL       44.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL       44.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+MAC-UL   44.2  PRB -              (  0)  symbols -        max  None dB  ch=PUSCH-sched rnti=b7f4 mcs=8 tbs=101
+UL       44.8  PRB 0-105          (106)  symbols 0-12     max  51.2 dB  ch=PUSCH rnti=b7f4 rb=[0, 4] sym=[0, 12] mcs=8
+DL       46.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL       46.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL       48.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL       48.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+UL       48.8  PRB 0-105          (106)  symbols 13       max  54.2 dB  
+DL       50.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL       50.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL       52.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL       52.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL       54.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL       54.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+MAC-UL   54.2  PRB -              (  0)  symbols -        max  None dB  ch=PUSCH-sched rnti=b7f4 mcs=7 tbs=88
+UL       54.8  PRB 0-105          (106)  symbols 0-12     max  51.2 dB  ch=PUSCH rnti=b7f4 rb=[0, 4] sym=[0, 12] mcs=7
+DL       56.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL       56.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+UL       56.8  PRB 0-105          (106)  symbols 13       max  54.2 dB  
+DL       58.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL       58.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL       60.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL       60.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL       62.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL       62.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL       64.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL       64.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+MAC-UL   64.2  PRB -              (  0)  symbols -        max  None dB  ch=PUSCH-sched rnti=b7f4 mcs=6 tbs=76
+UL       64.8  PRB 0-105          (106)  symbols 0-13     max  54.2 dB  ch=PUSCH rnti=b7f4 rb=[0, 4] sym=[0, 12] mcs=6
+DL       66.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL       66.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL       68.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL       68.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL       70.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL       70.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL       72.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL       72.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+UL       72.8  PRB 0-105          (106)  symbols 13       max  54.2 dB  
+DL       74.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL       74.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+MAC-UL   74.2  PRB -              (  0)  symbols -        max  None dB  ch=PUSCH-sched rnti=b7f4 mcs=5 tbs=63
+UL       74.8  PRB 0-105          (106)  symbols 0-12     max  51.2 dB  ch=PUSCH rnti=b7f4 rb=[0, 4] sym=[0, 12] mcs=5
+DL       76.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL       76.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL       78.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL       78.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL       80.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL       80.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+MAC-UL   80.11 PRB -              (  0)  symbols -        max  None dB  ch=PUSCH-sched rnti=b7f4 mcs=5 tbs=13
+UL       80.8  PRB 0-105          (106)  symbols 13       max  54.2 dB  
+MAC-UL   81.1  PRB -              (  0)  symbols -        max  None dB  ch=PUSCH-sched rnti=b7f4 mcs=5 tbs=13
+UL       80.17 PRB -              (  0)  symbols -        max  None dB  ch=PUSCH rnti=b7f4 rb=[0, 4] sym=[10, 12] mcs=5
+MAC-UL   81.11 PRB -              (  0)  symbols -        max  None dB  ch=PUSCH-sched rnti=b7f4 mcs=5 tbs=16
+UL       81.7  PRB -              (  0)  symbols -        max  None dB  ch=PUSCH rnti=b7f4 rb=[0, 4] sym=[10, 12] mcs=5
+DL       82.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL       82.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+MAC-UL   82.1  PRB -              (  0)  symbols -        max  None dB  ch=PUSCH-sched rnti=b7f4 mcs=5 tbs=16
+UL       81.17 PRB -              (  0)  symbols -        max  None dB  ch=PUSCH rnti=b7f4 rb=[0, 5] sym=[10, 12] mcs=5
+DL       82.4  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=b7f4 bytes=405; ch=PDSCH rnti=b7f4 mcs=24 tbs=405
+UL       82.7  PRB -              (  0)  symbols -        max  None dB  ch=PUSCH rnti=b7f4 rb=[0, 5] sym=[10, 12] mcs=5
+DL       84.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL       84.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL       86.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL       86.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL       88.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL       88.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+UL       88.8  PRB 0-105          (106)  symbols 13       max  54.2 dB  
+DL       90.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL       90.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL       92.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL       92.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+MAC-UL   92.2  PRB -              (  0)  symbols -        max  None dB  ch=PUSCH-sched rnti=b7f4 mcs=6 tbs=76
+UL       92.8  PRB 0-105          (106)  symbols 0-12     max  51.2 dB  ch=PUSCH rnti=b7f4 rb=[0, 4] sym=[0, 12] mcs=6
+DL       94.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL       94.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL       96.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL       96.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+UL       96.8  PRB 0-105          (106)  symbols 13       max  54.2 dB  
+DL       98.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL       98.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      100.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      100.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+MAC-UL  100.1  PRB -              (  0)  symbols -        max  None dB  ch=PUSCH-sched rnti=b7f4 mcs=6 tbs=16
+MAC-UL  100.11 PRB -              (  0)  symbols -        max  None dB  ch=PUSCH-sched rnti=b7f4 mcs=6 tbs=16
+UL      100.7  PRB -              (  0)  symbols -        max  None dB  ch=PUSCH rnti=b7f4 rb=[0, 4] sym=[10, 12] mcs=6
+MAC-UL  101.1  PRB -              (  0)  symbols -        max  None dB  ch=PUSCH-sched rnti=b7f4 mcs=6 tbs=106
+UL      100.17 PRB -              (  0)  symbols -        max  None dB  ch=PUSCH rnti=b7f4 rb=[0, 4] sym=[10, 12] mcs=6
+MAC-UL  101.11 PRB -              (  0)  symbols -        max  None dB  ch=PUSCH-sched rnti=b7f4 mcs=6 tbs=76
+UL      101.7  PRB -              (  0)  symbols -        max  None dB  ch=PUSCH rnti=b7f4 rb=[0, 31] sym=[10, 12] mcs=6
+DL      101.15 PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=b7f4 bytes=388; ch=PDSCH rnti=b7f4 mcs=23 tbs=388
+DL      101.16 PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=b7f4 bytes=388; ch=PDSCH rnti=b7f4 mcs=23 tbs=388
+DL      102.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      102.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+UL      101.17 PRB -              (  0)  symbols -        max  None dB  ch=PUSCH rnti=b7f4 rb=[0, 22] sym=[10, 12] mcs=6
+MAC-UL  103.1  PRB -              (  0)  symbols -        max  None dB  ch=PUSCH-sched rnti=b7f4 mcs=7 tbs=19
+MAC-UL  103.11 PRB -              (  0)  symbols -        max  None dB  ch=PUSCH-sched rnti=b7f4 mcs=7 tbs=19
+UL      103.7  PRB -              (  0)  symbols -        max  None dB  ch=PUSCH rnti=b7f4 rb=[0, 4] sym=[10, 12] mcs=7
+DL      104.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      104.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+MAC-UL  104.1  PRB -              (  0)  symbols -        max  None dB  ch=PUSCH-sched rnti=b7f4 mcs=7 tbs=277
+UL      103.17 PRB -              (  0)  symbols -        max  None dB  ch=PUSCH rnti=b7f4 rb=[0, 4] sym=[10, 12] mcs=7
+MAC-UL  104.11 PRB -              (  0)  symbols -        max  None dB  ch=PUSCH-sched rnti=b7f4 mcs=7 tbs=201
+UL      104.7  PRB -              (  0)  symbols -        max  None dB  ch=PUSCH rnti=b7f4 rb=[0, 70] sym=[10, 12] mcs=7
+DL      104.14 PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=b7f4 bytes=388; ch=PDSCH rnti=b7f4 mcs=23 tbs=388
+UL      104.8  PRB 0-105          (106)  symbols 13       max  54.2 dB  
+DL      104.15 PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=b7f4 bytes=388; ch=PDSCH rnti=b7f4 mcs=23 tbs=388
+UL      104.17 PRB -              (  0)  symbols -        max  None dB  ch=PUSCH rnti=b7f4 rb=[0, 50] sym=[10, 12] mcs=7
+DL      106.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      106.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+MAC-UL  106.1  PRB -              (  0)  symbols -        max  None dB  ch=PUSCH-sched rnti=b7f4 mcs=7 tbs=19
+MAC-UL  106.11 PRB -              (  0)  symbols -        max  None dB  ch=PUSCH-sched rnti=b7f4 mcs=7 tbs=19
+UL      106.7  PRB -              (  0)  symbols -        max  None dB  ch=PUSCH rnti=b7f4 rb=[0, 4] sym=[10, 12] mcs=7
+MAC-UL  107.1  PRB -              (  0)  symbols -        max  None dB  ch=PUSCH-sched rnti=b7f4 mcs=7 tbs=201
+UL      106.17 PRB -              (  0)  symbols -        max  None dB  ch=PUSCH rnti=b7f4 rb=[0, 4] sym=[10, 12] mcs=7
+MAC-UL  107.11 PRB -              (  0)  symbols -        max  None dB  ch=PUSCH-sched rnti=b7f4 mcs=7 tbs=145
+UL      107.7  PRB -              (  0)  symbols -        max  None dB  ch=PUSCH rnti=b7f4 rb=[0, 50] sym=[10, 12] mcs=7
+DL      107.15 PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=b7f4 bytes=388; ch=PDSCH rnti=b7f4 mcs=23 tbs=388
+DL      107.16 PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=b7f4 bytes=388; ch=PDSCH rnti=b7f4 mcs=23 tbs=388
+DL      108.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      108.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+UL      107.17 PRB -              (  0)  symbols -        max  None dB  ch=PUSCH rnti=b7f4 rb=[0, 36] sym=[10, 12] mcs=7
+MAC-UL  109.11 PRB -              (  0)  symbols -        max  None dB  ch=PUSCH-sched rnti=b7f4 mcs=7 tbs=19
+DL      110.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      110.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+MAC-UL  110.1  PRB -              (  0)  symbols -        max  None dB  ch=PUSCH-sched rnti=b7f4 mcs=7 tbs=19
+UL      109.17 PRB -              (  0)  symbols -        max  None dB  ch=PUSCH rnti=b7f4 rb=[0, 4] sym=[10, 12] mcs=7
+UL      110.7  PRB -              (  0)  symbols -        max  None dB  ch=PUSCH rnti=b7f4 rb=[0, 4] sym=[10, 12] mcs=7
+DL      112.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      112.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+UL      112.8  PRB 0-105          (106)  symbols 13       max  54.2 dB  
+DL      114.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      114.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      116.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      116.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      118.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      118.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      120.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      120.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+MAC-UL  120.2  PRB -              (  0)  symbols -        max  None dB  ch=PUSCH-sched rnti=b7f4 mcs=8 tbs=101
+UL      120.8  PRB 0-105          (106)  symbols 0-13     max  54.2 dB  ch=PUSCH rnti=b7f4 rb=[0, 4] sym=[0, 12] mcs=8
+DL      122.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      122.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      124.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      124.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      126.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      126.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      128.0  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=b7f4 bytes=372; ch=PDSCH rnti=b7f4 mcs=24 tbs=372; ch=SSB/PBCH
+DL      128.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+UL      128.8  PRB 0-105          (106)  symbols 13       max  54.2 dB  
+DL      130.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      130.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+MAC-UL  130.2  PRB -              (  0)  symbols -        max  None dB  ch=PUSCH-sched rnti=b7f4 mcs=7 tbs=88
+UL      130.8  PRB 0-105          (106)  symbols 0-12     max  51.2 dB  ch=PUSCH rnti=b7f4 rb=[0, 4] sym=[0, 12] mcs=7
+DL      132.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      132.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      134.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      134.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      136.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      136.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+UL      136.8  PRB 0-105          (106)  symbols 13       max  54.2 dB  
+DL      138.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      138.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      140.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      140.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+MAC-UL  140.2  PRB -              (  0)  symbols -        max  None dB  ch=PUSCH-sched rnti=b7f4 mcs=6 tbs=76
+UL      140.8  PRB 0-105          (106)  symbols 0-12     max  51.2 dB  ch=PUSCH rnti=b7f4 rb=[0, 4] sym=[0, 12] mcs=6
+DL      142.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      142.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      144.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      144.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+UL      144.8  PRB 0-105          (106)  symbols 13       max  54.2 dB  
+DL      146.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      146.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      148.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      148.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      150.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      150.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+MAC-UL  150.2  PRB -              (  0)  symbols -        max  None dB  ch=PUSCH-sched rnti=b7f4 mcs=5 tbs=63
+UL      150.8  PRB 0-105          (106)  symbols 0-12     max  51.2 dB  ch=PUSCH rnti=b7f4 rb=[0, 4] sym=[0, 12] mcs=5
+DL      152.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      152.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+UL      152.8  PRB 0-105          (106)  symbols 13       max  54.2 dB  
+DL      154.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      154.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      156.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      156.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      158.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      158.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      160.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      160.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+MAC-UL  160.2  PRB -              (  0)  symbols -        max  None dB  ch=PUSCH-sched rnti=b7f4 mcs=4 tbs=51
+UL      160.8  PRB 0-105          (106)  symbols 0-13     max  54.2 dB  ch=PUSCH rnti=b7f4 rb=[0, 4] sym=[0, 12] mcs=4
+DL      162.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      162.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      164.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      164.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      166.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      166.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      168.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      168.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+UL      168.8  PRB 0-105          (106)  symbols 13       max  54.2 dB  
+DL      170.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      170.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+MAC-UL  170.2  PRB -              (  0)  symbols -        max  None dB  ch=PUSCH-sched rnti=b7f4 mcs=3 tbs=42
+UL      170.8  PRB 0-105          (106)  symbols 0-12     max  51.2 dB  ch=PUSCH rnti=b7f4 rb=[0, 4] sym=[0, 12] mcs=3
+DL      172.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      172.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      174.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      174.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      176.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      176.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+UL      176.8  PRB 0-105          (106)  symbols 13       max  54.2 dB  
+DL      178.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      178.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      180.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      180.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+MAC-UL  180.2  PRB -              (  0)  symbols -        max  None dB  ch=PUSCH-sched rnti=b7f4 mcs=2 tbs=32
+UL      180.8  PRB 0-105          (106)  symbols 0-12     max  51.2 dB  ch=PUSCH rnti=b7f4 rb=[0, 4] sym=[0, 12] mcs=2
+DL      182.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      182.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+MAC-UL  183.11 PRB -              (  0)  symbols -        max  None dB  ch=PUSCH-sched rnti=b7f4 mcs=2 tbs=7
+DL      184.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      184.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+MAC-UL  184.1  PRB -              (  0)  symbols -        max  None dB  ch=PUSCH-sched rnti=b7f4 mcs=2 tbs=7
+UL      183.17 PRB -              (  0)  symbols -        max  None dB  ch=PUSCH rnti=b7f4 rb=[0, 4] sym=[10, 12] mcs=2
+MAC-UL  184.11 PRB -              (  0)  symbols -        max  None dB  ch=PUSCH-sched rnti=b7f4 mcs=2 tbs=28
+UL      184.7  PRB -              (  0)  symbols -        max  None dB  ch=PUSCH rnti=b7f4 rb=[0, 4] sym=[10, 12] mcs=2
+UL      184.8  PRB 0-105          (106)  symbols 13       max  54.2 dB  
+MAC-UL  185.1  PRB -              (  0)  symbols -        max  None dB  ch=PUSCH-sched rnti=b7f4 mcs=2 tbs=21
+UL      184.17 PRB -              (  0)  symbols -        max  None dB  ch=PUSCH rnti=b7f4 rb=[0, 19] sym=[10, 12] mcs=2
+DL      185.4  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=b7f4 bytes=388; ch=PDSCH rnti=b7f4 mcs=23 tbs=388
+UL      185.7  PRB -              (  0)  symbols -        max  None dB  ch=PUSCH rnti=b7f4 rb=[0, 14] sym=[10, 12] mcs=2
+DL      186.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      186.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      188.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      188.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      190.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      190.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      192.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      192.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+UL      192.8  PRB 0-105          (106)  symbols 13       max  54.2 dB  
+DL      194.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      194.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+MAC-UL  195.2  PRB -              (  0)  symbols -        max  None dB  ch=PUSCH-sched rnti=b7f4 mcs=3 tbs=42
+UL      195.8  PRB 0-105          (106)  symbols 0-12     max  51.2 dB  ch=PUSCH rnti=b7f4 rb=[0, 4] sym=[0, 12] mcs=3
+DL      196.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      196.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      198.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      198.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      200.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      200.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+UL      200.8  PRB 0-105          (106)  symbols 13       max  54.2 dB  
+DL      202.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      202.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      204.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      204.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+MAC-UL  205.2  PRB -              (  0)  symbols -        max  None dB  ch=PUSCH-sched rnti=b7f4 mcs=2 tbs=32
+UL      205.8  PRB 0-105          (106)  symbols 0-12     max  51.2 dB  ch=PUSCH rnti=b7f4 rb=[0, 4] sym=[0, 12] mcs=2
+DL      206.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      206.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      208.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      208.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+UL      208.8  PRB 0-105          (106)  symbols 13       max  54.2 dB  
+DL      210.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      210.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      212.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      212.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      214.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      214.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+MAC-UL  215.2  PRB -              (  0)  symbols -        max  None dB  ch=PUSCH-sched rnti=b7f4 mcs=1 tbs=26
+UL      215.8  PRB 0-105          (106)  symbols 0-12     max  51.2 dB  ch=PUSCH rnti=b7f4 rb=[0, 4] sym=[0, 12] mcs=1
+DL      216.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      216.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+UL      216.8  PRB 0-105          (106)  symbols 13       max  54.2 dB  
+DL      218.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      218.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      220.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      220.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      222.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      222.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      224.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      224.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+UL      224.8  PRB 0-105          (106)  symbols 13       max  54.2 dB  
+MAC-UL  225.2  PRB -              (  0)  symbols -        max  None dB  ch=PUSCH-sched rnti=b7f4 mcs=0 tbs=20
+UL      225.8  PRB 0-105          (106)  symbols 0-12     max  51.2 dB  ch=PUSCH rnti=b7f4 rb=[0, 4] sym=[0, 12] mcs=0
+DL      226.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      226.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      228.0  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=b7f4 bytes=349; ch=PDSCH rnti=b7f4 mcs=22 tbs=349; ch=SSB/PBCH
+DL      228.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      230.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      230.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+MAC-UL  230.1  PRB -              (  0)  symbols -        max  None dB  ch=PUSCH-sched rnti=b7f4 mcs=0 tbs=4
+MAC-UL  230.11 PRB -              (  0)  symbols -        max  None dB  ch=PUSCH-sched rnti=b7f4 mcs=0 tbs=4
+UL      230.7  PRB -              (  0)  symbols -        max  None dB  ch=PUSCH rnti=b7f4 rb=[0, 4] sym=[10, 12] mcs=0
+MAC-UL  231.1  PRB -              (  0)  symbols -        max  None dB  ch=PUSCH-sched rnti=b7f4 mcs=0 tbs=54
+UL      230.17 PRB -              (  0)  symbols -        max  None dB  ch=PUSCH rnti=b7f4 rb=[0, 4] sym=[10, 12] mcs=0
+MAC-UL  231.11 PRB -              (  0)  symbols -        max  None dB  ch=PUSCH-sched rnti=b7f4 mcs=0 tbs=54
+UL      231.7  PRB -              (  0)  symbols -        max  None dB  ch=PUSCH rnti=b7f4 rb=[0, 59] sym=[10, 12] mcs=0
+DL      231.14 PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=b7f4 bytes=349; ch=PDSCH rnti=b7f4 mcs=22 tbs=349
+DL      232.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      232.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+UL      231.17 PRB -              (  0)  symbols -        max  None dB  ch=PUSCH rnti=b7f4 rb=[0, 59] sym=[10, 12] mcs=0
+DL      232.14 PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=b7f4 bytes=349; ch=PDSCH rnti=b7f4 mcs=22 tbs=349
+UL      232.8  PRB 0-105          (106)  symbols 13       max  54.2 dB  
+DL      234.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      234.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+MAC-UL  234.1  PRB -              (  0)  symbols -        max  None dB  ch=PUSCH-sched rnti=b7f4 mcs=0 tbs=4
+MAC-UL  234.11 PRB -              (  0)  symbols -        max  None dB  ch=PUSCH-sched rnti=b7f4 mcs=0 tbs=4
+UL      234.7  PRB -              (  0)  symbols -        max  None dB  ch=PUSCH rnti=b7f4 rb=[0, 4] sym=[10, 12] mcs=0
+MAC-UL  235.1  PRB -              (  0)  symbols -        max  None dB  ch=PUSCH-sched rnti=b7f4 mcs=1 tbs=14
+UL      234.17 PRB -              (  0)  symbols -        max  None dB  ch=PUSCH rnti=b7f4 rb=[0, 4] sym=[10, 12] mcs=0
+MAC-UL  235.11 PRB -              (  0)  symbols -        max  None dB  ch=PUSCH-sched rnti=b7f4 mcs=1 tbs=14
+UL      235.7  PRB -              (  0)  symbols -        max  None dB  ch=PUSCH rnti=b7f4 rb=[0, 12] sym=[10, 12] mcs=1
+DL      236.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      236.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+MAC-UL  236.1  PRB -              (  0)  symbols -        max  None dB  ch=PUSCH-sched rnti=b7f4 mcs=1 tbs=14
+UL      235.17 PRB -              (  0)  symbols -        max  None dB  ch=PUSCH rnti=b7f4 rb=[0, 12] sym=[10, 12] mcs=1
+UL      236.7  PRB -              (  0)  symbols -        max  None dB  ch=PUSCH rnti=b7f4 rb=[0, 12] sym=[10, 12] mcs=1
+DL      238.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      238.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      240.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      240.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+UL      240.7  PRB -              (  0)  symbols -        max  None dB  ch=PUCCH rnti=b7f4 snr_db=0.0
+UL      240.8  PRB -              (  0)  symbols -        max -30.0 dB  ch=PUCCH rnti=b7f4 snr_db=0.0
+DL      242.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      242.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      244.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      244.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      246.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      246.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      248.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      248.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      250.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      250.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      252.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      252.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      254.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      254.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      256.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      256.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      258.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      258.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      260.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      260.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      262.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      262.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      264.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      264.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      266.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      266.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      268.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      268.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      270.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      270.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      272.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      272.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      274.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      274.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      276.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      276.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      278.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      278.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      280.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      280.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      282.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      282.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      284.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      284.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      286.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      286.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      288.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      288.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      290.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      290.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      292.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      292.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      294.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      294.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      296.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      296.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      298.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      298.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      300.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      300.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      302.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      302.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      304.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      304.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      306.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      306.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      308.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      308.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      310.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      310.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      312.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      312.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      314.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      314.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      316.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      316.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      318.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      318.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      320.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      320.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      322.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      322.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      324.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      324.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      326.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      326.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      328.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      328.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      330.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      330.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      332.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      332.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      334.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      334.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      336.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      336.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      338.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      338.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      340.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      340.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      342.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      342.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      344.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      344.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      346.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      346.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      348.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      348.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      350.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      350.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      352.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      352.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      354.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      354.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      356.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      356.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      358.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      358.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      360.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      360.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      362.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      362.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      364.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      364.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      366.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      366.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      368.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      368.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      370.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      370.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      372.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      372.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      374.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      374.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      376.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      376.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      378.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      378.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      380.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      380.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      382.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      382.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      384.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      384.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      386.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      386.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      388.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      388.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      390.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      390.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      392.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      392.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      394.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      394.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      396.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      396.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      398.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      398.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      400.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      400.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      402.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      402.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      404.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      404.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      406.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      406.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      408.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      408.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      410.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      410.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      412.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      412.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      414.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      414.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      416.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      416.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      418.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      418.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      420.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      420.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      422.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      422.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      424.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      424.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      426.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      426.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      428.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      428.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      430.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      430.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      432.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      432.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      434.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      434.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      436.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      436.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      438.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      438.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      440.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      440.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      442.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      442.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      444.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      444.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      446.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      446.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      448.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      448.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      450.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      450.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      452.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      452.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      454.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      454.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      456.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      456.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      458.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      458.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      460.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      460.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      462.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      462.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      464.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      464.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      466.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      466.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      468.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      468.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      470.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      470.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      472.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      472.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      474.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      474.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      476.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      476.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      478.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      478.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      480.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      480.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      482.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      482.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      484.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      484.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      486.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      486.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      488.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      488.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      490.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      490.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      492.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      492.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      494.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      494.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      496.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      496.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      498.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      498.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      500.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      500.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      502.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      502.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      504.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      504.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      506.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      506.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      508.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      508.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      510.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      510.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      512.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      512.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      514.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      514.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      516.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      516.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      518.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      518.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      520.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      520.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      522.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      522.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      524.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      524.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      526.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      526.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      528.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      528.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      530.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      530.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      532.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      532.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      534.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      534.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      536.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      536.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      538.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      538.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      540.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      540.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+DL      542.0  PRB -              (  0)  symbols -        max  None dB  ch=SSB/PBCH
+DL      542.1  PRB -              (  0)  symbols -        max  None dB  ch=DL-PDU rnti=ffff bytes=98
+UL      541.19 PRB -              (  0)  symbols -        max  None dB  ch=PRACH preamble=1 energy_db=60.5 delay=0
+DL      542.7  PRB -              (  0)  symbols -        max -30.0 dB  
+DL      542.10 PRB 29-40,53-64    ( 24)  symbols 0-13     max  51.3 dB  ch=RAR rnti=056b bytes=28
+DL      542.11 PRB -              (  0)  symbols -        max -30.0 dB  
+DL      542.12 PRB -              (  0)  symbols -        max -30.0 dB  
+DL      542.13 PRB -              (  0)  symbols -        max -30.0 dB  
+DL      542.14 PRB -              (  0)  symbols -        max -30.0 dB  
+DL      542.15 PRB -              (  0)  symbols -        max -30.0 dB  
+DL      542.16 PRB -              (  0)  symbols -        max -30.0 dB  
+DL      542.17 PRB -              (  0)  symbols -        max -30.0 dB  
+DL      543.0  PRB -              (  0)  symbols -        max -30.0 dB  
+DL      543.1  PRB -              (  0)  symbols -        max -30.0 dB  
+DL      543.2  PRB -              (  0)  symbols -        max -30.0 dB  
+DL      543.3  PRB -              (  0)  symbols -        max -30.0 dB  
+DL      543.4  PRB -              (  0)  symbols -        max -30.0 dB  
+DL      543.5  PRB -              (  0)  symbols -        max -30.0 dB  
+UL      542.19 PRB -              (  0)  symbols -        max  None dB  ch=PUSCH rnti=dc7a rb=[0, 7] sym=[0, 12] mcs=1
+DL      543.6  PRB -              (  0)  symbols -        max -30.0 dB  
+DL      543.7  PRB -              (  0)  symbols -        max -30.0 dB  
+DL      543.10 PRB 29-76          ( 48)  symbols 0-13     max  51.3 dB  ch=DL-PDU rnti=dc7a bytes=225
+DL      543.11 PRB -              (  0)  symbols -        max -30.0 dB  
+DL      543.12 PRB -              (  0)  symbols -        max -30.0 dB  
+DL      543.13 PRB -              (  0)  symbols -        max -30.0 dB  
+DL      543.14 PRB -              (  0)  symbols -        max -30.0 dB  
+DL      543.15 PRB -              (  0)  symbols -        max -30.0 dB  
+DL      543.16 PRB -              (  0)  symbols -        max -30.0 dB  
+DL      543.17 PRB -              (  0)  symbols -        max -30.0 dB  
+DL      544.0  PRB 43-62          ( 20)  symbols 8-11     max  51.3 dB  ch=SSB/PBCH
+DL      544.1  PRB 29-68          ( 40)  symbols 0,2-11   max  51.3 dB  ch=DL-PDU rnti=ffff bytes=98
+DL      544.2  PRB -              (  0)  symbols -        max -30.0 dB  
+DL      544.3  PRB -              (  0)  symbols -        max -30.0 dB  
+DL      544.4  PRB -              (  0)  symbols -        max -30.0 dB  
+DL      544.5  PRB -              (  0)  symbols -        max -30.0 dB  
+DL      544.6  PRB -              (  0)  symbols -        max -30.0 dB  
+DL      544.7  PRB -              (  0)  symbols -        max -30.0 dB  
+DL      544.10 PRB -              (  0)  symbols -        max -30.0 dB  
+MAC-UL  544.11 PRB -              (  0)  symbols -        max  None dB  ch=PUSCH-sched rnti=dc7a mcs=0 tbs=3
+DL      544.11 PRB 29-40,53-64    ( 24)  symbols 0        max  51.3 dB  
+DL      544.12 PRB -              (  0)  symbols -        max -30.0 dB  
+DL      544.13 PRB -              (  0)  symbols -        max -30.0 dB  
+DL      544.14 PRB -              (  0)  symbols -        max -30.0 dB  
+DL      544.15 PRB -              (  0)  symbols -        max -30.0 dB  
+DL      544.16 PRB -              (  0)  symbols -        max -30.0 dB  
+DL      544.17 PRB -              (  0)  symbols -        max -30.0 dB  
+DL      545.0  PRB -              (  0)  symbols -        max -30.0 dB  
+DL      545.1  PRB -              (  0)  symbols -        max -30.0 dB  
+DL      545.2  PRB -              (  0)  symbols -        max -30.0 dB  
+DL      545.3  PRB -              (  0)  symbols -        max -30.0 dB  
+UL      544.17 PRB -              (  0)  symbols -        max  None dB  ch=PUSCH rnti=dc7a rb=[0, 4] sym=[10, 12] mcs=0
+DL      545.4  PRB -              (  0)  symbols -        max -30.0 dB  
+DL      545.5  PRB -              (  0)  symbols -        max -30.0 dB  
+DL      545.6  PRB -              (  0)  symbols -        max -30.0 dB  
+DL      545.7  PRB -              (  0)  symbols -        max -30.0 dB  
+DL      545.10 PRB -              (  0)  symbols -        max -30.0 dB  
+MAC-UL  545.11 PRB -              (  0)  symbols -        max  None dB  ch=PUSCH-sched rnti=dc7a mcs=0 tbs=76
+DL      545.11 PRB 29-40,53-64    ( 24)  symbols 0        max  51.3 dB  
+DL      545.12 PRB -              (  0)  symbols -        max -30.0 dB  
+DL      545.13 PRB -              (  0)  symbols -        max -30.0 dB  
+DL      545.14 PRB -              (  0)  symbols -        max -30.0 dB  
+DL      545.15 PRB -              (  0)  symbols -        max -30.0 dB  
+DL      545.16 PRB -              (  0)  symbols -        max -30.0 dB  
+DL      545.17 PRB -              (  0)  symbols -        max -30.0 dB  
+DL      546.0  PRB 43-62          ( 20)  symbols 8-11     max  51.3 dB  ch=SSB/PBCH
+DL      546.1  PRB 29-68          ( 40)  symbols 0,2-11   max  51.3 dB  ch=DL-PDU rnti=ffff bytes=98
+MAC-UL  546.2  PRB -              (  0)  symbols -        max  None dB  ch=PUSCH-sched rnti=dc7a mcs=0 tbs=17
+DL      546.2  PRB 29-40,53-64    ( 24)  symbols 0        max  51.3 dB  
+DL      546.3  PRB -              (  0)  symbols -        max -30.0 dB  
+DL      546.4  PRB -              (  0)  symbols -        max -30.0 dB  
+DL      546.5  PRB -              (  0)  symbols -        max -30.0 dB  
+DL      546.6  PRB -              (  0)  symbols -        max -30.0 dB  
+UL      545.17 PRB -              (  0)  symbols -        max  None dB  ch=PUSCH rnti=dc7a rb=[0, 103] sym=[10, 12] mcs=0
+DL      546.7  PRB -              (  0)  symbols -        max -30.0 dB  

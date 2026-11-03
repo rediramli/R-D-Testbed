@@ -31,6 +31,7 @@ Teaching material built on these experiments (theory, formulas, worked examples,
 | 0b | SINR to CQI/MCS curve (noise sweep) | yes | Done 2026-10-14: SINR falls 2 dB per dB of the noise setting; CQI 1-2 below typical under 18 dB | [EXP-00, part 0b](EXP-00-downlink-noise.md#experiment-0b-sinr-to-cqimcs-curve-noise-sweep-2026-10-14) |
 | 0c | Link capacity vs single-flow TCP throughput | yes | Done 2026-10-14: the link carries 87.5 Mbit/s at MCS 28, one TCP flow 50-55 | [EXP-00, part 0c](EXP-00-downlink-noise.md#experiment-0c-link-capacity-vs-single-flow-tcp-2026-10-14) |
 | 1 | Carrier bandwidth (PRB count) and capacity | yes | Done 2026-10-14: 24/51/106/273 PRB carry 18.1/43.3/87.5/226.5 Mbit/s; proportional from 51 PRB up | [EXP-01](EXP-01-bandwidth.md) |
+| 1b | Resource grid, live: occupied PRBs and symbols per slot, random access | yes | G1 done 2026-11-03: SSB at the predicted PRB 43-62, PDSCH/PUSCH match the labels, Msg1-Msg4 seen; G2-G4 next | [EXP-01b](EXP-01b-resource-grid.md) |
 | 2 | Carrier placement: ARFCN and centre frequency | yes (configuration only) | Planned | |
 | 3 | TDD DL/UL pattern and the throughput split | yes | Planned | |
 | 4 | Paired spectrum (FDD) operation | yes (FDD band configuration) | Planned | |
