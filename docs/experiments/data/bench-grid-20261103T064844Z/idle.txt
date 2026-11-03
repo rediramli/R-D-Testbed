@@ -1,0 +1,35 @@
+T_messages.txt md5 f09c4e4669eeec4be2ef68844e17b00e; 40 messages, 3.3 MB in 0.02 s; 33 DL and 1 UL slot grids
+DL      142.15 PRB -              (  0)  symbols -        max -30.0 dB  
+DL      142.16 PRB -              (  0)  symbols -        max -30.0 dB  
+DL      142.17 PRB -              (  0)  symbols -        max -30.0 dB  
+DL      143.0  PRB -              (  0)  symbols -        max -30.0 dB  
+DL      143.1  PRB -              (  0)  symbols -        max -30.0 dB  
+DL      143.2  PRB -              (  0)  symbols -        max -30.0 dB  
+DL      143.3  PRB -              (  0)  symbols -        max -30.0 dB  
+DL      143.4  PRB -              (  0)  symbols -        max -30.0 dB  
+DL      143.5  PRB -              (  0)  symbols -        max -30.0 dB  
+DL      143.6  PRB -              (  0)  symbols -        max -30.0 dB  
+DL      143.7  PRB -              (  0)  symbols -        max -30.0 dB  
+DL      143.10 PRB -              (  0)  symbols -        max -30.0 dB  
+DL      143.11 PRB -              (  0)  symbols -        max -30.0 dB  
+DL      143.12 PRB -              (  0)  symbols -        max -30.0 dB  
+DL      143.13 PRB -              (  0)  symbols -        max -30.0 dB  
+DL      143.14 PRB -              (  0)  symbols -        max -30.0 dB  
+DL      143.15 PRB -              (  0)  symbols -        max -30.0 dB  
+DL      143.16 PRB -              (  0)  symbols -        max -30.0 dB  
+DL      143.17 PRB -              (  0)  symbols -        max -30.0 dB  
+DL      144.0  PRB 0-105          (106)  symbols 8-11,13  max  51.3 dB  ch=SSB/PBCH
+DL      144.1  PRB 29-68          ( 40)  symbols 0,2-11   max  51.3 dB  ch=DL-PDU rnti=ffff bytes=98
+DL      144.2  PRB -              (  0)  symbols -        max -30.0 dB  
+DL      144.3  PRB -              (  0)  symbols -        max -30.0 dB  
+DL      144.4  PRB -              (  0)  symbols -        max -30.0 dB  
+DL      144.5  PRB -              (  0)  symbols -        max -30.0 dB  
+DL      144.6  PRB -              (  0)  symbols -        max -30.0 dB  
+DL      144.7  PRB -              (  0)  symbols -        max -30.0 dB  
+DL      144.10 PRB -              (  0)  symbols -        max -30.0 dB  
+DL      144.11 PRB -              (  0)  symbols -        max -30.0 dB  
+DL      144.12 PRB -              (  0)  symbols -        max -30.0 dB  
+DL      144.13 PRB -              (  0)  symbols -        max -30.0 dB  
+DL      144.14 PRB -              (  0)  symbols -        max -30.0 dB  
+UL      144.8  PRB 0-105          (106)  symbols 13       max  54.2 dB  
+DL      144.15 PRB -              (  0)  symbols -        max -30.0 dB  

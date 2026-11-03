@@ -1,0 +1,20 @@
+T_messages.txt md5 f09c4e4669eeec4be2ef68844e17b00e; 52 messages, 2.1 MB in 0.01 s; 17 DL and 1 UL slot grids
+DL       29.10 PRB 0-105          (106)  symbols 0-13     max  53.6 dB  ch=DL-PDU rnti=dc7a bytes=10497; ch=PDSCH rnti=dc7a mcs=28 tbs=10497
+DL       29.11 PRB 0-105          (106)  symbols 0-13     max  53.1 dB  ch=DL-PDU rnti=dc7a bytes=10497; ch=PDSCH rnti=dc7a mcs=28 tbs=10497
+DL       29.12 PRB -              (  0)  symbols -        max -30.0 dB  
+DL       29.13 PRB -              (  0)  symbols -        max -30.0 dB  
+DL       29.14 PRB 0-105          (106)  symbols 0-13     max  53.3 dB  ch=DL-PDU rnti=dc7a bytes=10497; ch=PDSCH rnti=dc7a mcs=28 tbs=10497
+UL       29.8  PRB 0-105          (106)  symbols 13       max  54.2 dB  
+DL       29.15 PRB 0-105          (106)  symbols 0-13     max  53.1 dB  ch=DL-PDU rnti=dc7a bytes=10497; ch=PDSCH rnti=dc7a mcs=28 tbs=10497
+DL       29.16 PRB 0-105          (106)  symbols 0-13     max  53.2 dB  ch=DL-PDU rnti=dc7a bytes=10497; ch=PDSCH rnti=dc7a mcs=28 tbs=10497
+DL       29.17 PRB 0-105          (106)  symbols 0-5      max  53.2 dB  ch=DL-PDU rnti=dc7a bytes=3969; ch=PDSCH rnti=dc7a mcs=28 tbs=3969
+DL       30.0  PRB 0-71           ( 72)  symbols 0-13     max  53.3 dB  ch=DL-PDU rnti=dc7a bytes=4352; ch=PDSCH rnti=dc7a mcs=28 tbs=4352; ch=SSB/PBCH
+DL       30.1  PRB 29-68,72-83    ( 52)  symbols 0,2-11   max  51.3 dB  ch=DL-PDU rnti=ffff bytes=98
+MAC-UL   30.1  PRB -              (  0)  symbols -        max  None dB  ch=PUSCH-sched rnti=dc7a mcs=28 tbs=106
+DL       30.2  PRB 0-105          (106)  symbols 0-13     max  53.3 dB  ch=DL-PDU rnti=dc7a bytes=10497; ch=PDSCH rnti=dc7a mcs=28 tbs=10497
+DL       30.3  PRB -              (  0)  symbols -        max -30.0 dB  
+DL       30.4  PRB 0-105          (106)  symbols 0-13     max  53.1 dB  ch=DL-PDU rnti=dc7a bytes=10497; ch=PDSCH rnti=dc7a mcs=28 tbs=10497
+DL       30.5  PRB 0-105          (106)  symbols 0-13     max  53.3 dB  ch=DL-PDU rnti=dc7a bytes=10497; ch=PDSCH rnti=dc7a mcs=28 tbs=10497
+DL       30.6  PRB 0-105          (106)  symbols 0-13     max  53.2 dB  ch=DL-PDU rnti=dc7a bytes=10497; ch=PDSCH rnti=dc7a mcs=28 tbs=10497
+DL       30.7  PRB 0-105          (106)  symbols 0-5      max  53.1 dB  ch=DL-PDU rnti=dc7a bytes=3969; ch=PDSCH rnti=dc7a mcs=28 tbs=3969
+DL       30.10 PRB 0-105          (106)  symbols 0-13     max  53.5 dB  ch=DL-PDU rnti=dc7a bytes=10497; ch=PDSCH rnti=dc7a mcs=28 tbs=10497
