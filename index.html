@@ -841,11 +841,13 @@ aside#drawer pre { background: #fbfcfd; font-size: 11.5px; }
             </div>
             <div class="xbtns">
               <button id="gSnap" type="button" disabled>Snapshot</button>
+              <label class="xmsg" title="Takes a new 20-slot snapshot about every 5 s while this page is open, so changes (UE on/off, a speed test) show up by themselves"><input id="gLive" type="checkbox" disabled> Live</label>
               <button id="gUeStop" type="button" disabled title="The attach capture needs a stopped UE">UE Stop</button>
               <button id="gRa" type="button" disabled title="Arms the capture and starts the UE: its random access is recorded">Capture attach</button>
               <span id="gMsg" class="xmsg" role="status"></span>
             </div>
-            <p class="xnote">Idle cell: press Snapshot. Traffic: start a UDP test, wait 10 s, Snapshot. Attach: UE Stop, wait until it has gone, then Capture attach (about 30 s).
+            <p class="xnote">The grid changes only with a new capture: press Snapshot, or tick Live for a new 20-slot snapshot about every 5 s (then UE on/off or a speed test shows up by itself).
+              Traffic: start a UDP test, wait 10 s, Snapshot. Attach: UE Stop, wait until it has gone, then Capture attach (about 30 s); the toolbar UE Start does not record the attach.
               The uplink grid is traced only in slots with slot&nbsp;mod&nbsp;4&nbsp;=&nbsp;0 (slot 8 here; an OAI limitation); the uplink labels are there for every slot.</p>
           </div>
           <div class="xcard">
@@ -1773,7 +1775,7 @@ $("e1Rec").onclick = async () => {
   pollExpRows();
 };
 // Experiment 1b page (G3): resource grid snapshots and the random access, from the grid relay through /api/grid
-let gData = null, gStatus = null, gSel = null, gLastKey = null, gCols = [];
+let gData = null, gStatus = null, gSel = null, gLastKey = null, gCols = [], gLiveAt = 0;
 const G_CW = 3, G_CH = 2, G_HEAD = 30, G_LEFT = 34;          // px per symbol, per PRB; header and PRB axis
 const G_DL = [42, 120, 214], G_UL = [235, 104, 52];
 const gOn = v => v > 10;                                    // whole dB; empty REs come as about -30
@@ -1928,9 +1930,10 @@ async function gFetchResult() {
     const r = await fetch("api/grid/result", {cache: "no-store"});
     if (!r.ok) return;
     gData = await r.json(); gCols = gBuild(gData);
+    const live = $("gLive").checked && gData.kind === "snapshot";
     const pick = ["PRACH", "SSB/PBCH", "PUSCH", "PDSCH"].map(ch => gCols.findIndex(c => c.labels.some(l => l.ch === ch))).find(i => i >= 0);
-    gSel = pick ?? null; gRender();
-    if (pick !== undefined) $("gScroll").scrollLeft = Math.max(0, G_LEFT + (pick - 2) * 14 * G_CW);   // show the first telling slot
+    gSel = live ? (gSel !== null && gSel < gCols.length ? gSel : pick ?? null) : pick ?? null; gRender();
+    if (!live && pick !== undefined) $("gScroll").scrollLeft = Math.max(0, G_LEFT + (pick - 2) * 14 * G_CW);   // show the first telling slot
   } catch (e) {}
 }
 async function pollGrid() {
@@ -1943,6 +1946,8 @@ async function pollGrid() {
   $("gLast").textContent = run ? `running (${j.kind})…` : j && j.state === "failed" ? `failed: ${j.error}` : l ? `${l.kind}${l.time_utc ? " · " + new Date(l.time_utc).toLocaleTimeString([], {hour12: false}) : ""}` : "none";
   const can = unlocked && gStatus.available && gStatus.tracer && !run && gStatus.prb && gStatus.prb <= 106;
   $("gSnap").disabled = !can; $("gRa").disabled = !can; $("gUeStop").disabled = !unlocked;
+  $("gLive").disabled = !(unlocked && gStatus.available && gStatus.tracer);
+  if ($("gLive").checked && can && Date.now() - gLiveAt > 4500) { gLiveAt = Date.now(); gPost("snapshot", 20, true); }
   const t = c.targets || {};
   document.querySelectorAll("#gTests button").forEach(b => {
     const dep = {"speed-dl-udp": "speedtest-dl-udp", "speed-ul-udp": "speedtest-ul-udp"}[b.dataset.x];
@@ -1952,16 +1957,20 @@ async function pollGrid() {
   if (!run && key && key !== gLastKey) { gLastKey = key; await gFetchResult(); }
   else if (!gData && !run && l) await gFetchResult();
 }
-async function gPost(action) {
-  $("gMsg").textContent = "…"; $("gMsg").className = "xmsg";
+async function gPost(action, slots, live) {
+  if (!live) { $("gMsg").textContent = "…"; $("gMsg").className = "xmsg"; }
   try {
-    const r = await fetch("api/grid", {method: "POST", headers: {"Content-Type": "application/json", "X-Admin-Key": adminKey}, body: JSON.stringify({action, slots: Number($("gSlots").value)})});
-    const d = await r.json(); $("gMsg").textContent = d.msg; $("gMsg").className = "xmsg " + (d.ok ? "ok" : "bad");
+    const r = await fetch("api/grid", {method: "POST", headers: {"Content-Type": "application/json", "X-Admin-Key": adminKey}, body: JSON.stringify({action, slots: slots || Number($("gSlots").value)})});
+    const d = await r.json();
+    if (live && d.ok) { $("gMsg").textContent = "Live: new snapshot every ~5 s"; $("gMsg").className = "xmsg ok"; }
+    else { $("gMsg").textContent = d.msg; $("gMsg").className = "xmsg " + (d.ok ? "ok" : "bad"); }
+    if (live && !d.ok) $("gLive").checked = false;
     if (r.status === 401) { adminKey = ""; try { sessionStorage.removeItem("fctAdminKey"); } catch (e) {} renderControls(latest && latest.controls); }
   } catch (e) { $("gMsg").textContent = "No contact with the dashboard backend."; $("gMsg").className = "xmsg bad"; }
   gLastKey = "pending"; pollGrid();
 }
 $("gSnap").onclick = () => gPost("snapshot");
+$("gLive").onchange = () => { gLiveAt = 0; if ($("gLive").checked) pollGrid(); else { $("gMsg").textContent = "Live off"; $("gMsg").className = "xmsg"; } };
 $("gRa").onclick = () => gPost("ra");
 $("gUeStop").onclick = () => expAct("ue-stop", "gMsg");
 document.querySelectorAll("#gTests button").forEach(b => b.onclick = () => expAct(b.dataset.x, "gMsg"));

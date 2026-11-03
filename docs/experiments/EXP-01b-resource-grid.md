@@ -120,7 +120,9 @@ does not fit the T buffer and the gNB would abort. In mock mode the API answers 
   symbols 9-11.
 - Random access: Msg1 to Msg4 with slot and time from the PRACH (+5.5, +10, +15.5 ms on the bench).
 - Table view of all slots and labels.
-- Controls (admin key): UDP DL/UL and Stop (to fill the grid), Snapshot (20/40/80 slots), UE Stop, Capture attach.
+- Controls (admin key): UDP DL/UL and Stop (to fill the grid), Snapshot (20/40/80 slots), Live (a new 20-slot snapshot
+  about every 5 s, so UE on/off or a speed test shows up by itself), UE Stop, Capture attach. The grid changes only with a
+  new capture; the toolbar UE Start does not record the attach (use Capture attach).
 
 Install on the bench (once): `sudo MODE=apply bash infra/dash/dash.sh` (page, API, Secret mount), then
 `MODE=apply bash infra/dash/grid.sh` (relay). Live captures need the tracer: `sudo MODE=on bash infra/exp/exp01b-grid.sh`;
