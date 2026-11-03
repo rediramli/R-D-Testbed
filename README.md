@@ -30,8 +30,6 @@ Radio configuration: n78, 40 MHz (106 PRB), 30 kHz SCS, TDD 7 DL / 3 UL slots pe
 
 ### Bench testbed (being rebuilt, 2026-10)
 
-The testbed is being moved to dedicated bench machines on their own LAN (`10.42.0.0/24`, TL-SG105 switch, no link to the lab network).
-Everything needed to rebuild it is in `infra/`; secrets stay on the machines.
 
 | Host | Address | Role | Status |
 |---|---|---|---|
