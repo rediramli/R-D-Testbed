@@ -121,10 +121,19 @@ check)
   capture idle --slots 40 && ok "capture idle" || bad "capture idle failed: $(tail -1 "$OUT/idle.txt")"
   read s0 s1 < <(ssb_prbs); echo "  info  SSB expected at PRB $s0-$s1 (from absoluteFrequencySSB and point A in gnb.yaml)"
   rows idle '
-r = d["rows"]; dl = [x for x in r if x["dir"] == "dl" and x["nPrb"]]; mib = [x for x in r if any(l["ch"] == "SSB/PBCH" for l in x["labels"])]
-print("  info  %d DL slots with energy; SSB/PBCH in %s" % (len(dl), ", ".join("%d.%d PRB %s symbols %s" % (x["frame"], x["slot"], x["prbs"], x["symbols"]) for x in mib) or "none"))
-# a slot with SSB and PDSCH shows all PRBs occupied, so one SSB slot at exactly the predicted PRBs is enough
-sys.exit(0 if any(x["prbs"] == "%s-%s" % tuple(sys.argv[3:5]) for x in mib) else 1)' "$s0" "$s1" && ok "idle: SSB/PBCH at the PRBs predicted from the configuration ($s0-$s1)" || bad "idle: SSB/PBCH not at PRB $s0-$s1"
+want = "%s-%s" % tuple(sys.argv[3:5])
+mib = {(x["frame"], x["slot"]) for x in d["rows"] if any(l["ch"] == "SSB/PBCH" for l in x["labels"])}
+hit = []
+for g in d["grids"]:
+    if g["dir"] != "dl" or (g["frame"], g["slot"]) not in mib: continue
+    db = g["db"]; top = max(max(r) for r in db)
+    for s in range(14):    # per symbol: CSI-RS (symbol 13) or PDSCH in the same slot must not hide the SSB block
+        occ = [p for p in range(len(db)) if db[p][s] > max(top - 60, 0)]
+        if occ:
+            print("  info  %d.%d symbol %2d: PRB %d-%d (%d PRB)" % (g["frame"], g["slot"], s, occ[0], occ[-1], len(occ)))
+            if "%d-%d" % (occ[0], occ[-1]) == want and len(occ) == occ[-1] - occ[0] + 1: hit.append(s)
+print("  info  SSB/PBCH slots: %d; symbols with exactly PRB %s: %s" % (len(mib), want, hit or "none"))
+sys.exit(0 if hit else 1)' "$s0" "$s1" && ok "idle: SSB/PBCH block at the PRBs predicted from the configuration ($s0-$s1)" || bad "idle: no SSB symbol at PRB $s0-$s1"
   echo "== G1b UDP downlink: PDSCH"
   start speed-dl-udp && ok "UDP DL started" || bad "UDP DL not started"
   sleep 12

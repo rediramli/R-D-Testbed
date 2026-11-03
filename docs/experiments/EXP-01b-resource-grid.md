@@ -36,15 +36,25 @@ No MAC payload is kept or printed (it can hold NAS identities); only sizes and s
 with the capture armed), `MODE=off` (gNB without T, firewall and boot unit removed).
 
 ## Results (2026-11-03, 106 PRB, TDD 7 DL / 1 mixed (6 DL + 4 UL symbols) / 2 UL slots, noise off)
-Data: [bench-grid-20261103T063124Z](data/bench-grid-20261103T063124Z) (idle, UL; DL captured again by hand after a
-clashing run), [bench-grid-ra-20261103T063206Z](data/bench-grid-ra-20261103T063206Z) (random access).
+Data: [bench-grid-20261103T064844Z](data/bench-grid-20261103T064844Z) (one `MODE=check` run on its own: idle, UDP DL,
+UDP UL), [bench-grid-ra-20261103T063206Z](data/bench-grid-ra-20261103T063206Z) (random access).
 
 | Case | What the grid shows |
 |---|---|
-| Idle cell | SSB/PBCH in slot 0 every 20 ms: PRB 43-62, symbols 8-11. Slot 1: PDCCH (symbol 0) and SIB1 PDSCH (symbols 2-11) on PRB 29-68. Most DL slots empty |
+| Idle cell | SSB in slot 0 every 20 ms on PRB 43-62, symbols 8-11 (table below); CSI-RS across PRB 0-105 on symbol 13, 11 dB weaker. Slot 1: PDCCH (symbol 0) and SIB1 PDSCH (symbols 2-11) on PRB 29-68. Most DL slots empty |
 | UDP DL | PDSCH on PRB 0-105, symbols 0-13 in DL slots, symbols 0-5 in the mixed slot; MCS 26-28, TBS 9737-10497 bytes per slot |
 | UDP UL | PUSCH on PRB 0-105, symbols 0-12 in UL slot 8, matching the label `rb=[0,105] sym=[0,12]`; symbol 13 left for PUCCH/SRS |
 | UL slot without PUSCH | one symbol (13) occupied across the carrier (hypothesis: SRS) |
+
+The SSB as the grid shows it (slot 144.0, idle), the textbook structure of TS 38.211 Section 7.4.3.1:
+
+| Symbol | PRB | Content |
+|---|---|---|
+| 8 | 47-58 (12 PRB) | PSS (127 subcarriers) |
+| 9 | 43-62 (20 PRB) | PBCH |
+| 10 | 43-62 | SSS on the middle 12 PRB, PBCH on the edges (edges 6 dB weaker) |
+| 11 | 43-62 (20 PRB) | PBCH |
+| 13 | 0-105 | CSI-RS (`do_CSIRS: 1` on the bench), not part of the SSB |
 
 Random access (UE restart; two runs, the same pattern):
 
@@ -75,7 +85,10 @@ Msg4, and later SR and CSI once the UE is connected.
    the T options in the Deployment and without the iptables rules: port 2021 was open on the bench LAN, campus WiFi and
    Tailscale until 2026-11-03 (found and closed then; no client was connected at that moment). Since then `MODE=on`
    installs a boot unit that restores the rules before k3s, and every mode fails if T is on without the rules.
-7. **One client only.** The tracer accepts one client at a time; three modes run in parallel failed with
+7. **Check per symbol.** The first SSB check took the PRBs occupied in any symbol of the SSB slot; CSI-RS on symbol 13
+   (or PDSCH in the same slot) made that the whole carrier. The check now looks for a symbol whose occupied PRBs are
+   exactly the predicted block (symbols 9-11 here).
+8. **One client only.** The tracer accepts one client at a time; three modes run in parallel failed with
    `Connection refused` and restarted the UE under each other. Run one mode at a time.
 
 ## Open (G2-G4)
@@ -83,4 +96,6 @@ Msg4, and later SR and CSI once the UE is connected.
   dashboard (no sudo for captures; the firewall stays).
 - G3: dashboard page: DL and UL grid per slot (PRB x symbol), slot player, labels SSB/PDCCH/PDSCH/PRACH/PUSCH/PUCCH.
 - G4: training module and exercises (SSB position from the ARFCNs, RA timeline, PDSCH vs MCS).
-- Verify the SRS hypothesis for symbol 13 from the gNB configuration.
+- Verify the SRS hypothesis for UL symbol 13 from the gNB configuration.
+- One capture (run 063157Z) had a `GNB_PHY_MIB` label in slot 656.0 whose grid held only CSI-RS; the SSB was in 658.0.
+  Find out whether the MIB event and the DL grid can refer to different slots.

@@ -1,0 +1,115 @@
+T_messages.txt md5 f09c4e4669eeec4be2ef68844e17b00e; 172 messages, 8.8 MB in 0.03 s; 65 DL and 4 UL slot grids
+MAC-UL  760.13 PRB -              (  0)  symbols -        max  None dB  ch=PUSCH-sched rnti=dc7a mcs=28 tbs=10247
+DL      760.13 PRB 24-35          ( 12)  symbols 0        max  51.3 dB  
+UL      760.7  PRB -              (  0)  symbols -        max  None dB  ch=PUSCH rnti=dc7a rb=[0, 105] sym=[10, 12] mcs=28
+DL      760.14 PRB -              (  0)  symbols -        max -30.0 dB  
+UL      760.8  PRB 0-105          (106)  symbols 0-13     max  54.2 dB  ch=PUSCH rnti=dc7a rb=[0, 105] sym=[0, 12] mcs=28
+DL      760.15 PRB 0-11           ( 12)  symbols 0-13     max  52.9 dB  ch=DL-PDU rnti=dc7a bytes=496; ch=PDSCH rnti=dc7a mcs=28 tbs=496
+DL      760.16 PRB -              (  0)  symbols -        max -30.0 dB  
+UL      760.9  PRB -              (  0)  symbols -        max  None dB  ch=PUSCH rnti=dc7a rb=[0, 105] sym=[0, 12] mcs=28
+DL      760.17 PRB -              (  0)  symbols -        max -30.0 dB  
+DL      761.0  PRB -              (  0)  symbols -        max -30.0 dB  
+MAC-UL  761.1  PRB -              (  0)  symbols -        max  None dB  ch=PUSCH-sched rnti=dc7a mcs=28 tbs=2178
+DL      761.1  PRB 24-35          ( 12)  symbols 0        max  51.3 dB  
+MAC-UL  761.2  PRB -              (  0)  symbols -        max  None dB  ch=PUSCH-sched rnti=dc7a mcs=28 tbs=10247
+DL      761.2  PRB 36-47          ( 12)  symbols 0        max  51.3 dB  
+MAC-UL  761.3  PRB -              (  0)  symbols -        max  None dB  ch=PUSCH-sched rnti=dc7a mcs=28 tbs=10247
+DL      761.3  PRB 72-83          ( 12)  symbols 0        max  51.3 dB  
+DL      761.4  PRB -              (  0)  symbols -        max -30.0 dB  
+DL      761.5  PRB -              (  0)  symbols -        max -30.0 dB  
+DL      761.6  PRB -              (  0)  symbols -        max -30.0 dB  
+UL      760.17 PRB -              (  0)  symbols -        max  None dB  ch=PUSCH rnti=dc7a rb=[0, 105] sym=[10, 12] mcs=28
+UL      760.18 PRB -              (  0)  symbols -        max  None dB  ch=PUSCH rnti=dc7a rb=[0, 105] sym=[0, 12] mcs=28
+DL      761.7  PRB -              (  0)  symbols -        max -30.0 dB  
+UL      760.19 PRB -              (  0)  symbols -        max  None dB  ch=PUSCH rnti=dc7a rb=[0, 105] sym=[0, 12] mcs=28
+DL      761.10 PRB -              (  0)  symbols -        max -30.0 dB  
+MAC-UL  761.11 PRB -              (  0)  symbols -        max  None dB  ch=PUSCH-sched rnti=dc7a mcs=28 tbs=2178
+DL      761.11 PRB 60-71          ( 12)  symbols 0        max  51.3 dB  
+MAC-UL  761.12 PRB -              (  0)  symbols -        max  None dB  ch=PUSCH-sched rnti=dc7a mcs=28 tbs=10247
+DL      761.12 PRB 60-71          ( 12)  symbols 0        max  51.3 dB  
+MAC-UL  761.13 PRB -              (  0)  symbols -        max  None dB  ch=PUSCH-sched rnti=dc7a mcs=28 tbs=7813
+DL      761.13 PRB 24-35          ( 12)  symbols 0        max  51.3 dB  
+UL      761.7  PRB -              (  0)  symbols -        max  None dB  ch=PUSCH rnti=dc7a rb=[0, 105] sym=[10, 12] mcs=28
+DL      761.14 PRB -              (  0)  symbols -        max -30.0 dB  
+UL      761.8  PRB 0-105          (106)  symbols 0-12     max  53.2 dB  ch=PUSCH rnti=dc7a rb=[0, 105] sym=[0, 12] mcs=28
+DL      761.15 PRB -              (  0)  symbols -        max -30.0 dB  
+UL      761.9  PRB -              (  0)  symbols -        max  None dB  ch=PUSCH rnti=dc7a rb=[0, 105] sym=[0, 12] mcs=28
+DL      761.16 PRB -              (  0)  symbols -        max -30.0 dB  
+DL      761.17 PRB -              (  0)  symbols -        max -30.0 dB  
+DL      762.0  PRB 43-62          ( 20)  symbols 8-11     max  51.3 dB  ch=SSB/PBCH
+DL      762.1  PRB 29-68,72-83    ( 52)  symbols 0,2-11   max  51.3 dB  ch=DL-PDU rnti=ffff bytes=98
+MAC-UL  762.1  PRB -              (  0)  symbols -        max  None dB  ch=PUSCH-sched rnti=dc7a mcs=28 tbs=2178
+MAC-UL  762.2  PRB -              (  0)  symbols -        max  None dB  ch=PUSCH-sched rnti=dc7a mcs=28 tbs=10247
+DL      762.2  PRB 36-47          ( 12)  symbols 0        max  51.3 dB  
+MAC-UL  762.3  PRB -              (  0)  symbols -        max  None dB  ch=PUSCH-sched rnti=dc7a mcs=28 tbs=10247
+DL      762.3  PRB 72-83          ( 12)  symbols 0        max  51.3 dB  
+UL      761.17 PRB -              (  0)  symbols -        max  None dB  ch=PUSCH rnti=dc7a rb=[0, 105] sym=[10, 12] mcs=28
+DL      762.4  PRB -              (  0)  symbols -        max -30.0 dB  
+UL      761.18 PRB -              (  0)  symbols -        max  None dB  ch=PUSCH rnti=dc7a rb=[0, 105] sym=[0, 12] mcs=28
+DL      762.5  PRB -              (  0)  symbols -        max -30.0 dB  
+DL      762.6  PRB 0-4,24-35      ( 17)  symbols 0-13     max  52.9 dB  ch=DL-PDU rnti=dc7a bytes=496; ch=PDSCH rnti=dc7a mcs=28 tbs=496
+DL      762.7  PRB -              (  0)  symbols -        max -30.0 dB  
+UL      761.19 PRB -              (  0)  symbols -        max  None dB  ch=PUSCH rnti=dc7a rb=[24, 105] sym=[0, 12] mcs=28
+DL      762.10 PRB -              (  0)  symbols -        max -30.0 dB  
+MAC-UL  762.11 PRB -              (  0)  symbols -        max  None dB  ch=PUSCH-sched rnti=dc7a mcs=28 tbs=2178
+DL      762.11 PRB 60-71          ( 12)  symbols 0        max  51.3 dB  
+MAC-UL  762.12 PRB -              (  0)  symbols -        max  None dB  ch=PUSCH-sched rnti=dc7a mcs=28 tbs=10247
+DL      762.12 PRB 60-71          ( 12)  symbols 0        max  51.3 dB  
+MAC-UL  762.13 PRB -              (  0)  symbols -        max  None dB  ch=PUSCH-sched rnti=dc7a mcs=28 tbs=10247
+DL      762.13 PRB 24-35          ( 12)  symbols 0        max  51.3 dB  
+UL      762.7  PRB -              (  0)  symbols -        max  None dB  ch=PUSCH rnti=dc7a rb=[0, 105] sym=[10, 12] mcs=28
+DL      762.14 PRB -              (  0)  symbols -        max -30.0 dB  
+DL      762.15 PRB -              (  0)  symbols -        max -30.0 dB  
+UL      762.8  PRB 0-105          (106)  symbols 0-12     max  53.3 dB  ch=PUSCH rnti=dc7a rb=[0, 105] sym=[0, 12] mcs=28
+DL      762.16 PRB -              (  0)  symbols -        max -30.0 dB  
+UL      762.9  PRB -              (  0)  symbols -        max  None dB  ch=PUSCH rnti=dc7a rb=[0, 105] sym=[0, 12] mcs=28
+DL      762.17 PRB -              (  0)  symbols -        max -30.0 dB  
+DL      763.0  PRB -              (  0)  symbols -        max -30.0 dB  
+MAC-UL  763.1  PRB -              (  0)  symbols -        max  None dB  ch=PUSCH-sched rnti=dc7a mcs=28 tbs=2178
+DL      763.1  PRB 24-35          ( 12)  symbols 0        max  51.3 dB  
+MAC-UL  763.2  PRB -              (  0)  symbols -        max  None dB  ch=PUSCH-sched rnti=dc7a mcs=28 tbs=10247
+DL      763.2  PRB 36-47          ( 12)  symbols 0        max  51.3 dB  
+MAC-UL  763.3  PRB -              (  0)  symbols -        max  None dB  ch=PUSCH-sched rnti=dc7a mcs=28 tbs=10247
+DL      763.3  PRB 72-83          ( 12)  symbols 0        max  51.3 dB  
+UL      762.17 PRB -              (  0)  symbols -        max  None dB  ch=PUSCH rnti=dc7a rb=[0, 105] sym=[10, 12] mcs=28
+DL      763.4  PRB -              (  0)  symbols -        max -30.0 dB  
+UL      762.18 PRB -              (  0)  symbols -        max  None dB  ch=PUSCH rnti=dc7a rb=[0, 105] sym=[0, 12] mcs=28
+DL      763.5  PRB -              (  0)  symbols -        max -30.0 dB  
+UL      762.19 PRB -              (  0)  symbols -        max  None dB  ch=PUSCH rnti=dc7a rb=[0, 105] sym=[0, 12] mcs=28
+DL      763.6  PRB -              (  0)  symbols -        max -30.0 dB  
+DL      763.7  PRB -              (  0)  symbols -        max -30.0 dB  
+DL      763.10 PRB -              (  0)  symbols -        max -30.0 dB  
+MAC-UL  763.11 PRB -              (  0)  symbols -        max  None dB  ch=PUSCH-sched rnti=dc7a mcs=28 tbs=2178
+DL      763.11 PRB 60-71          ( 12)  symbols 0        max  51.3 dB  
+MAC-UL  763.12 PRB -              (  0)  symbols -        max  None dB  ch=PUSCH-sched rnti=dc7a mcs=28 tbs=10247
+DL      763.12 PRB 60-71          ( 12)  symbols 0        max  51.3 dB  
+MAC-UL  763.13 PRB -              (  0)  symbols -        max  None dB  ch=PUSCH-sched rnti=dc7a mcs=28 tbs=7813
+DL      763.13 PRB 24-35          ( 12)  symbols 0        max  51.3 dB  
+UL      763.7  PRB -              (  0)  symbols -        max  None dB  ch=PUSCH rnti=dc7a rb=[0, 105] sym=[10, 12] mcs=28
+DL      763.14 PRB -              (  0)  symbols -        max -30.0 dB  
+UL      763.8  PRB 0-105          (106)  symbols 0-12     max  52.9 dB  ch=PUSCH rnti=dc7a rb=[0, 105] sym=[0, 12] mcs=28
+DL      763.15 PRB -              (  0)  symbols -        max -30.0 dB  
+UL      763.9  PRB -              (  0)  symbols -        max  None dB  ch=PUSCH rnti=dc7a rb=[0, 105] sym=[0, 12] mcs=28
+DL      763.16 PRB -              (  0)  symbols -        max -30.0 dB  
+DL      763.17 PRB -              (  0)  symbols -        max -30.0 dB  
+DL      764.0  PRB 0-4,43-71      ( 34)  symbols 0-13     max  52.9 dB  ch=DL-PDU rnti=dc7a bytes=496; ch=PDSCH rnti=dc7a mcs=28 tbs=496; ch=SSB/PBCH
+DL      764.1  PRB 29-68,72-83    ( 52)  symbols 0,2-11   max  51.3 dB  ch=DL-PDU rnti=ffff bytes=98
+MAC-UL  764.1  PRB -              (  0)  symbols -        max  None dB  ch=PUSCH-sched rnti=dc7a mcs=28 tbs=2178
+MAC-UL  764.2  PRB -              (  0)  symbols -        max  None dB  ch=PUSCH-sched rnti=dc7a mcs=28 tbs=10247
+DL      764.2  PRB 36-47          ( 12)  symbols 0        max  51.3 dB  
+MAC-UL  764.3  PRB -              (  0)  symbols -        max  None dB  ch=PUSCH-sched rnti=dc7a mcs=28 tbs=10247
+DL      764.3  PRB 72-83          ( 12)  symbols 0        max  51.3 dB  
+UL      763.17 PRB -              (  0)  symbols -        max  None dB  ch=PUSCH rnti=dc7a rb=[0, 105] sym=[10, 12] mcs=28
+DL      764.4  PRB -              (  0)  symbols -        max -30.0 dB  
+UL      763.18 PRB -              (  0)  symbols -        max  None dB  ch=PUSCH rnti=dc7a rb=[0, 105] sym=[0, 12] mcs=28
+DL      764.5  PRB -              (  0)  symbols -        max -30.0 dB  
+DL      764.6  PRB -              (  0)  symbols -        max -30.0 dB  
+UL      763.19 PRB -              (  0)  symbols -        max  None dB  ch=PUSCH rnti=dc7a rb=[24, 105] sym=[0, 12] mcs=28
+DL      764.7  PRB -              (  0)  symbols -        max -30.0 dB  
+DL      764.10 PRB -              (  0)  symbols -        max -30.0 dB  
+MAC-UL  764.11 PRB -              (  0)  symbols -        max  None dB  ch=PUSCH-sched rnti=dc7a mcs=28 tbs=2178
+DL      764.11 PRB 60-71          ( 12)  symbols 0        max  51.3 dB  
+MAC-UL  764.12 PRB -              (  0)  symbols -        max  None dB  ch=PUSCH-sched rnti=dc7a mcs=28 tbs=10247
+DL      764.12 PRB 60-71          ( 12)  symbols 0        max  51.3 dB  
+MAC-UL  764.13 PRB -              (  0)  symbols -        max  None dB  ch=PUSCH-sched rnti=dc7a mcs=28 tbs=10247
+DL      764.13 PRB 24-35          ( 12)  symbols 0        max  51.3 dB  
