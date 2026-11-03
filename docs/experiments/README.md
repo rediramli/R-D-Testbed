@@ -42,6 +42,7 @@ Teaching material built on these experiments (theory, formulas, worked examples,
 | 10 | User-plane traffic inspection (GTP-U and application flows) | yes | Planned | |
 | 11 | NAS and AS security: keys, ciphering, integrity | yes | Planned | |
 | 12 | Near-RT RIC: E2 monitoring (KPM), slice control and closed loop (RC) | needs a near-RT RIC (FlexRIC) | Planned | |
+| 12a | SMO over O1: O-RAN SC OAM + OAI o1-adapter (NETCONF/YANG, VES alarms, PM) | yes; SMO on a separate host | Feasibility study 2026-11-03 | [EXP-12a](EXP-12a-smo-o1-feasibility.md) |
 | 13 | Network identity: PLMN, TAC and subscriber provisioning | PLMN yes; writing physical SIM cards needs hardware | Planned | |
 | 14 | Core network procedures end to end | yes | Planned | |
 | 15 | N2 control-plane flood and anomaly detection (isolated bench LAN only) | yes | Planned | |
