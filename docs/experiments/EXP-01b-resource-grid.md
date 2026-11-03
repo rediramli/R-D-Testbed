@@ -1,7 +1,8 @@
 # Experiment 1b: The resource grid, live (which PRBs and symbols are occupied)
 
-Status: **stage G1 done** 2026-11-03 on the bench (branch `exp/01b-resource-grid`): the gNB's own T tracer shows the
-resource grid per slot. Next: G2 (relay and API), G3 (dashboard page), G4 (training material). RF simulator mode only;
+Status: **G1 done** 2026-11-03 on the bench (branch `exp/01b-resource-grid`): the gNB's own T tracer shows the
+resource grid per slot. **G2 and G3 built** (grid relay, dashboard API and page, tested in mock mode); bench check pending.
+Next: G4 (training material). RF simulator mode only;
 nothing is transmitted. Requested by Prof. Pei: see a UE attach and which PRBs it occupies, including during random access.
 Background: [Module 1](../training/MOD-01-bandwidth.md), Section 3.2 (the resource grid).
 
@@ -91,11 +92,42 @@ Msg4, and later SR and CSI once the UE is connected.
 8. **One client only.** The tracer accepts one client at a time; three modes run in parallel failed with
    `Connection refused` and restarted the UE under each other. Run one mode at a time.
 
-## Open (G2-G4)
-- G2: a relay on REDLAB that owns the single tracer connection and serves snapshots and a random-access capture to the
-  dashboard (no sudo for captures; the firewall stays).
-- G3: dashboard page: DL and UL grid per slot (PRB x symbol), slot player, labels SSB/PDCCH/PDSCH/PRACH/PUSCH/PUCCH.
-- G4: training module and exercises (SSB position from the ARFCNs, RA timeline, PDSCH vs MCS).
+## G2: grid relay and dashboard API
+`grid-relay.py` runs on REDLAB (Deployment `grid-relay` in `fct-dash`, host network, `infra/dash/grid-ran.yaml`). It is
+the only client of the tracer, binds 10.42.0.1:8094 only, runs one capture at a time with `grid-trace.py`'s code and
+needs a token (Secret `grid-relay-token`, copied to the core as `fct-dash-grid`) to start one. It reads the tracer state
+from `/proc/net/tcp`, so a status request does not take the single tracer connection. Results carry whole-dB energies
+and scheduling labels only.
+
+| Dashboard API | Does |
+|---|---|
+| `GET /api/grid/status` | relay and tracer state, carrier width, running job, last capture |
+| `POST /api/grid` `{"action": "snapshot", "slots": 20-80}` | one capture (admin key) |
+| `POST /api/grid` `{"action": "ra"}` | arms a random-access capture, then starts the UE (admin key; the UE must be stopped) |
+| `GET /api/grid/result` | the last capture |
+
+The dashboard refuses a capture when the carrier width is unknown (profile relay not available): above 106 PRB a DL slot
+does not fit the T buffer and the gNB would abort. In mock mode the API answers with the bench captures above.
+
+## G3: dashboard page (Experiments, 1b)
+- Grid over time: PRB (vertical) x symbol (horizontal), 14 symbols per slot, on a continuous slot axis. DL energy in
+  blue, UL energy in orange (the pair passes the colour-vision checks for all pairs); darker is stronger. Slots without a
+  traced grid (UL slots with slot mod 4 not 0) are grey. Outlines: PUSCH as scheduled (label), SSB block (dashed).
+  The header names the most telling channel per slot (Msg1/Msg2/SSB/PUSCH/PDSCH). Hover gives slot, symbol, PRB, dB and
+  labels; click a slot for the detail.
+- Slot detail: one slot at a larger scale, with its channel list. Slot 0 under DL load shows the textbook picture: PDCCH
+  in symbol 0, PDSCH on PRB 0-42 only (scheduled below the SSB), PSS on PRB 47-58 in symbol 8, PBCH/SSS on PRB 43-62 in
+  symbols 9-11.
+- Random access: Msg1 to Msg4 with slot and time from the PRACH (+5.5, +10, +15.5 ms on the bench).
+- Table view of all slots and labels.
+- Controls (admin key): UDP DL/UL and Stop (to fill the grid), Snapshot (20/40/80 slots), UE Stop, Capture attach.
+
+Install on the bench (once): `sudo MODE=apply bash infra/dash/dash.sh` (page, API, Secret mount), then
+`MODE=apply bash infra/dash/grid.sh` (relay). Live captures need the tracer: `sudo MODE=on bash infra/exp/exp01b-grid.sh`;
+`sudo MODE=off ...` when done. Without the tracer the page says so and shows nothing new.
+
+## Open (G4)
+- G4: training module and exercises (SSB position from the ARFCNs, RA timeline, PDSCH vs MCS, PDSCH around the SSB).
 - Verify the SRS hypothesis for UL symbol 13 from the gNB configuration.
 - One capture (run 063157Z) had a `GNB_PHY_MIB` label in slot 656.0 whose grid held only CSI-RS; the SSB was in 658.0.
   Find out whether the MIB event and the DL grid can refer to different slots.

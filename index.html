@@ -302,6 +302,27 @@ select, input { color: var(--ink); background: #ffffff; color-scheme: light; }
 .xtheory code { font: 13px var(--mono); background: #ffffff; padding: 1px 5px; border-radius: 0; }
 @media (max-width: 1250px) { .xgrid2 { grid-template-columns: 1fr; } }
 @media (max-width: 900px) { .expwrap { grid-template-columns: 1fr; } .expnav { position: static; } .exppage { padding: 12px 12px 20px; } .xcfg { grid-template-columns: 1fr; } }
+/* Experiment 1b: resource grid (G3). DL blue / UL orange (validated pair, all-pairs CVD dE 24.7); energy = alpha. */
+.g-dl { --g: #2a78d6; } .g-ul { --g: #eb6834; }
+.gleg { display: flex; flex-wrap: wrap; gap: 6px 16px; align-items: center; font-size: 12.5px; color: var(--ink); margin: 6px 0; }
+.gleg i { display: inline-block; width: 14px; height: 10px; margin-right: 5px; vertical-align: -1px; background: var(--g); border-radius: 0; }
+.gleg i.box { background: transparent; border: 1.5px solid var(--ink); }
+.gleg i.dash { background: transparent; border: 1.5px dashed var(--ink); }
+.gscroll { overflow-x: auto; border: 1px solid var(--line2); background: #fcfcfb; position: relative; }
+.gscroll canvas { display: block; cursor: crosshair; }
+.gtip { position: fixed; z-index: 30; pointer-events: none; background: #1f2a36; color: #eef2f6; font: 12px/1.35 var(--sans); padding: 6px 8px; border-radius: 0; max-width: 360px; box-shadow: 0 2px 8px rgba(0,0,0,.25); }
+.gtip b { color: #ffffff; }
+.gdetail { display: grid; grid-template-columns: auto minmax(0, 1fr); gap: 12px; align-items: start; }
+.gdetail canvas { border: 1px solid var(--line2); background: #fcfcfb; }
+.gch { font-size: 12.5px; }
+.gch li { margin: 2px 0; }
+.gra { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0; border: 1px solid var(--line2); }
+.gra > div { padding: 8px 10px; border-right: 1px solid var(--line2); min-width: 0; }
+.gra > div:last-child { border-right: 0; }
+.gra .k { font: 600 12px var(--sans); color: var(--muted); }
+.gra .v { font: 600 15px var(--sans); color: var(--ink); }
+.gra .d { font-size: 12px; color: var(--muted); }
+@media (max-width: 900px) { .gra { grid-template-columns: repeat(2, minmax(0, 1fr)); } .gdetail { grid-template-columns: 1fr; } }
 /* ===== E4: operations-console layout (light, dense, square) ===== */
 body { font-size: 12.5px; line-height: 1.4; display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto auto 1fr auto; min-height: 100vh; }
 button { font: 400 12.5px var(--sans); border-radius: 0; padding: 3px 9px; background: linear-gradient(#ffffff, #e9edf1); border: 1px solid #a3aeba; color: var(--ink); }
@@ -790,6 +811,76 @@ aside#drawer pre { background: #fbfcfd; font-size: 11.5px; }
               <li>How does the BLER change from Off to Poor? What would happen with a fixed MCS instead of link adaptation (Experiment 5)?</li>
               <li>Why does TCP lose more than UDP when the channel gets worse?</li>
             </ol>
+          </div>
+        </div>
+      </div>
+      <div id="exp1b" class="expmain" hidden>
+        <div class="xcard">
+          <h2>Experiment 1b: The resource grid, live</h2>
+          <p class="xsub">See which PRBs and OFDM symbols are occupied in each slot: SSB, PDCCH, PDSCH and CSI-RS in the downlink, PUSCH and PUCCH in the uplink, and the random access of a UE that attaches.
+            The grid is the gNB's own transmitted and received signal (OAI T tracer), not a simulation of it.
+            Reading: <a href="https://github.com/rediramli/R-D-Testbed/blob/main/docs/experiments/EXP-01b-resource-grid.md" target="_blank" rel="noopener">Experiment 1b</a> and
+            <a href="https://github.com/rediramli/R-D-Testbed/blob/main/docs/training/MOD-01-bandwidth.md" target="_blank" rel="noopener">Training Module 1</a>, Section 3.2.</p>
+        </div>
+        <div class="xgrid2">
+          <div class="xcard">
+            <h3>1. Capture</h3>
+            <div class="xcfg">
+              <div><span class="lb">Grid source</span><span class="fx" id="gSrc">–</span></div>
+              <div><span class="lb">Carrier</span><span class="fx" id="gCarrier">–</span><span class="lock">captures up to 106 PRB</span></div>
+              <div><label for="gSlots">Length</label><select id="gSlots">
+                <option value="20">20 slots · 10 ms (one frame)</option>
+                <option value="40" selected>40 slots · 20 ms (one SSB period)</option>
+                <option value="80">80 slots · 40 ms</option></select></div>
+              <div><span class="lb">Last capture</span><span class="fx" id="gLast">–</span></div>
+            </div>
+            <div class="xbtns" id="gTests">
+              <button type="button" data-x="speed-dl-udp" disabled title="Fill the downlink, then take a snapshot">UDP downlink</button>
+              <button type="button" data-x="speed-ul-udp" disabled title="Fill the uplink, then take a snapshot">UDP uplink</button>
+              <button type="button" data-x="speed-stop" disabled>Stop test</button>
+            </div>
+            <div class="xbtns">
+              <button id="gSnap" type="button" disabled>Snapshot</button>
+              <button id="gUeStop" type="button" disabled title="The attach capture needs a stopped UE">UE Stop</button>
+              <button id="gRa" type="button" disabled title="Arms the capture and starts the UE: its random access is recorded">Capture attach</button>
+              <span id="gMsg" class="xmsg" role="status"></span>
+            </div>
+            <p class="xnote">Idle cell: press Snapshot. Traffic: start a UDP test, wait 10 s, Snapshot. Attach: UE Stop, wait until it has gone, then Capture attach (about 30 s).
+              The uplink grid is traced only in slots with slot&nbsp;mod&nbsp;4&nbsp;=&nbsp;0 (slot 8 here; an OAI limitation); the uplink labels are there for every slot.</p>
+          </div>
+          <div class="xcard">
+            <h3>2. Random access (Msg1 to Msg4)</h3>
+            <div class="gra" id="gRaSteps"></div>
+            <p class="xnote" id="gRaNote">Shown after a Capture attach. Msg1 is PRACH and Msg3 is PUSCH; PUCCH first carries the HARQ-ACK for Msg4.
+              While waiting for the UE only light events run; the downlink grid starts when the gNB reports the PRACH, so the first DL slots after Msg1 show as not traced.</p>
+          </div>
+        </div>
+        <div class="xcard">
+          <h3>3. Grid over time (PRB vs symbol; each slot is 14 symbols, 0.5 ms)</h3>
+          <div class="gleg" id="gLegend">
+            <span class="g-dl"><i></i>DL energy (transmitted)</span><span class="g-ul"><i></i>UL energy (received)</span>
+            <span><i class="box"></i>PUSCH as scheduled (label)</span><span><i class="dash"></i>SSB block (PBCH symbols)</span>
+            <span>darker = stronger · empty = no energy · hover for values, click a slot for detail</span>
+          </div>
+          <div class="gscroll" id="gScroll"><canvas id="gCanvas" width="10" height="10" role="img" aria-label="Resource grid over time"></canvas></div>
+        </div>
+        <div class="xcard">
+          <h3>4. Slot detail</h3>
+          <div class="gdetail">
+            <canvas id="gSlotCanvas" width="10" height="10" role="img" aria-label="Resource grid of the selected slot"></canvas>
+            <div>
+              <div class="fx" id="gSlotTitle">Click a slot in the grid above.</div>
+              <ul class="gch" id="gSlotList"></ul>
+            </div>
+          </div>
+        </div>
+        <div class="xcard">
+          <h3>5. Slots as a table</h3>
+          <div class="xtable">
+            <table>
+              <thead><tr><th>Slot</th><th>Dir</th><th>Occupied PRB</th><th>PRB</th><th>Symbols</th><th>Max dB</th><th style="text-align:left">Channels (scheduler labels)</th></tr></thead>
+              <tbody id="gRows"></tbody>
+            </table>
           </div>
         </div>
       </div>
@@ -1494,6 +1585,7 @@ const EXPS = [
   ["0b", "SINR to CQI/MCS curve (noise sweep)", "proven"],
   ["0c", "Link capacity vs single-flow TCP throughput", "proven"],
   ["1", "Carrier bandwidth (PRB count) and capacity", "ready"],
+  ["1b", "Resource grid, live (PRB occupancy per slot)", "ready"],
   ["2", "Carrier placement: ARFCN and centre frequency", "planned"],
   ["3", "TDD DL/UL pattern and the throughput split", "planned"],
   ["4", "Paired spectrum (FDD) operation", "planned"],
@@ -1530,10 +1622,11 @@ function expNav() {
   }
 }
 function expShow() {
-  const one = expSel === "1" || expSel === "0";
-  $("exp1").hidden = expSel !== "1"; $("exp0").hidden = expSel !== "0"; $("expOther").hidden = one;
+  const one = expSel === "1" || expSel === "0", page = one || expSel === "1b";
+  $("exp1").hidden = expSel !== "1"; $("exp0").hidden = expSel !== "0"; $("exp1b").hidden = expSel !== "1b"; $("expOther").hidden = page;
   expRows = []; if (one && typeof pollExpRows === "function" && latest) pollExpRows();
-  if (!one) {
+  if (expSel === "1b" && typeof pollGrid === "function") { gRender(); pollGrid(); }
+  if (!page) {
     const e = EXPS.find(x => x[0] === expSel);
     $("expOtherTitle").textContent = `Experiment ${e[0]}: ${e[1]}`;
     $("expOtherText").textContent = "This experiment passed its bench test; its page is being prepared. The results are in the repository (docs/experiments) and in Training Module 0.";
@@ -1583,7 +1676,7 @@ function renderE1Config() {
 async function expAct(action, msgId) {
   const ok = await control(action);
   $(msgId).textContent = $("ctlMsg").textContent; $(msgId).className = "xmsg " + (ok ? "ok" : "bad");
-  if (expSel === "0") renderE0Config(); else renderE1Config();
+  if (expSel === "0") renderE0Config(); else if (expSel === "1b") pollGrid(); else renderE1Config();
   return ok;
 }
 function e1Tiles(rows, id = "e1Tiles") {
@@ -1662,6 +1755,7 @@ async function pollExpRows() {
   try { const r = await fetch("api/exp/results?exp=" + ex, {cache: "no-store"}); if (r.ok && ex === expSel) { const d = await r.json(); expRows = d.rows; expStore = d.persistent; ex === "0" ? renderE0Rows() : renderE1Rows(); } } catch (e) {}
 }
 async function pollExp() {
+  if (expSel === "1b") return pollGrid();
   if (expSel === "0") renderE0Config(); else renderE1Config();
   try { const r = await fetch("api/history?seconds=120", {cache: "no-store"}); if (r.ok) expHist = (await r.json()).rows; } catch (e) {}
   if (expSel === "0") { e1Tiles(expHist, "e0Tiles"); e1Chart(expHist, "e0Chart"); }
@@ -1678,6 +1772,214 @@ $("e1Rec").onclick = async () => {
   if (d.ok) $("e1Note").value = "";
   pollExpRows();
 };
+// Experiment 1b page (G3): resource grid snapshots and the random access, from the grid relay through /api/grid
+let gData = null, gStatus = null, gSel = null, gLastKey = null, gCols = [];
+const G_CW = 3, G_CH = 2, G_HEAD = 30, G_LEFT = 34;          // px per symbol, per PRB; header and PRB axis
+const G_DL = [42, 120, 214], G_UL = [235, 104, 52];
+const gOn = v => v > 10;                                    // whole dB; empty REs come as about -30
+const gAlpha = v => Math.max(0.28, Math.min(1, (v - 18) / 34));
+function gKey(f, sl) { return f + "." + sl; }
+function gRa(rows) {     // Msg1..Msg4 in arrival order: PRACH, then RAR, then the first PUSCH, then a DL-PDU to its RNTI
+  const ev = []; rows.forEach(r => r.labels.forEach(l => ev.push({f: r.frame, s: r.slot, l})));
+  const find = (pred, from) => { for (let i = from + 1; i < ev.length; i++) if (pred(ev[i].l)) return i; return -1; };
+  const i1 = find(l => l.ch === "PRACH", -1), i2 = i1 < 0 ? -1 : find(l => l.ch === "RAR", i1);
+  const i3 = i2 < 0 ? -1 : find(l => l.ch === "PUSCH", i2), rnti = i3 < 0 ? null : ev[i3].l.rnti;
+  const i4 = i3 < 0 ? -1 : find(l => l.ch === "DL-PDU" && l.rnti === rnti, i3);
+  return [i1, i2, i3, i4].map(i => i < 0 ? null : ev[i]);
+}
+function gBuild(d) {      // one column per slot on a continuous timeline (slots without a traced grid stay as gaps)
+  const seq = [];                                       // arrival order; unwrap the frame counter (1024 frames)
+  let base = 0, prev = null;
+  const abs = (f, s) => { let a = f * 20 + s + base; if (prev !== null && a < prev - 10240) { base += 20480; a += 20480; } prev = Math.max(prev ?? a, a); return a; };
+  d.rows.forEach(r => seq.push({a: abs(r.frame, r.slot), r}));
+  base = 0; prev = null;
+  d.grids.forEach(g => seq.push({a: abs(g.frame, g.slot), g}));
+  const at = {};
+  seq.forEach(e => {
+    const c = at[e.a] || (at[e.a] = {a: e.a, f: Math.floor((e.a % 20480) / 20), s: e.a % 20, dl: null, ul: null, labels: [], rows: []});
+    if (e.r) { c.rows.push(e.r); c.labels.push(...e.r.labels); } else c[e.g.dir] = e.g.db;
+  });
+  const keys = Object.keys(at).map(Number).sort((x, y) => x - y);
+  if (!keys.length) return [];
+  let a0 = keys[0], a1 = keys[keys.length - 1];
+  if (d.kind === "ra") {                                // drop the wait before Msg1: start 2 slots before the PRACH
+    const m1 = keys.find(k => at[k].labels.some(l => l.ch === "PRACH"));
+    if (m1 !== undefined) a0 = Math.max(a0, m1 - 2);
+  }
+  a1 = Math.min(a1, a0 + 399);                          // at most 400 slots (200 ms) on screen
+  const cols = [];
+  for (let a = a0; a <= a1; a++) cols.push(at[a] || {a, f: Math.floor((a % 20480) / 20), s: a % 20, dl: null, ul: null, labels: [], rows: [], gap: true});
+  return cols;
+}
+function gRuns(db, s) {   // contiguous runs of occupied PRBs in one symbol: [[p0, p1], ...]
+  const out = []; let a = null;
+  for (let p = 0; p <= db.length; p++) {
+    const on = p < db.length && gOn(db[p][s]);
+    if (on && a === null) a = p; else if (!on && a !== null) { out.push([a, p - 1]); a = null; }
+  }
+  return out;
+}
+function gSsb(db) {       // SSB = a 12-PRB PSS run in symbol s and the 20-PRB PBCH run around it in symbol s+1 (TS 38.211 7.4.3.1)
+  if (!db) return null;
+  for (let s = 0; s < 11; s++) for (const [a, b] of gRuns(db, s)) {
+    if (b - a !== 11) continue;
+    const r = gRuns(db, s + 1).find(([c, d]) => c <= a - 4 && d >= b + 4);
+    if (r) return {p0: a - 4, p1: b + 4, s0: s, s1: s + 3};
+  }
+  return null;
+}
+function gTag(c) {        // the most telling channel of a slot, for the header
+  const ch = new Set(c.labels.map(l => l.ch));
+  for (const [k, t] of [["PRACH", "PRACH"], ["RAR", "RAR"], ["SSB/PBCH", "SSB"], ["PUSCH", "PUSCH"], ["PDSCH", "PDSCH"], ["PUCCH", "PUCCH"]]) if (ch.has(k)) return t;
+  return "";
+}
+function gDraw() {
+  const cv = $("gCanvas"), ctx = cv.getContext("2d");
+  if (!gData) { cv.width = 600; cv.height = 60; ctx.fillStyle = "#5d6b7a"; ctx.font = "13px Segoe UI, Arial"; ctx.fillText("No capture yet.", 12, 34); return; }
+  const nrb = gData.nrb, cols = gCols, W = G_LEFT + cols.length * 14 * G_CW + 8, H = G_HEAD + nrb * G_CH + 20;
+  cv.width = W; cv.height = H; ctx.clearRect(0, 0, W, H);
+  ctx.font = "10px Segoe UI, Arial"; ctx.textBaseline = "middle";
+  const ra = gRa(gData.rows), raAt = {}; ra.forEach((e, i) => { if (e) raAt[gKey(e.f, e.s)] = "Msg" + (i + 1); });
+  cols.forEach((c, i) => {
+    const x0 = G_LEFT + i * 14 * G_CW;
+    if (!c.dl && !c.ul) {                                // nothing traced in this slot (UL slot, or slot mod 4 != 0)
+      ctx.fillStyle = "#eef1f4"; ctx.fillRect(x0, G_HEAD, 14 * G_CW, nrb * G_CH);
+      ctx.save(); ctx.translate(x0 + 7 * G_CW + 3, G_HEAD + nrb * G_CH / 2); ctx.rotate(-Math.PI / 2);
+      ctx.fillStyle = "#8a96a3"; ctx.textAlign = "center"; ctx.fillText("not traced", 0, 0); ctx.restore();
+    }
+    for (let s = 0; s < 14; s++) for (let p = 0; p < nrb; p++) {
+      const vd = c.dl ? c.dl[p][s] : -99, vu = c.ul ? c.ul[p][s] : -99;
+      const [v, rgb] = gOn(vd) ? [vd, G_DL] : gOn(vu) ? [vu, G_UL] : [null, null];
+      if (v === null) continue;
+      ctx.fillStyle = `rgba(${rgb[0]},${rgb[1]},${rgb[2]},${gAlpha(v)})`;
+      ctx.fillRect(x0 + s * G_CW, G_HEAD + (nrb - 1 - p) * G_CH, G_CW, G_CH);
+    }
+    ctx.fillStyle = gSel === i ? "#1b5fa8" : "#d5dbe2";              // slot separators; the selected slot is marked
+    ctx.fillRect(x0, G_HEAD - 2, gSel === i ? 14 * G_CW : 1, gSel === i ? 2 : nrb * G_CH + 2);
+    ctx.fillStyle = "#1d2733"; ctx.textAlign = "center";
+    const tag = raAt[gKey(c.f, c.s)] || gTag(c);
+    ctx.fillText(String(c.s), x0 + 7 * G_CW, 8);
+    if (tag) { ctx.fillStyle = raAt[gKey(c.f, c.s)] ? "#c8102e" : "#34414e"; ctx.fillText(tag, x0 + 7 * G_CW, 20); }
+    ctx.strokeStyle = "#1d2733"; ctx.lineWidth = 1;
+    c.labels.filter(l => l.ch === "PUSCH" && l.rb).forEach(l => {
+      ctx.strokeRect(x0 + l.sym[0] * G_CW + .5, G_HEAD + (nrb - 1 - l.rb[1]) * G_CH + .5, (l.sym[1] - l.sym[0] + 1) * G_CW - 1, (l.rb[1] - l.rb[0] + 1) * G_CH - 1);
+    });
+    if (c.labels.some(l => l.ch === "SSB/PBCH")) { const b = gSsb(c.dl); if (b) { ctx.setLineDash([3, 2]); ctx.strokeRect(x0 + b.s0 * G_CW + .5, G_HEAD + (nrb - 1 - b.p1) * G_CH + .5, 4 * G_CW - 1, 20 * G_CH - 1); ctx.setLineDash([]); } }
+  });
+  ctx.fillStyle = "#5d6b7a"; ctx.textAlign = "right";                 // PRB axis
+  for (let p = 0; p < nrb; p += 20) ctx.fillText(String(p), G_LEFT - 4, G_HEAD + (nrb - 1 - p) * G_CH + 1);
+  ctx.fillText(String(nrb - 1), G_LEFT - 4, G_HEAD + 1); ctx.textAlign = "left";
+  ctx.fillText("slot →  (PRB on the left axis)", G_LEFT, H - 8);
+}
+function gAt(ev) {
+  const r = $("gCanvas").getBoundingClientRect(), x = ev.clientX - r.left, y = ev.clientY - r.top;
+  const i = Math.floor((x - G_LEFT) / (14 * G_CW)), s = Math.floor(((x - G_LEFT) % (14 * G_CW)) / G_CW), p = gData ? gData.nrb - 1 - Math.floor((y - G_HEAD) / G_CH) : -1;
+  return {i, s, p, ok: gData && i >= 0 && i < gCols.length && p >= 0 && p < gData.nrb};
+}
+function gLabelText(l) {
+  const v = Object.entries(l).filter(([k]) => k !== "ch").map(([k, x]) => `${k} ${Array.isArray(x) ? x.join("-") : x}`).join(", ");
+  return `${l.ch}${v ? " (" + v + ")" : ""}`;
+}
+function gDetail() {
+  const cv = $("gSlotCanvas"), ctx = cv.getContext("2d"), c = gCols[gSel];
+  if (!c) { cv.width = 10; cv.height = 10; return; }
+  const nrb = gData.nrb, cw = 22, ch = 3, L = 30, T = 18, W = L + 14 * cw + 6, H = T + nrb * ch + 22;
+  cv.width = W; cv.height = H; ctx.clearRect(0, 0, W, H); ctx.font = "10px Segoe UI, Arial"; ctx.textBaseline = "middle";
+  for (let s = 0; s < 14; s++) for (let p = 0; p < nrb; p++) {
+    const vd = c.dl ? c.dl[p][s] : -99, vu = c.ul ? c.ul[p][s] : -99;
+    const [v, rgb] = gOn(vd) ? [vd, G_DL] : gOn(vu) ? [vu, G_UL] : [null, null];
+    ctx.fillStyle = v === null ? "#f4f6f8" : `rgba(${rgb[0]},${rgb[1]},${rgb[2]},${gAlpha(v)})`;
+    ctx.fillRect(L + s * cw + 1, T + (nrb - 1 - p) * ch, cw - 2, ch);             // 2 px gap between symbols
+  }
+  ctx.strokeStyle = "#1d2733";
+  c.labels.filter(l => l.ch === "PUSCH" && l.rb).forEach(l => ctx.strokeRect(L + l.sym[0] * cw + .5, T + (nrb - 1 - l.rb[1]) * ch + .5, (l.sym[1] - l.sym[0] + 1) * cw - 1, (l.rb[1] - l.rb[0] + 1) * ch - 1));
+  const sb = c.labels.some(l => l.ch === "SSB/PBCH") ? gSsb(c.dl) : null;
+  if (sb) { ctx.setLineDash([4, 3]); ctx.strokeRect(L + sb.s0 * cw + .5, T + (nrb - 1 - sb.p1) * ch + .5, 4 * cw - 1, 20 * ch - 1); ctx.setLineDash([]); }
+  ctx.fillStyle = "#5d6b7a"; ctx.textAlign = "center";
+  for (let s = 0; s < 14; s++) ctx.fillText(String(s), L + s * cw + cw / 2, T - 8);
+  ctx.textAlign = "right"; for (let p = 0; p < nrb; p += 10) ctx.fillText(String(p), L - 4, T + (nrb - 1 - p) * ch + 1);
+  ctx.textAlign = "left"; ctx.fillText("symbol (top) · PRB (left)", L, H - 8);
+  const kind = c.dl && c.ul ? "DL and UL grid" : c.dl ? "DL grid (transmitted)" : c.ul ? "UL grid (received)" : "no traced grid (labels only)";
+  const ssb = c.labels.some(l => l.ch === "SSB/PBCH") ? gSsb(c.dl) : null;
+  $("gSlotTitle").innerHTML = `<b>Frame ${c.f}, slot ${c.s}</b> · ${esc(kind)}` + (ssb ? ` · SSB on PRB ${ssb.p0}-${ssb.p1}, symbols ${ssb.s0}-${ssb.s1} (PSS, PBCH, SSS + PBCH, PBCH)` : "");
+  const items = c.labels.map(gLabelText);
+  if (c.ul === null && c.labels.some(l => l.ch === "PUSCH")) items.push("UL grid not traced in this slot (slot mod 4 ≠ 0): the label shows what was scheduled");
+  $("gSlotList").innerHTML = items.length ? items.map(t => `<li>${esc(t)}</li>`).join("") : "<li>No scheduler labels in this slot.</li>";
+}
+function gTable() {
+  const rows = gData ? gData.rows.slice(0, 400) : [];
+  $("gRows").innerHTML = rows.length ? rows.map(r => `<tr><td>${r.frame}.${r.slot}</td><td>${esc(r.dir.toUpperCase())}</td><td>${esc(r.prbs)}</td><td>${r.nPrb}</td><td>${esc(r.symbols)}</td>` +
+    `<td>${r.maxDb === null || r.maxDb === undefined ? "–" : n1(r.maxDb, 1)}</td><td class="note" style="text-align:left">${esc(r.labels.map(gLabelText).join("; "))}</td></tr>`).join("")
+    : `<tr class="empty"><td colspan="7">No capture yet.</td></tr>`;
+}
+function gRaView() {
+  const ra = gData ? gRa(gData.rows) : [null, null, null, null];
+  const names = [["Msg1", "PRACH preamble"], ["Msg2", "RAR on PDSCH"], ["Msg3", "PUSCH, TC-RNTI"], ["Msg4", "PDSCH, contention resolution"]];
+  const t0 = ra[0] ? ra[0].f * 20 + ra[0].s : null;
+  $("gRaSteps").innerHTML = names.map(([k, d], i) => {
+    const e = ra[i], dt = e && t0 !== null ? (((e.f * 20 + e.s - t0) % 20480 + 20480) % 20480) / 2 : null;
+    const det = e ? Object.entries(e.l).filter(([q]) => q !== "ch").map(([q, x]) => `${q} ${Array.isArray(x) ? x.join("-") : x}`).join(" · ") : "";
+    return `<div><div class="k">${k} · ${esc(d)}</div><div class="v">${e ? `${e.f}.${e.s}` : "–"}${dt !== null ? ` <small>+${dt} ms</small>` : ""}</div><div class="d">${esc(det)}</div></div>`;
+  }).join("");
+}
+function gRender() { gDraw(); gRaView(); gTable(); if (gSel !== null) gDetail(); }
+async function gFetchResult() {
+  try {
+    const r = await fetch("api/grid/result", {cache: "no-store"});
+    if (!r.ok) return;
+    gData = await r.json(); gCols = gBuild(gData);
+    const pick = ["PRACH", "SSB/PBCH", "PUSCH", "PDSCH"].map(ch => gCols.findIndex(c => c.labels.some(l => l.ch === ch))).find(i => i >= 0);
+    gSel = pick ?? null; gRender();
+    if (pick !== undefined) $("gScroll").scrollLeft = Math.max(0, G_LEFT + (pick - 2) * 14 * G_CW);   // show the first telling slot
+  } catch (e) {}
+}
+async function pollGrid() {
+  let st = null; try { const r = await fetch("api/grid/status", {cache: "no-store"}); if (r.ok) st = await r.json(); } catch (e) {}
+  gStatus = st || {available: false, reason: "No contact with the dashboard backend."};
+  const c = (latest && latest.controls) || {}, unlocked = !!adminKey && c.enabled, run = gStatus.job && gStatus.job.state === "running";
+  $("gSrc").textContent = !gStatus.available ? gStatus.reason : gStatus.tracer ? (gStatus.mock ? "mock: bench captures of 2026-11-03" : "gNB T tracer on") : (gStatus.reason || "T tracer off");
+  $("gCarrier").textContent = gStatus.prb ? `${gStatus.prb} PRB` + (gStatus.prb > 106 ? " (too wide for a capture)" : "") : "unknown";
+  const l = gStatus.last, j = gStatus.job;
+  $("gLast").textContent = run ? `running (${j.kind})…` : j && j.state === "failed" ? `failed: ${j.error}` : l ? `${l.kind}${l.time_utc ? " · " + new Date(l.time_utc).toLocaleTimeString([], {hour12: false}) : ""}` : "none";
+  const can = unlocked && gStatus.available && gStatus.tracer && !run && gStatus.prb && gStatus.prb <= 106;
+  $("gSnap").disabled = !can; $("gRa").disabled = !can; $("gUeStop").disabled = !unlocked;
+  const t = c.targets || {};
+  document.querySelectorAll("#gTests button").forEach(b => {
+    const dep = {"speed-dl-udp": "speedtest-dl-udp", "speed-ul-udp": "speedtest-ul-udp"}[b.dataset.x];
+    b.disabled = !unlocked; b.classList.toggle("active", !!dep && !!t[dep] && t[dep].want > 0);
+  });
+  const key = l ? `${l.kind}|${l.time_utc || ""}|${l.grids || ""}` : null;
+  if (!run && key && key !== gLastKey) { gLastKey = key; await gFetchResult(); }
+  else if (!gData && !run && l) await gFetchResult();
+}
+async function gPost(action) {
+  $("gMsg").textContent = "…"; $("gMsg").className = "xmsg";
+  try {
+    const r = await fetch("api/grid", {method: "POST", headers: {"Content-Type": "application/json", "X-Admin-Key": adminKey}, body: JSON.stringify({action, slots: Number($("gSlots").value)})});
+    const d = await r.json(); $("gMsg").textContent = d.msg; $("gMsg").className = "xmsg " + (d.ok ? "ok" : "bad");
+    if (r.status === 401) { adminKey = ""; try { sessionStorage.removeItem("fctAdminKey"); } catch (e) {} renderControls(latest && latest.controls); }
+  } catch (e) { $("gMsg").textContent = "No contact with the dashboard backend."; $("gMsg").className = "xmsg bad"; }
+  gLastKey = "pending"; pollGrid();
+}
+$("gSnap").onclick = () => gPost("snapshot");
+$("gRa").onclick = () => gPost("ra");
+$("gUeStop").onclick = () => expAct("ue-stop", "gMsg");
+document.querySelectorAll("#gTests button").forEach(b => b.onclick = () => expAct(b.dataset.x, "gMsg"));
+(() => {
+  const cv = $("gCanvas"); let tip = null;
+  cv.addEventListener("mousemove", ev => {
+    const a = gAt(ev);
+    if (!a.ok) { if (tip) tip.hidden = true; return; }
+    const c = gCols[a.i], vd = c.dl ? c.dl[a.p][a.s] : null, vu = c.ul ? c.ul[a.p][a.s] : null;
+    if (!tip) { tip = document.createElement("div"); tip.className = "gtip"; document.body.append(tip); }
+    const e = v => v === null ? "–" : gOn(v) ? v + " dB" : "empty";
+    tip.innerHTML = `<b>Frame ${c.f}, slot ${c.s}</b> · symbol ${a.s} · PRB ${a.p}<br>DL ${e(vd)} · UL ${c.ul ? e(vu) : "not traced"}` +
+      (c.labels.length ? "<br>" + c.labels.slice(0, 4).map(l => esc(gLabelText(l))).join("<br>") : "");
+    tip.hidden = false; tip.style.left = Math.min(ev.clientX + 14, innerWidth - 370) + "px"; tip.style.top = ev.clientY + 14 + "px";
+  });
+  cv.addEventListener("mouseleave", () => { if (tip) tip.hidden = true; });
+  cv.addEventListener("click", ev => { const a = gAt(ev); if (a.ok) { gSel = a.i; gDraw(); gDetail(); } });
+})();
 // Experiment 0 page: downlink noise presets and link adaptation
 const ETA = [0.2344, 0.3066, 0.3770, 0.4902, 0.6016, 0.7402, 0.8770, 1.0273, 1.1758, 1.3262, 1.3281, 1.4766, 1.6953, 1.9141, 2.1602,
              2.4063, 2.5703, 2.5664, 2.7305, 3.0293, 3.3223, 3.6094, 3.9023, 4.2129, 4.5234, 4.8164, 5.1152, 5.3320, 5.5547];  // TS 38.214 Table 5.1.3.1-1
