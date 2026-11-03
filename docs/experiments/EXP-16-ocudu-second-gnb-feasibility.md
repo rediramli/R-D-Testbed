@@ -1,9 +1,11 @@
 # Experiment 16 (feasibility): a second gNB built on OCUDU
 
-Status: **feasibility study** (2026-11-03). Desk study only; nothing was installed or changed on the bench.
+Status: **feasibility study** (2026-11-03). Desk study plus read-only checks on tiny (`lscpu`, `free`, `kubectl top`);
+nothing was installed or changed on the bench.
 Question: can the bench get a second gNB, built on OCUDU (the Linux Foundation successor of the srsRAN Project), next to
 the OAI cell, on the same Open5GS core? Answer: **yes**, as a separate cell with its own UE and its own virtual radio
-(ZMQ), not as a handover neighbour of the OAI cell. Recommended host: the Jetson Orin NX (10.42.0.3, arm64), not REDLAB.
+(ZMQ), not as a handover neighbour of the OAI cell. **Decided host (2026-11-03): tiny, in its existing k3s**, in one
+pod with its own network namespace. The Jetson Orin NX stays an alternative.
 
 ## Summary
 | Question | Answer |
@@ -11,14 +13,15 @@ the OAI cell, on the same Open5GS core? Answer: **yes**, as a separate cell with
 | Current OCUDU release | **26.10** (tag `release_26_10`, commit `e0db566a`, 2026-09-30). Previous: 26.04 (2026-03-31, first OCUDU release). Incremental, not LTS |
 | License | **BSD-3-Clause-Open-MPI** (permissive; srsRAN Project was AGPLv3). Code on `gitlab.com/ocudu/ocudu`, docs on `docs.ocudu.org` |
 | Virtual radio | ZMQ (`ru_sdr.device_driver: zmq`), sample streams over ZeroMQ REQ/REP. Not compatible with OAI rfsim, so the OAI cell's UE cannot see it |
-| Which UE | **Two options.** (a) **OAI nrUE with its ZMQ radio** (`oai_zmqdevif`, in OAI since 2026.w17; OCUDU documents it for OAI ≥ 2026.w25). Our pinned `oai-nr-ue:2026.w40` image already ships `liboai_zmqdevif.so`, for amd64 and arm64. (b) **srsUE** (srsRAN 4G `release_25_10`): 15 kHz SCS only, so FDD bands only (e.g. n3), 5/10/15/20 MHz, no handover, maintenance mode |
+| Which UE | **Two options.** (a) **OAI nrUE with its ZMQ radio** (`oai_zmqdevif`, in OAI since 2026.w17; OCUDU documents it for OAI ≥ 2026.w25). Our pinned `oai-nr-ue:2026.w40` image already ships `liboai_zmqdevif.so` (amd64 and arm64). (b) **srsUE** (srsRAN 4G `release_25_10`): 15 kHz SCS only, so FDD bands only (e.g. n3), 5/10/15/20 MHz, no handover, maintenance mode |
 | Correction to the starting assumption | "OAI nrUE cannot attach to OCUDU" is no longer true: it cannot attach **through rfsim**, but it can through ZMQ. This allows a like-for-like comparison with the same UE software on both cells |
-| Core | Same Open5GS 2.8.0 on tiny: N2 SCTP to 10.42.0.2:38412, N3 GTP-U 2152. Distinct gNB ID and PCI, same PLMN 001/70, TAC 1, SST 1, DNN `fctoai`. Needs a second subscriber (`ue2`) |
-| Where to run | Jetson Orin NX 10.42.0.3: OCUDU publishes arm64 images (`neon` variant, built for `neoverse-n1+crc+crypto+ssbs`), and the OAI UE image is multi-arch. REDLAB (about 23 of 30 GB used, UE simulation already CPU-heavy) is not recommended |
-| Metrics for the dashboard | JSON metrics over the **remote-control WebSocket** (`metrics_subscribe`, default port 8001), per layer (MAC, scheduler, RLC, PDCP, NGAP, RRC, PHY/RU, CPU usage). OCUDU ships a Telegraf + InfluxDB + Grafana stack; for us a small relay to Prometheus fits better. Our KPI pipeline and the T-tracer resource grid are OAI-only |
+| Where it runs | **tiny (10.42.0.2), k3s, namespace `ran2`**: i9-14900 (8 P-cores with HT + 16 E-cores, 32 threads, AVX2, no AVX-512), 30 GB RAM of which about 4 GB used, about 0.34 cores used by the whole core + dashboard + Prometheus (checked 2026-11-03). Image variant `avx2` |
+| Core | Same Open5GS 2.8.0, same host: N2 SCTP to 10.42.0.2:38412, N3 GTP-U 2152, from the pod IP (10.244.0.x) over `cni0`. Distinct gNB ID and PCI, same PLMN 001/70, TAC 1, SST 1, DNN `fctoai`. Needs a second subscriber (`ue2`). No core config change |
+| Main pitfall | The UE must **not** share the host network namespace with the UPF: `ogstun` holds 10.45.0.1/16 on tiny, so a host-network UE tunnel would overlap it and test traffic would be delivered locally without crossing the radio. Hence gNB + UE in **one pod without `hostNetwork`** |
+| Metrics for the dashboard | JSON metrics over the **remote-control WebSocket** (`metrics_subscribe`, port 8001, bound to 127.0.0.1 inside the pod), turned into Prometheus text by a relay sidecar, scraped in-cluster by the Prometheus already on tiny. Our KPI pipeline and the T-tracer resource grid are OAI-only |
 | E2 | Built-in E2 agent: **E2SM-KPM** (report styles 1-5 and 255, 27 metrics) and **E2SM-RC** (control style 2 only). Documented with FlexRIC and the O-RAN SC near-RT RIC. Fits Experiment 12 as a second, different E2 node |
-| O1 | OCUDU has its own O1 adapter (Python sidecar: NETCONF CM and FM, PM from the JSON metrics, TS 32.435 files + VES `notifyFileReady`) and a Helm chart `onap-smo-lite`. More complete than the OAI o1-adapter studied in [EXP-12a](EXP-12a-smo-o1-feasibility.md) |
-| Verdict | **Feasible.** Main open points: the Jetson's RAM variant and current use, whether the published `neon` image runs on Orin's Cortex-A78AE, whether the published images contain the ZMQ driver, and ZMQ interop between OAI w40 and OCUDU 26.10 |
+| O1 | OCUDU has its own O1 adapter (Python sidecar: NETCONF CM and FM, PM from the JSON metrics, TS 32.435 files + VES `notifyFileReady`). More complete than the OAI o1-adapter studied in [EXP-12a](EXP-12a-smo-o1-feasibility.md) |
+| Verdict | **Feasible on tiny.** Open points: whether the published `gnb-uhd` image contains the ZMQ driver, ZMQ interop between OAI w40 and OCUDU 26.10, and proof that the core is not disturbed (gate in step 2 of the experiment) |
 
 ## 1. OCUDU in short
 - **What it is**: a 5G CU/DU (gNB) in C++ from Software Radio Systems, continued from the srsRAN Project under the
@@ -30,7 +33,7 @@ the OAI cell, on the same Open5GS core? Answer: **yes**, as a separate cell with
   metrics and remote commands go over a WebSocket.
 - **Radios**: UHD (USRP, split 8), DPDK Open Fronthaul (split 7.2), ZMQ (virtual) and a realtime loopback.
   For this bench only ZMQ is relevant (no over-the-air transmission, same rule as the OAI cell).
-- **License consequence**: BSD-style, so our own configs, scripts and any relay code can stay under the repo's terms.
+- **License consequence**: BSD-style, so our own configs, scripts and relay code can stay under the repo's terms.
   The OAI parts stay under their own license (`LicenseRef-CSSL-1.0` in `infra/ran/gnb.yaml`).
 
 ## 2. Virtual radio and UE
@@ -45,12 +48,12 @@ one radio simulation and Xn; out of scope).
 | Item | Value |
 |---|---|
 | UE software | `oai-nr-ue` with `--device.name oai_zmqdevif --zmq.[0].tx_channels tcp://127.0.0.1:4557 --zmq.[0].rx_channels tcp://127.0.0.1:4556` |
-| Image | Our pinned `docker.io/oaisoftwarealliance/oai-nr-ue:2026.w40`: its Dockerfile copies `liboai_zmqdevif.so`; the tag is published for amd64 and arm64. To verify on the Jetson (`ls /usr/local/lib/liboai_zmqdevif.so`) |
+| Image | Our pinned `docker.io/oaisoftwarealliance/oai-nr-ue:2026.w40`: its Dockerfile copies `liboai_zmqdevif.so`. To verify on tiny with `ls /usr/local/lib/liboai_zmqdevif.so` in the image |
 | Cell (from the OCUDU OAI-UE tutorial) | n78 TDD, 30 kHz SCS, 20 MHz (51 PRB), 23.04 MHz sampling, `ru_sdr.tx_gain: -12` (OCUDU sends full-scale samples with a 12 dB crest factor; the OAI fixed-point FFT saturates otherwise), CSI-RS on with `pucch.nof_cell_csi_res: 1` |
 | UE options | `-r 51 --numerology 1 --band 78 -C <centre>`, `--ue-scan-carrier` (finds the SSB offset), optionally `-E` (3/4 sampling), and `--uecap_file uecap_ports1.xml` (OAI UE capabilities, required with third-party gNBs) |
 | Interop history | Before OAI 2026.w25 the OAI UE lacked UCI on PUSCH, so UL failed with CSI-RS on. w40 is newer. The OCUDU tutorial shows 66 Mbit/s DL and 16 Mbit/s UL (MAC rates, MCS 27) at 20 MHz |
 | Caveat | OAI fixed two ZMQ issues after w40 (negative-sample rounding in RX, 2026-10-16; TX latency, merged for w43). If w40 is unstable over ZMQ, use a newer UE tag **for the OCUDU cell only** |
-| ZMQ limitation | Devices cannot reconnect after the start: a UE restart means restarting the gNB too (same as rfsim in practice) |
+| ZMQ limitation | Devices cannot reconnect after the start: a UE restart means restarting the gNB too. In one pod, both containers restart together |
 
 Advantage: the same UE software on both cells, so attach, CQI/MCS and throughput differences point at the gNB, not the UE.
 
@@ -60,58 +63,73 @@ Advantage: the same UE software on both cells, so attach, CQI/MCS and throughput
 | UE software | srsRAN 4G `release_25_10` (2026-01-26), `srsue`; 5G SA is a prototype, maintenance only |
 | Limits | 15 kHz SCS only, hence **FDD only** (n3 in the OCUDU example); 5, 10, 15, 20 MHz; no handover |
 | ZMQ | gNB `device_args: tx_port=tcp://127.0.0.1:2000,rx_port=tcp://127.0.0.1:2001,base_srate=11.52e6` (10 MHz) or 23.04 for 20 MHz; srsUE mirrored ports |
-| Network | srsUE puts its tunnel into a network namespace (`ip netns add ue1`, `[gw] netns = ue1`), so iperf runs with `ip netns exec` |
-| Image | No official image; we would build srsRAN 4G from source (arm64 builds are common, untested by us) |
-| Multi-UE | Several srsUEs through a GNU Radio broker flow graph (also gives path-loss control); a possible later step |
+| Network | srsUE normally puts its tunnel into a network namespace (`[gw] netns`); inside our pod the pod's own namespace already does that job |
+| Image | No official image; we would build srsRAN 4G from source |
 
 Use B as a fallback, or later to show an FDD cell (links to Experiment 4, paired spectrum) next to the TDD OAI cell.
 
-## 3. Proposed architecture
+## 3. Architecture on tiny (k3s)
 
 ```
  bench LAN 10.42.0.0/24 (isolated)
- ┌───────── tiny 10.42.0.2 (unchanged software) ─────────────────────────┐
- │ Open5GS 2.8.0: AMF NGAP :38412  UPF GTP-U :2152   + subscriber ue2    │
- │ dashboard (app.py), Prometheus (+1 scrape target), iperf server       │
- └───────▲ N2/N3 ─────────────────────────────────────▲ N2/N3 ───────────┘
-         │                                            │
- ┌───────┴──── REDLAB 10.42.0.1 (unchanged) ───┐ ┌────┴── Jetson Orin NX 10.42.0.3 (new, arm64) ───────┐
- │ oai-gnb  gNB_ID 0xe00  PCI 0  n78 106 PRB   │ │ ocudu-gnb  gNB ID 0xe01  PCI 1  n78 51 PRB          │
- │   │ rfsim (127.0.0.1)                       │ │   │ ZMQ 127.0.0.1:4556/4557                         │
- │ oai-nr-ue (ue1, Secret ue1-sim)             │ │ oai-nr-ue over ZMQ (ue2, Secret ue2-sim)            │
- │ telnet 127.0.0.1:9090, noise/profile relays │ │ remote control WS 127.0.0.1:8001 -> metrics relay   │
- └─────────────────────────────────────────────┘ │   -> /metrics on 10.42.0.3:<port> (Prometheus)      │
-                                                 └─────────────────────────────────────────────────────┘
+ ┌──────────────────────── tiny 10.42.0.2  (k3s, pod CIDR 10.244.0.0/16) ─────────────────────────┐
+ │ host network: Open5GS AMF :38412, UPF :2152, ogstun 10.45.0.1/16, iperf3 :5201/:5202          │
+ │ pods: other Open5GS NFs, dashboard, Prometheus                                                 │
+ │       ▲ N2 SCTP / N3 GTP-U from the pod IP, over cni0 (never on the LAN wire)                  │
+ │ ┌─────┴──────── pod ocudu-cell (namespace ran2, NO hostNetwork, pinned to P-cores) ─────────┐ │
+ │ │ gnb (OCUDU 26.10, avx2)  gNB ID 0xe01, PCI 1, n78 51 PRB                                   │ │
+ │ │   │ ZMQ 127.0.0.1:4556/4557 (pod loopback)                                                 │ │
+ │ │ ue  (oai-nr-ue 2026.w40, ZMQ)  oaitun_ue1 10.45.x.y, route 10.45.0.1/32 via oaitun_ue1     │ │
+ │ │ metrics-relay  ws://127.0.0.1:8001 -> :9105/metrics on the pod IP (Prometheus only)        │ │
+ │ └────────────────────────────────────────────────────────────────────────────────────────────┘ │
+ └────────────────────────────────────────────────────────────────────────────────────────────────┘
+ REDLAB 10.42.0.1: OAI gNB + nrUE over rfsim (unchanged), N2/N3 to 10.42.0.2 over the LAN
 ```
 
-### 3.1 Core side (N2/N3)
-- Open5GS accepts several gNBs on one AMF. The OCUDU gNB connects from 10.42.0.3 to `cu_cp.amf.addrs: 10.42.0.2`
-  with `bind_addrs: 10.42.0.3`; GTP-U from 10.42.0.3 to the UPF on 10.42.0.2:2152. The AMF and UPF already bind to
-  10.42.0.2 (host network), so **no core config change** is expected.
+### 3.1 Why one pod without host networking
+- On tiny, `ogstun` (10.45.0.1/16) and the iperf3 servers (bound to 10.45.0.1) live in the host namespace. A UE with
+  `hostNetwork: true`, as on REDLAB, would put `oaitun_ue1` (10.45.x.y) next to `ogstun` in the same namespace:
+  overlapping /16 routes, and packets to 10.45.0.1 delivered by the kernel locally, never through the radio, GTP-U
+  and the UPF. Throughput numbers would be meaningless.
+- In one pod, gNB and UE share the pod's own network namespace: ZMQ stays on the pod loopback (127.0.0.1), the UE
+  tunnel exists only inside the pod, and a route `10.45.0.1/32 dev oaitun_ue1` sends test traffic over the air
+  interface. The only way out of the pod towards 10.45.0.1 is then UE → ZMQ → gNB → GTP-U → UPF → `ogstun`.
+- Gate in `ran2.sh check`: inside the pod, `ip route get 10.45.0.1` must name `oaitun_ue1`; and on the host,
+  `ip route` must show no 10.45 route other than `ogstun`.
+
+### 3.2 Core side (N2/N3)
+- The AMF (NGAP) and UPF (GTP-U) already listen on 10.42.0.2 in the host namespace. From the pod, packets to
+  10.42.0.2 go over `cni0` to the host. The gNB binds N2 and N3 to its pod IP; the pod IP changes on restart, so it is
+  rendered into the config at start from the Downward API (`status.podIP`), the same way the UE SIM is rendered from
+  a Secret today. The UPF sends DL GTP-U to that pod IP, which the host routes over `cni0`. **No core config change.**
 - Identity: gNB ID `0xe01` (OAI: `0xe00`), PCI 1 (OAI: 0), its own NR cell ID; PLMN 001/70, TAC 1 (the only TAI the
   AMF serves), S-NSSAI SST 1 (OAI's `sd: 0xffffff` means "no SD", so it matches), DNN `fctoai`. A second TAC would
   need an AMF change and belongs to Experiment 13.
 - QoS: Open5GS gives 5QI 9; OCUDU generates a matching default QoS block when none is configured.
-- Second subscriber: `ue2` (IMSI e.g. `001700000000002`, K and OPc random), in `~/testbed-secrets/ue2.env` (mode 600,
-  never committed), written by `open5gs.sh` the same way as `ue1` (dbctl job reading a Secret). On the Jetson the
-  UE gets a Secret `ue2-sim` and renders its config in memory, with the same log masking as `ran.yaml`.
-- UE address from the same pool (10.45.0.0/16); the iperf server on tiny reaches both UEs.
+- Second subscriber: `ue2` (IMSI e.g. `001700000000002`, K and OPc random), in `~/testbed-secrets/ue2.env` on tiny
+  (mode 600, never committed), written by `open5gs.sh` the same way as `ue1` (dbctl job reading a Secret). The pod gets
+  Secret `ue2-sim` in namespace `ran2`, rendered into an in-memory volume, with the same log masking as `ran.yaml`.
+- Throughput server: the iperf3 server on tiny serves one client at a time per port (5201 single-flow TCP, 5202 UDP).
+  Step 2 of the experiment (both cells loaded at once) needs a third port (e.g. 5203) in `infra/dash/iperf-core.yaml`.
+- Note for Experiment 10 (GTP-U inspection): this cell's N2/N3 never reach the LAN; capture on `cni0` or the pod's
+  veth on tiny, not on `eno2`. That contrast (core and RAN on one host vs on two) is itself a teaching point.
 
-### 3.2 Deployment
-- **k3s on the Jetson**: a single-node k3s like tiny (the bench keeps one cluster per host). Two Deployments with
-  `hostNetwork: true`, same pattern as `infra/ran/ran.yaml`: `ocudu-gnb` and `oai-nr-ue-zmq`. Scripts in a new
-  `infra/ran2/` (`ran2.sh apply|check|remove`) with a `check` gate as for the OAI cell.
-- **Image**: `registry.gitlab.com/ocudu/ocudu/images/gnb-uhd:ubuntu-24.04-neon-<date>_<commit>-stable`, pinned to
-  the promoted build of `release_26_10`, signature checked with cosign (signature, SBOM and vulnerability report are
-  attached). Never `latest`. Fallback: build from `docker/Dockerfile` at the tag with `MARCH=cortex-a78ae`.
-- **ZMQ in the image**: the build installs `libzmq3-dev` and `ENABLE_ZEROMQ` is on by default, so the driver is
-  probably built in, but the image table only names UHD/DPDK. To verify: the gNB log line `Available radio types: uhd, zmq ...`.
-- Container rights: OCUDU needs `SYS_NICE` (its compose file also adds `SYS_PTRACE`, which we do not need); not
-  privileged. The OAI UE needs `privileged` (tun), as today.
-- Helm charts exist (`ocudu_helm`: `ocudu-gnb`, `ocudu-du`, `ocudu-cu*`, `grafana-ocudu`, `open5gs`, `onap-smo-lite`,
-  ...), but they target real radios, DPDK and PTP. Plain manifests in the repo style are simpler here.
+### 3.3 Kubernetes objects (proposal, in a new `infra/ran2/`)
+| Object | Content |
+|---|---|
+| Namespace `ran2` | Keeps the second cell apart from `open5gs` and `fct-dash`; `kubectl delete ns ran2` removes all of it |
+| Secret `ue2-sim` | IMSI, K, OPc (from `~/testbed-secrets/ue2.env`) |
+| ConfigMaps | `ocudu-gnb-config` (gNB YAML with `__POD_IP__` placeholders), `ue2-config` (UE template), `metrics-relay` (Python) |
+| Deployment `ocudu-cell` (1 replica, `Recreate`) | Init container renders gNB config (pod IP) and UE config (SIM). Containers: `gnb` (`registry.gitlab.com/ocudu/ocudu/images/gnb-uhd:ubuntu-24.04-avx2-<date>_<commit>-stable`, pinned to the promoted 26.10 build, cosign-verified; caps `SYS_NICE`), `ue` (`oai-nr-ue:2026.w40`, privileged for the tun device, as today; adds the 10.45.0.1/32 route once the tunnel is up), `metrics-relay` (small Python image) |
+| Resources | Limits per container (proposal: gNB 4 CPU / 3 GiB, UE 3 CPU / 2 GiB, relay 0.2 CPU / 128 MiB). Requests equal to limits so the pod is not evicted first. To be adjusted after step 5 |
+| CPU placement | P-cores are CPUs 0-15 on tiny (5.5-5.8 GHz), E-cores 16-31 (4.3 GHz). First choice: start both softmodems under `taskset -c 0-15`; no kubelet change, the core keeps running anywhere. Later, if needed: kubelet static CPU manager with `--reserved-cpus=16-31` for exclusive P-cores (needs a k3s restart on tiny, i.e. a core restart, so only with the user's OK) |
+| Service + NetworkPolicy | ClusterIP Service for `:9105` (relay); NetworkPolicy: ingress to the pod only from the Prometheus pod on 9105. k3s enforces NetworkPolicy by default (not disabled in `infra/k3s-node.sh`) |
+| Script `infra/ran2/ran2.sh` | `MODE=apply|check|remove`, run on tiny like `open5gs.sh`. `check`: pod Ready, NG Setup accepted (AMF log, gNB ID 0xe01), UE tunnel up, route gate (3.1), ZMQ 4556/4557 and remote control 8001 bound to 127.0.0.1 only, all `open5gs` pods still Ready, OAI cell `ran.sh check` still PASS |
 
-### 3.3 Metrics and dashboard
+The OCUDU Helm charts (`ocudu_helm`: `ocudu-gnb`, `grafana-ocudu`, ...) target real radios, DPDK and PTP and do not
+cover the UE. Plain manifests in the repo style are simpler and match `infra/ran/ran.yaml`.
+
+### 3.4 Metrics and dashboard
 - Enable in the gNB config:
   ```yaml
   metrics:
@@ -125,51 +143,54 @@ Use B as a fallback, or later to show an FDD cell (links to Experiment 4, paired
 - Per-UE fields (scheduler UE metrics): `cqi`, `dl_mcs`, `dl_brate`, `dl_nof_ok`/`nok`, `dl_bs`, `pusch_snr_db`,
   `ul_mcs`, `ul_brate`, `ul_nof_ok`/`nok`, `bsr`, `ta_ns`, `phr`; cell fields: scheduler latency, PRACH/Msg3 counts,
   UE list; `cpu_usage_percent` per component; app resource usage.
-- **Collector**: a small relay pod on the Jetson (Python, `websockets`), connects to `127.0.0.1:8001`, sends
-  `{"cmd":"metrics_subscribe"}`, keeps the last report and exposes Prometheus text on the bench LAN address; Prometheus
-  on tiny adds one scrape job with a `cell="ocudu"` label. The dashboard gets a second cell column with the same KPI
-  names where they map (CQI, MCS, BLER from ok/nok, DL/UL rate). Alternative: OCUDU's Telegraf
-  (`inputs.websocket`) with `outputs.prometheus_client`, no own code but one more image.
+- **Relay sidecar**: connects to `ws://127.0.0.1:8001`, sends `{"cmd":"metrics_subscribe"}`, keeps the last report,
+  serves Prometheus text on `:9105`. Prometheus on tiny gets one scrape job (`ocudu-cell.ran2.svc:9105`,
+  label `cell="ocudu"`); nothing is exposed on the LAN. The dashboard gets a second cell column with the same KPI
+  names where they map (CQI, MCS, BLER from ok/nok, DL/UL rate). Alternative: OCUDU's Telegraf (`inputs.websocket`
+  + `outputs.prometheus_client`), no own code but one more image.
 - Not portable: `kpi.sh` and the T-tracer resource grid (Experiment 1b) read OAI internals. OCUDU's analogue for a
-  resource grid would be its PHY-tap plugin example or MAC PCAPs; a later study, not part of this one.
+  resource grid would be its PHY-tap plugin example or MAC PCAPs; a later study.
 - SINR: OAI reports UE-side SINR; OCUDU reports `pusch_snr_db` (UL, gNB side) and CQI. The OAI UE over ZMQ still logs
-  its own measurements, so UE-side values stay comparable when Option A is used.
+  its own measurements, so UE-side values stay comparable with Option A.
 
-### 3.4 E2 and Experiment 12
+### 3.5 E2 and Experiment 12
 - OCUDU's E2 agent: `e2: {enable_du_e2: true, e2sm_kpm_enabled: true, e2sm_rc_enabled: true, addr: <RIC>, port: 36421}`.
   KPM metrics include `DRB.UEThpDl/Ul`, `RRU.PrbTotDl/Ul`, `RRU.PrbUsedDl/Ul`, `DRB.RlcSduDelayDl`, `RRC.ConnMean`,
   `RRC.ConnEstabAtt/Succ`, `RACH.PreambleDedCell` (27 in total). RC: control style 2 only (radio resource allocation,
   e.g. slice PRB quotas).
 - Fit: Experiment 12 plans FlexRIC with the OAI gNB. With OCUDU, the same RIC sees two E2 nodes from two vendors, and
   one KPM xApp can compare them. Version risk: the OCUDU tutorial builds FlexRIC with `KPM_V3_00` (and gcc-10); the
-  OAI E2 agent at w40 must use a FlexRIC branch/version that works with both. To check in Experiment 12's issue.
-- The RIC needs SCTP 36421 reachable from 10.42.0.3; bind it to the bench LAN only.
+  OAI E2 agent at w40 must use a FlexRIC version that works with both. To check in Experiment 12's issue.
+- From the pod, the RIC is reached over the pod network (if the RIC runs in tiny's k3s) or via the host route to the
+  LAN; the E2 port 36421 binds to the bench LAN or cluster only.
 
-### 3.5 O1 and EXP-12a
+### 3.6 O1 and EXP-12a
 - OCUDU O1 adapter (`ocudu_elements/ocudu_oran_apps/ocudu_o1_adapter`, active 2026-11): a sidecar that reads the
   running config from a NETCONF datastore (netopeer2, repo `ocudu_netconf`), renders the gNB config file and signals a
   restart through a REST health check (`/config-healthy`); FM via VES; PM from the WebSocket metrics, either streamed
-  or as gzipped TS 32.435 files announced with VES `notifyFileReady`. An O1 test suite (`ocudu_o1_tests`) exists.
+  or as gzipped TS 32.435 files announced with VES `notifyFileReady`. An O1 test suite (`ocudu_o1_tests`) exists. It
+  is designed as a sidecar in the gNB pod, which fits section 3.3.
 - Compared with the OAI path in [EXP-12a](EXP-12a-smo-o1-feasibility.md): CM is a full config rewrite + restart
-  (any parameter, not only 20/40/60/100 MHz), and PM uses real per-UE metrics. Same SMO (O-RAN SC OAM) could manage
-  both gNBs; compatibility with the M release is unverified for both adapters.
-- Host conflict: EXP-12a proposes "e.g. 10.42.0.3" for the SMO host (16 GB minimum). The Jetson cannot host both the
-  SMO and the OCUDU cell. One of the two needs another address/host.
+  (any parameter, not only 20/40/60/100 MHz), and PM uses real per-UE metrics. The same SMO (O-RAN SC OAM) could
+  manage both gNBs; compatibility with the M release is unverified for both adapters.
+- With OCUDU on tiny, 10.42.0.3 (Jetson) stays free for EXP-12a's SMO host proposal, as far as RAM allows (the SMO
+  needs 16 GB).
 
 ## 4. Hardware and placement
 | Host | Fit | Notes |
 |---|---|---|
-| **Jetson Orin NX 10.42.0.3** (arm64, Cortex-A78AE, 8 or 6 cores, 16 or 8 GB shared with the GPU) | **Recommended** | Arm64 images exist for both OCUDU and the OAI UE. Separate CPU budget from the OAI cell, so Experiment 1 numbers on REDLAB are not disturbed. Need to know: RAM variant, JetPack/Ubuntu version (22.04 with JetPack 6 is fine for containers), current use, power mode (`nvpmodel` MAXN) and fan |
-| REDLAB 10.42.0.1 (x86) | Not recommended | 23 of 30 GB used; the OAI UE alone needs 0.7-2.6 cores per simulated second (Experiment 1). A second cell would skew the OAI measurements |
-| tiny 10.42.0.2 | No | Core, dashboard and Prometheus must stay unaffected |
-| Another x86 mini PC | Alternative | AVX2 image (`avx2` variant); also removes the ARM-vs-x86 confound in the comparison |
+| **tiny 10.42.0.2** (ThinkStation P3 Tiny, i9-14900, 32 threads, 30 GB) | **Chosen** | About 26 GB RAM available and the core uses about 0.34 cores (2026-11-03). x86 AVX2 like REDLAB (Core Ultra 9 285), so the compute comparison is not confounded by x86 vs ARM. k3s already runs there. Disk `/` 48 GB with 16 GB free: OCUDU + UE images are a few GB; check before pulling |
+| Jetson Orin NX 10.42.0.3 (arm64) | Alternative | Physically separate RAN; arm64 images exist for both. Risks: Neoverse-N1 build target vs Cortex-A78AE, 8/16 GB shared with the GPU, slower cores. Better kept for the EXP-12a SMO or ARM tests |
+| REDLAB 10.42.0.1 (x86) | No | About 23 of 30 GB used; the OAI UE alone needs 0.7-2.6 cores per simulated second (Experiment 1) |
 
-Expected load (**hypothesis**, to be measured in step 1 of the experiment): OCUDU gNB at 20 MHz over ZMQ 1-2 cores and
-about 1-2 GB RAM; OAI UE at 51 PRB about 0.7 cores on REDLAB's x86 (Experiment 1), probably 1-1.5 cores on the A78AE;
-relay and k3s about 0.5 GB. Total about 3-4 cores and 3-4 GB, which fits an Orin NX 16 GB and is tight on 8 GB.
-ZMQ runs as fast as the slowest side, not in real time: if the Jetson is too slow, the cell runs slower than real
-time (like 273 PRB in Experiment 1) and goodput in wall-clock Mbit/s drops. The experiment therefore records the
-simulation speed.
+Expected load (**hypothesis**, measured in step 5): OCUDU gNB at 20 MHz over ZMQ 1-2 cores and about 1-2 GB RAM;
+OAI UE at 51 PRB about 0.7 cores (as on REDLAB in Experiment 1); relay negligible. Total about 3 cores and 3-4 GB,
+well inside tiny's spare capacity. ZMQ runs as fast as the slowest side, not in real time: if the pod is starved, the
+cell runs slower than real time and goodput in wall-clock Mbit/s drops. The experiment records the simulation speed.
+
+Blast radius: tiny carries the core for **both** cells. If the OCUDU pod misbehaves (CPU, memory), the OAI cell can
+lose its core. The limits in 3.3 and the gates in step 2 of the experiment are there for that; `ran2.sh remove`
+(namespace delete) is the way back.
 
 ## 5. First experiment: OAI cell vs OCUDU cell on the same core
 Same method as the other experiments: baseline, one change, record again, scripted PASS checks. All rfsim/ZMQ only.
@@ -181,67 +202,68 @@ profile (Experiment 1: 43.3 Mbit/s UDP DL at MCS 28). UE software OAI nrUE in bo
 
 | Step | What | PASS |
 |---|---|---|
-| 1 | Attach: start the OCUDU cell; time from gNB start to NG Setup, UE RRC connected, registration, PDU session | NG Setup Response in the AMF log with gNB ID 0xe01; UE tunnel up with a 10.45.x address; ping to 10.45.0.1; OAI cell's `ran.sh check` still PASS; AMF shows **2 gNBs, 2 UEs** |
-| 2 | Isolation: both cells carry traffic at once | No change in OAI cell CQI/MCS/goodput beyond run-to-run spread (Experiment 1: within 1 %) |
-| 3 | Capacity: UDP DL at a fixed rate above the link rate (as Experiment 0c), then UL | Report DL/UL goodput, MCS, BLER for both cells. Hypothesis: OCUDU close to OAI at 51 PRB (about 40-45 Mbit/s DL), limited by TDD pattern and overhead, not by the gNB. Difference > 10 % is investigated (MCS table, CSI-RS/SSB overhead, ZMQ speed) |
+| 0 | Core baseline on tiny without the OCUDU pod: CPU and memory of `open5gs` pods, UPF and AMF metrics, OAI cell UDP DL at 51 PRB | Recorded as reference |
+| 1 | Attach: apply `ran2`; time from pod start to NG Setup, UE RRC connected, registration, PDU session | NG Setup Response in the AMF log with gNB ID 0xe01; UE tunnel up with a 10.45.x address; route gate (3.1); ping to 10.45.0.1 over `oaitun_ue1`; AMF shows **2 gNBs, 2 UEs**; OAI cell `ran.sh check` still PASS |
+| 2 | Isolation: both cells carry UDP at saturation at once (OAI on 5202, OCUDU on 5203) | OAI cell CQI/MCS/goodput unchanged beyond run-to-run spread (Experiment 1: within 1 %); `open5gs` pods Ready, no restarts; UPF CPU and tiny's load recorded |
+| 3 | Capacity: UDP DL at a fixed rate above the link rate (as Experiment 0c), then UL, one cell at a time | DL/UL goodput, MCS, BLER for both cells. Hypothesis: OCUDU close to OAI at 51 PRB (about 40-45 Mbit/s DL), limited by TDD pattern and overhead, not by the gNB. Difference > 10 % is investigated (MCS table, CSI-RS/SSB overhead, ZMQ speed) |
 | 4 | One TCP flow (dashboard speed test) per cell | Reported, not gated (single-flow TCP is application-limited, Experiment 0c) |
-| 5 | Compute cost: CPU cores of gNB and UE pods from cAdvisor/`kubectl top` at idle and at saturation; simulation speed (simulated seconds per wall second, from slot/frame counters); **cores per simulated second** and **CPU-seconds per Mbit** (cores per simulated second / goodput) | Numbers for both cells in one table, with the host (x86 vs arm64) stated |
-| 6 | Stop/start: delete the OCUDU gNB pod | AMF removes the gNB (NG reset/SCTP down); the OAI cell is unaffected; re-attach works after `ran2.sh apply` |
+| 5 | Compute cost: CPU cores of gNB and UE containers (cAdvisor / `kubectl top`) at idle and at saturation; simulation speed (simulated seconds per wall second, from slot/frame counters); **cores per simulated second** and **CPU-seconds per Mbit** (cores per simulated second / goodput) | Numbers for both cells in one table, with host and core type stated (REDLAB Core Ultra 9 285 vs tiny i9-14900 P-cores) |
+| 6 | Stop/start: delete the OCUDU pod | AMF removes the gNB (SCTP down); the OAI cell is unaffected; re-attach works after `ran2.sh apply` |
 
-Fairness: the two cells run on different CPUs (REDLAB x86 vs Jetson arm64), so step 5 compares stacks **and**
-hardware. To separate them, one of: (a) run the OAI rfsim cell on the Jetson too (its images are arm64) for one
-measurement window, or (b) run the OCUDU cell on REDLAB for one window with the OAI cell scaled to 0. Both need the
-user's OK; (a) leaves REDLAB untouched.
+Fairness: both hosts are x86, but different CPUs and simulators (rfsim vs ZMQ). If the step-5 numbers differ by more
+than the CPU difference can explain, one cross-check window: the OAI rfsim cell in a second pod on tiny's P-cores
+(same `hostNetwork`-free pattern), with the user's OK.
 
 Possible follow-ups (separate issues): srsUE on an FDD n3 cell (Experiment 4), OCUDU noise/link adaptation as
 Experiment 0 (ZMQ has no channel model; would need the GNU Radio broker with a gain block), OCUDU CU/DU split (F1
-on the bench LAN), E2 KPM from both cells into one xApp (Experiment 12).
+between two pods), E2 KPM from both cells into one xApp (Experiment 12), OCUDU O1 adapter as a sidecar (EXP-12a).
 
 ## 6. Security
-- **ZMQ** sample ports (4556/4557, or 2000/2001 for srsUE) bind to `tcp://127.0.0.1` only. ZMQ has no
-  authentication; anyone who connects can inject or read the radio stream. `ran2.sh check` gate: "no ZMQ port listens
-  outside 127.0.0.1".
+- **ZMQ** sample ports (4556/4557, or 2000/2001 for srsUE) bind to `tcp://127.0.0.1` in the pod namespace only. ZMQ
+  has no authentication; anyone who connects can inject or read the radio stream. Gate in `ran2.sh check`.
 - **Remote control WebSocket** (8001): the OCUDU docs and compose file bind it to 0.0.0.0. It takes commands as well as
-  metrics subscriptions and has no authentication, so it must bind 127.0.0.1, with a check gate as for the gNB telnet.
-  Only the read-only relay is reachable on the bench LAN, and it exposes metrics only.
-- **N2/N3** only on the bench LAN (10.42.0.3 to 10.42.0.2). The Jetson must not route between campus/Wi-Fi and the
-  bench LAN; check its other interfaces before installing.
-- **SIM values** (`ue2`: IMSI, K, OPc) only in `~/testbed-secrets/ue2.env` and a k3s Secret on the Jetson and on tiny;
-  rendered into an in-memory volume; masked in UE logs (OAI prints them at start). Never in git, ConfigMaps or the doc.
-- **Images**: pin the `-stable` digest of 26.10 and verify the cosign signature; OCUDU's example InfluxDB token
+  metrics subscriptions and has no authentication, so it binds 127.0.0.1 in the pod. Only the read-only relay
+  (:9105) is reachable, only from Prometheus (NetworkPolicy), and it serves metrics only.
+- **N2/N3** stay inside tiny (pod IP to 10.42.0.2 over `cni0`); nothing new on the LAN, no new host ports.
+- **SIM values** (`ue2`: IMSI, K, OPc) only in `~/testbed-secrets/ue2.env` on tiny and Secrets (`open5gs` for the
+  dbctl job, `ran2` for the UE); rendered into an in-memory volume; masked in UE logs (OAI prints them at start).
+  Never in git, ConfigMaps or this doc.
+- **Images**: pin the `-stable` build of 26.10 by digest and verify the cosign signature; OCUDU's example InfluxDB token
   (`fake-token-...`) and anonymous Grafana are not used.
-- **Over-the-air**: none. The `gnb-uhd` image can drive USRPs; no SDR is connected to the Jetson and the config uses
+- **Privileges**: the UE container is privileged (tun), as on REDLAB; the gNB container only gets `SYS_NICE`, not the
+  `privileged` + USB mounts of OCUDU's compose file.
+- **Over-the-air**: none. The `gnb-uhd` image can drive USRPs; tiny has no SDR and the config uses
   `device_driver: zmq` only.
 
 ## 7. Risks
 | Risk | Effect | Mitigation |
 |---|---|---|
+| UE traffic bypasses the radio (shared namespace with `ogstun`) | Meaningless throughput | One pod without `hostNetwork`; route gate in `ran2.sh check` (3.1) |
+| OCUDU pod starves or crashes the core on tiny | Both cells lose service | CPU/memory limits; `taskset` to P-cores; step 2 gate; `ran2.sh remove` |
 | OAI w40 UE over ZMQ with OCUDU 26.10 untested by us; ZMQ fixes landed after w40 | No attach or unstable UL | Try w40 first; then a newer OAI UE tag for this cell only; fallback srsUE (FDD) |
-| `neon` image built for Neoverse-N1 may use instructions the Orin lacks | `Illegal instruction` at start | Run `gnb --version` once before anything else; else build with `MARCH=cortex-a78ae` on the Jetson (long build) |
-| Published component image without the ZMQ driver | gNB cannot use ZMQ | Check the "Available radio types" line; else build from `docker/Dockerfile` at `release_26_10` |
-| Jetson too slow or only 8 GB | Simulation slower than real time; skewed throughput; OOM | Measure in step 5; reduce to 10 MHz (24 PRB) if needed; OCUDU's `ocudu_performance` script tunes the host (CPU governor) |
-| ZMQ needs both ends fresh after any restart | A UE crash takes the cell down | `ran2.sh` restarts gNB then UE together, as `profile.sh` does for the OAI cell |
-| Jetson already planned for other work (SMO in EXP-12a, GPU work) | Resource clash | Decide the host before stage S1 (open question 1) |
-| Comparison confounded by hardware | Wrong conclusion "OCUDU is cheaper/faster" | Fairness options (a)/(b) in section 5; always state the host |
-| Second gNB changes AMF state | OAI cell affected | Steps 1 and 2 gate on the OAI cell staying PASS; the core config is not changed |
+| Published component image without the ZMQ driver | gNB cannot use ZMQ | Check the "Available radio types" line; else build from `docker/Dockerfile` at `release_26_10` (`MARCH=x86-64-v3`) on tiny |
+| SCTP and GTP-U from a pod IP through `cni0` (flannel/iptables) | NG Setup fails or N3 drops | Check in step 1; fallback: gNB container with `hostNetwork` and only the UE in a separate namespace (more complex ZMQ wiring) |
+| Pod IP changes on restart | AMF/UPF see a new gNB address | Rendered at start from `status.podIP`; the AMF accepts the new NG Setup |
+| Disk on tiny (16 GB free) | Image pull fails, node disk pressure evicts core pods | Check free space first; prune unused images; keep under 80 % |
+| Comparison confounded by CPU type (P-core vs REDLAB) | Wrong conclusion | State the CPUs; cross-check window in section 5 |
+| Static CPU manager later | k3s restart = core restart | Only if `taskset` is not enough, and only with the user's OK |
 
 ## 8. Open questions
-1. The Jetson Orin NX at 10.42.0.3: 8 or 16 GB? What runs on it today, which JetPack/Ubuntu, and is it free for this
-   (EXP-12a also suggests 10.42.0.3 for the SMO)?
-2. OK to add a second subscriber (`ue2`) to the core and extend `open5gs.sh` for it?
+1. OK to add a second subscriber (`ue2`) to the core and extend `open5gs.sh` for it?
+2. OK to add a third iperf3 port (5203) on tiny for concurrent tests (step 2)?
 3. UE choice: OAI nrUE over ZMQ first (same UE in both cells), srsUE later for FDD; agreed?
 4. Second cell on the dashboard: one extra column per KPI, or a separate "Cell 2" page?
-5. For the compute comparison: run the OAI cell on the Jetson for one window (a), or OCUDU on REDLAB (b)?
+5. Resource limits for the OCUDU pod: start with 7 CPU / 5 GiB in total, or tighter?
 6. Should Experiment 12 (near-RT RIC) plan for two E2 nodes from the start?
 
 ## Proposed stages (each only with the user's OK)
 | Stage | Where | Changes the bench? |
 |---|---|---|
-| S0 | Jetson: read-only inventory (`free -g`, `nproc`, `/etc/nv_tegra_release`, interfaces, running services) | No |
-| S1 | Jetson: pull and verify the pinned OCUDU image; `gnb --version`; check ZMQ support; pull `oai-nr-ue:2026.w40` arm64 and check `liboai_zmqdevif.so` | No bench service touched (new images on the Jetson only) |
-| S2 | Jetson: k3s single node; OCUDU gNB + OAI UE over ZMQ against OCUDU's own dockerised Open5GS, isolated (no tiny) | Jetson only |
-| S3 | tiny: subscriber `ue2`; Jetson: point the gNB at 10.42.0.2; experiment steps 1-2 | Yes (core subscriber DB, new gNB on the AMF) |
-| S4 | Metrics relay + Prometheus scrape job + dashboard column; experiment steps 3-6 | Yes (Prometheus config, dashboard) |
+| S0 | tiny: read-only inventory (done 2026-11-03: CPU, RAM, load) plus disk and image cache check | No |
+| S1 | tiny: pull and verify the pinned OCUDU image (cosign); run `gnb --version` and check ZMQ support in a throwaway container; check `liboai_zmqdevif.so` in the UE image | Images only (disk on tiny) |
+| S2 | tiny: subscriber `ue2`; namespace `ran2` with Secret, ConfigMaps, Deployment, `ran2.sh check`; experiment steps 0-1 | Yes (core subscriber DB, new gNB on the AMF) |
+| S3 | iperf3 port 5203; experiment steps 2-4 and 6 | Yes (iperf server pod) |
+| S4 | Relay sidecar + Service + NetworkPolicy + Prometheus scrape job + dashboard column; experiment step 5 | Yes (Prometheus config, dashboard) |
 
 ## Sources
 - OCUDU code and releases: [gitlab.com/ocudu/ocudu](https://gitlab.com/ocudu/ocudu) (tags `release_26_04`, `release_26_10`; `CHANGELOG`, `LICENSE`, `docker/Dockerfile`, `docker/docker-compose.yml`, `docker/.env`, `docker/scripts/install_dependencies.sh`, `CMakeLists.txt` `ENABLE_ZEROMQ`)
@@ -250,4 +272,4 @@ on the bench LAN), E2 KPM from both cells into one xApp (Experiment 12).
 - Announcements: [OCUDU 26.04 initial release (ocudu.org)](https://ocudu.org/news/blog-introducing-the-initial-ocudu-technical-project-release-26-04/), [OCUDU 26.10 (SRS)](https://srs.io/ocudu-ecosystem-foundation-announces-ocudu-26-10-bringing-satellite-connectivity-8t8r-mimo-and-multi-beam-operation-to-open-source-ran/), [Linux Foundation: OCUDU Ecosystem Foundation](https://www.linuxfoundation.org/press/linux-foundation-announces-ocudu-ecosystem-foundation-to-accelerate-open-source-ai-ran-innovation)
 - OAI ZMQ radio at 2026.w40: [radio/zmq/README.md](https://github.com/OPENAIRINTERFACE/openairinterface5g/blob/2026.w40/radio/zmq/README.md), [Dockerfile.nrUE.ubuntu](https://github.com/OPENAIRINTERFACE/openairinterface5g/blob/2026.w40/docker/Dockerfile.nrUE.ubuntu) (copies `liboai_zmqdevif.so`), later fixes in the [radio/zmq history](https://github.com/OPENAIRINTERFACE/openairinterface5g/commits/develop/radio/zmq); image tags on [Docker Hub oai-nr-ue](https://hub.docker.com/r/oaisoftwarealliance/oai-nr-ue/tags) (2026.w40: amd64, arm64)
 - srsRAN 4G (srsUE): [github.com/srsran/srsRAN_4G releases](https://github.com/srsran/srsRAN_4G/releases) (`release_25_10`)
-- Bench: `infra/ran/ran.yaml`, `infra/ran/gnb.yaml`, `infra/core/gen-open5gs.py`, `infra/core/open5gs.sh`, [EXP-01](EXP-01-bandwidth.md), [EXP-12a (PR #38)](https://github.com/rediramli/R-D-Testbed/pull/38)
+- Bench: `infra/k3s-node.sh` (tiny pod CIDR 10.244.0.0/16), `infra/core/gen-open5gs.py`, `infra/core/open5gs.sh`, `infra/dash/iperf-core.yaml`, `infra/dash/prom-core.yaml`, `infra/ran/ran.yaml`, `infra/ran/gnb.yaml`, [EXP-01](EXP-01-bandwidth.md), [EXP-12a (PR #38)](https://github.com/rediramli/R-D-Testbed/pull/38)
