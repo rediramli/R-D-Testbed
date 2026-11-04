@@ -1,7 +1,8 @@
 # Experiment 16 (feasibility): a second gNB built on OCUDU
 
-Status: **feasibility study** (2026-11-03). Desk study plus read-only checks on tiny (`lscpu`, `free`, `kubectl top`);
-nothing was installed or changed on the bench.
+Status: **feasibility study** (2026-11-03), **stage S1 done 2026-11-04** (images pulled and tested in throwaway pods
+on tiny, see [S1 results](#s1-results-2026-11-04)). No bench service was changed.
+**S1 blocker: no published OCUDU image contains the ZMQ driver; we have to build our own gNB image (stage S1b).**
 Question: can the bench get a second gNB, built on OCUDU (the Linux Foundation successor of the srsRAN Project), next to
 the OAI cell, on the same Open5GS core? Answer: **yes**, as a separate cell with its own UE and its own virtual radio
 (ZMQ), not as a handover neighbour of the OAI cell. **Decided host (2026-11-03): tiny, in its existing k3s**, in one
@@ -21,7 +22,8 @@ pod with its own network namespace. The Jetson Orin NX stays an alternative.
 | Metrics for the dashboard | JSON metrics over the **remote-control WebSocket** (`metrics_subscribe`, port 8001, bound to 127.0.0.1 inside the pod), turned into Prometheus text by a relay sidecar, scraped in-cluster by the Prometheus already on tiny. Our KPI pipeline and the T-tracer resource grid are OAI-only |
 | E2 | Built-in E2 agent: **E2SM-KPM** (report styles 1-5 and 255, 27 metrics) and **E2SM-RC** (control style 2 only). Documented with FlexRIC and the O-RAN SC near-RT RIC. Fits Experiment 12 as a second, different E2 node |
 | O1 | OCUDU has its own O1 adapter (Python sidecar: NETCONF CM and FM, PM from the JSON metrics, TS 32.435 files + VES `notifyFileReady`). More complete than the OAI o1-adapter studied in [EXP-12a](EXP-12a-smo-o1-feasibility.md) |
-| Verdict | **Feasible on tiny.** Open points: whether the published `gnb-uhd` image contains the ZMQ driver, ZMQ interop between OAI w40 and OCUDU 26.10, and proof that the core is not disturbed (gate in step 2 of the experiment) |
+| Published images (S1, 2026-11-04) | Signed (cosign keyless, OCUDU `main` pipeline) and runnable on tiny, but **built with `-DENABLE_ZEROMQ=OFF`**: `Available radio types: uhd and realtime_loopback`. Same for the all-in-one image. Our own image is needed |
+| Verdict | **Feasible on tiny, with our own OCUDU image.** Open points: where to build and how to import the image into tiny's containerd, ZMQ interop between OAI w40 and OCUDU 26.10, the gNB's memory need (more than 2 GiB at start), and proof that the core is not disturbed (gate in step 2 of the experiment) |
 
 ## 1. OCUDU in short
 - **What it is**: a 5G CU/DU (gNB) in C++ from Software Radio Systems, continued from the srsRAN Project under the
@@ -120,8 +122,8 @@ Use B as a fallback, or later to show an FDD cell (links to Experiment 4, paired
 | Namespace `ran2` | Keeps the second cell apart from `open5gs` and `fct-dash`; `kubectl delete ns ran2` removes all of it |
 | Secret `ue2-sim` | IMSI, K, OPc (from `~/testbed-secrets/ue2.env`) |
 | ConfigMaps | `ocudu-gnb-config` (gNB YAML with `__POD_IP__` placeholders), `ue2-config` (UE template), `metrics-relay` (Python) |
-| Deployment `ocudu-cell` (1 replica, `Recreate`) | Init container renders gNB config (pod IP) and UE config (SIM). Containers: `gnb` (`registry.gitlab.com/ocudu/ocudu/images/gnb-uhd:ubuntu-24.04-avx2-<date>_<commit>-stable`, pinned to the promoted 26.10 build, cosign-verified; caps `SYS_NICE`), `ue` (`oai-nr-ue:2026.w40`, privileged for the tun device, as today; adds the 10.45.0.1/32 route once the tunnel is up), `metrics-relay` (small Python image) |
-| Resources | Limits per container (proposal: gNB 4 CPU / 3 GiB, UE 3 CPU / 2 GiB, relay 0.2 CPU / 128 MiB). Requests equal to limits so the pod is not evicted first. To be adjusted after step 5 |
+| Deployment `ocudu-cell` (1 replica, `Recreate`) | Init container renders gNB config (pod IP) and UE config (SIM). Containers: `gnb` (**our own image** `fct/ocudu-gnb:26.10-zmq`, see S1b; the published ones have no ZMQ), with caps `SYS_NICE`, `IPC_LOCK`, `PERFMON` (the binary carries these as file capabilities, `=ep`: without all three the kernel refuses to start it, "Operation not permitted"), `ue` (`oai-nr-ue:2026.w40`, privileged for the tun device, as today; adds the 10.45.0.1/32 route once the tunnel is up), `metrics-relay` (small Python image) |
+| Resources | Limits per container (proposal: gNB 4 CPU / **6 GiB**, UE 3 CPU / 2 GiB, relay 0.2 CPU / 128 MiB). The gNB was OOM-killed at start under a 2 GiB limit (S1); it started under 6 GiB. Requests equal to limits so the pod is not evicted first. To be adjusted after step 5 |
 | CPU placement | P-cores are CPUs 0-15 on tiny (5.5-5.8 GHz), E-cores 16-31 (4.3 GHz). First choice: start both softmodems under `taskset -c 0-15`; no kubelet change, the core keeps running anywhere. Later, if needed: kubelet static CPU manager with `--reserved-cpus=16-31` for exclusive P-cores (needs a k3s restart on tiny, i.e. a core restart, so only with the user's OK) |
 | Service + NetworkPolicy | ClusterIP Service for `:9105` (relay); NetworkPolicy: ingress to the pod only from the Prometheus pod on 9105. k3s enforces NetworkPolicy by default (not disabled in `infra/k3s-node.sh`) |
 | Script `infra/ran2/ran2.sh` | `MODE=apply|check|remove`, run on tiny like `open5gs.sh`. `check`: pod Ready, NG Setup accepted (AMF log, gNB ID 0xe01), UE tunnel up, route gate (3.1), ZMQ 4556/4557 and remote control 8001 bound to 127.0.0.1 only, all `open5gs` pods still Ready, OAI cell `ran.sh check` still PASS |
@@ -228,10 +230,13 @@ between two pods), E2 KPM from both cells into one xApp (Experiment 12), OCUDU O
 - **SIM values** (`ue2`: IMSI, K, OPc) only in `~/testbed-secrets/ue2.env` on tiny and Secrets (`open5gs` for the
   dbctl job, `ran2` for the UE); rendered into an in-memory volume; masked in UE logs (OAI prints them at start).
   Never in git, ConfigMaps or this doc.
-- **Images**: pin the `-stable` build of 26.10 by digest and verify the cosign signature; OCUDU's example InfluxDB token
-  (`fake-token-...`) and anonymous Grafana are not used.
-- **Privileges**: the UE container is privileged (tun), as on REDLAB; the gNB container only gets `SYS_NICE`, not the
-  `privileged` + USB mounts of OCUDU's compose file.
+- **Images**: our own gNB image is built from the signed upstream tag `release_26_10` and a digest-pinned Ubuntu base;
+  its Dockerfile lives in the repo and the image digest is recorded. The OCUDU upstream vulnerability attestation was
+  empty (S1), so scan our image ourselves (e.g. grype) before use. OCUDU's example InfluxDB token (`fake-token-...`)
+  and anonymous Grafana are not used.
+- **Privileges**: the UE container is privileged (tun), as on REDLAB; the gNB container gets only `SYS_NICE`,
+  `IPC_LOCK` and `PERFMON` (needed by the binary's file capabilities), not the `privileged` + USB mounts of OCUDU's
+  compose file.
 - **Over-the-air**: none. The `gnb-uhd` image can drive USRPs; tiny has no SDR and the config uses
   `device_driver: zmq` only.
 
@@ -241,7 +246,9 @@ between two pods), E2 KPM from both cells into one xApp (Experiment 12), OCUDU O
 | UE traffic bypasses the radio (shared namespace with `ogstun`) | Meaningless throughput | One pod without `hostNetwork`; route gate in `ran2.sh check` (3.1) |
 | OCUDU pod starves or crashes the core on tiny | Both cells lose service | CPU/memory limits; `taskset` to P-cores; step 2 gate; `ran2.sh remove` |
 | OAI w40 UE over ZMQ with OCUDU 26.10 untested by us; ZMQ fixes landed after w40 | No attach or unstable UL | Try w40 first; then a newer OAI UE tag for this cell only; fallback srsUE (FDD) |
-| Published component image without the ZMQ driver | gNB cannot use ZMQ | Check the "Available radio types" line; else build from `docker/Dockerfile` at `release_26_10` (`MARCH=x86-64-v3`) on tiny |
+| **Confirmed (S1):** published images have no ZMQ driver | gNB cannot use ZMQ | Own image (S1b); `ran2.sh check` greps the gNB log for `Available radio types: ... zmq` |
+| Own image drifts from upstream / is rebuilt differently | Results not reproducible | Pin the source tag and base image digest, keep the Dockerfile in the repo, record the image digest in each result |
+| gNB memory at start above 2 GiB | OOM kill, pod restarts; with `IPC_LOCK` memory may be locked (not swappable) | 6 GiB limit; measure RSS and locked memory (`VmRSS`, `VmLck`) in step 1 and tighten |
 | SCTP and GTP-U from a pod IP through `cni0` (flannel/iptables) | NG Setup fails or N3 drops | Check in step 1; fallback: gNB container with `hostNetwork` and only the UE in a separate namespace (more complex ZMQ wiring) |
 | Pod IP changes on restart | AMF/UPF see a new gNB address | Rendered at start from `status.podIP`; the AMF accepts the new NG Setup |
 | Disk on tiny (16 GB free) | Image pull fails, node disk pressure evicts core pods | Check free space first; prune unused images; keep under 80 % |
@@ -255,12 +262,49 @@ between two pods), E2 KPM from both cells into one xApp (Experiment 12), OCUDU O
 4. Second cell on the dashboard: one extra column per KPI, or a separate "Cell 2" page?
 5. Resource limits for the OCUDU pod: start with 7 CPU / 5 GiB in total, or tighter?
 6. Should Experiment 12 (near-RT RIC) plan for two E2 nodes from the start?
+7. Where to build our OCUDU image (S1b): on REDLAB with Docker (available, 193 GB free disk, but only about 8 GB RAM
+   free and the OAI cell running), or elsewhere? And how to get it into tiny's containerd: `k3s ctr images import`
+   needs sudo on tiny (no passwordless sudo for `fctlab`), so either the user runs that one command, or we use a
+   private registry.
+8. tiny's disk: `/` went from 65 % to 74 % used after S1 (13 GB free). The test images `ocudu_nightly_avx2` (0.5 GB)
+   and `images/gnb-uhd` (0.3 GB) are no longer needed; removing them needs `sudo k3s crictl rmi` on tiny.
+
+## S1 results (2026-11-04)
+Throwaway pods in namespace `default` on tiny (label `fct/stage=s1`, all deleted afterwards; no `hostNetwork`,
+no access to the core). Open5GS pods stayed Running (12/12).
+
+| Check | Result |
+|---|---|
+| Pinned image | No promoted image exists for the release commit `e0db566a` itself. Chosen: `images/gnb-uhd:ubuntu-24.04-avx2-20261001_920f88c7-stable`, digest `sha256:f4ef4323edbb4e6e983387c3aa6ed89d7014d280885e67c37fde6d75599d3049`, 315 MB compressed. `920f88c7` = `release_26_10` plus 29 later commits on `main` (the other candidate, `cb9ca3f2` = rc1, misses one F1-U fix) |
+| Signature | `cosign verify` (cosign v2.4.1, keyless, identity `https://gitlab.com/ocudu/ocudu//.gitlab-ci.yml@refs/heads/main`, issuer `https://gitlab.com`): **valid**, transparency log entry verified |
+| Vulnerability attestation | Present and signed, but **empty** (no scanner, no result). It gives no CVE information for this image |
+| Start | Binary `/usr/local/bin/gnb`, runs as uid 1001, file capabilities `cap_ipc_lock,cap_sys_nice,cap_perfmon=ep`. With only `SYS_NICE`: "Operation not permitted". With all three: `OCUDU 5G gNB version 26.10.0 (920f88c)` |
+| ZMQ | Test config with `device_driver: zmq` and `amf.no_core: true`: `Available radio types: uhd and realtime_loopback.` / `Failed to load RF plugin libocudu_radio_zmq.so`. **No ZMQ.** Cause: OCUDU CI builds with `-DENABLE_ZEROMQ=OFF` (`.gitlab-ci.yml`), and the Dockerfile's `build` dependency set has no `libzmq3-dev` |
+| All-in-one image | `ocudu_nightly_avx2:20260930_920f88c7-stable` (`sha256:d3fc65c7a777e78c96b47c06bd05e890eb587aa3fd24daa750e45f317a9ae2ec`, 508 MB, signature valid, runs as root): **also no ZMQ** |
+| Memory | gNB **OOM-killed under a 2 GiB limit** at start; started under 6 GiB (exited early because the radio type was missing, so steady-state RSS is not yet measured) |
+| Host warnings | CPU scaling governor not `performance` on tiny; OCUDU suggests its `ocudu_performance` script (a host change; not applied) |
+| UE image | `oai-nr-ue:2026.w40` (amd64 `sha256:d5d3b9b9...`): `/usr/local/lib/liboai_zmqdevif.so` present, linked to `libzmq.so.5`; `--uecap_file` and `--ue-scan-carrier` available. **OK** |
+| Disk on tiny | 65 % → 74 % used (13 GB free) |
+
+### S1b: our own gNB image with ZMQ (proposal)
+A small two-stage Dockerfile in the repo (`infra/ran2/Dockerfile.ocudu`), not OCUDU's full Dockerfile (which builds
+UHD and DPDK too):
+1. Builder `ubuntu:24.04` (pinned by digest): OCUDU source at tag `release_26_10`;
+   `docker/scripts/install_dependencies.sh build` plus `libzmq3-dev`; `cmake -DENABLE_ZEROMQ=ON -DENABLE_UHD=OFF
+   -DENABLE_DPDK=OFF -DMARCH=x86-64-v3 -DBUILD_TESTING=False`; build only the `gnb` target.
+2. Runtime `ubuntu:24.04`: `install_dependencies.sh run` packages plus `libzmq5`; copy `gnb`; same file capabilities
+   (`setcap cap_ipc_lock,cap_sys_nice,cap_perfmon=ep`); non-root user.
+3. Check in a throwaway pod: `Available radio types: zmq ...`, and `ldd` shows `libzmq.so.5`.
+
+Tag `fct/ocudu-gnb:26.10-zmq`, digest recorded in this file. Building from the release tag (not `920f88c7`) means
+the image is exactly 26.10.
 
 ## Proposed stages (each only with the user's OK)
 | Stage | Where | Changes the bench? |
 |---|---|---|
-| S0 | tiny: read-only inventory (done 2026-11-03: CPU, RAM, load) plus disk and image cache check | No |
-| S1 | tiny: pull and verify the pinned OCUDU image (cosign); run `gnb --version` and check ZMQ support in a throwaway container; check `liboai_zmqdevif.so` in the UE image | Images only (disk on tiny) |
+| S0 | tiny: read-only inventory (done 2026-11-03: CPU, RAM, load) | No |
+| S1 | tiny: pull and verify the OCUDU image, test start and ZMQ in throwaway pods, check the UE image. **Done 2026-11-04**: no ZMQ in published images | Images only (disk on tiny) |
+| S1b | Build host (open question 7): own OCUDU image with ZMQ; import into tiny; throwaway-pod check | Build host CPU during the build; image on tiny |
 | S2 | tiny: subscriber `ue2`; namespace `ran2` with Secret, ConfigMaps, Deployment, `ran2.sh check`; experiment steps 0-1 | Yes (core subscriber DB, new gNB on the AMF) |
 | S3 | iperf3 port 5203; experiment steps 2-4 and 6 | Yes (iperf server pod) |
 | S4 | Relay sidecar + Service + NetworkPolicy + Prometheus scrape job + dashboard column; experiment step 5 | Yes (Prometheus config, dashboard) |
