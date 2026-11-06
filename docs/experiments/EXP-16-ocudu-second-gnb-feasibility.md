@@ -305,18 +305,25 @@ builds UHD and DPDK too):
 | Without the three caps | "Operation not permitted" (as upstream) |
 | Note | `Couldn't register stdin handler` (no TTY in a container): harmless; the console is not used |
 
-Import into tiny: the archive is copied to `tiny:/tmp/ocudu-gnb-26.10-zmq.tar` (checksum verified). Importing into
-k3s containerd needs root on tiny:
-`sudo k3s ctr -n k8s.io images import /tmp/ocudu-gnb-26.10-zmq.tar` (image name `docker.io/fct/ocudu-gnb:26.10-zmq`;
-the pod uses `imagePullPolicy: Never`). Before using it on tiny, scan it (e.g. grype) because the upstream
-vulnerability attestation was empty.
+Import into tiny (2026-11-06): the archive was copied to tiny (checksum verified) and imported by the user with
+`sudo k3s ctr -n k8s.io images import /tmp/ocudu-gnb-26.10-zmq.tar` → `docker.io/fct/ocudu-gnb:26.10-zmq`, same image
+digest as on REDLAB. The archive was deleted afterwards. Pods use `imagePullPolicy: Never`. Still to do before
+real use: scan the image (e.g. grype), because the upstream vulnerability attestation was empty.
+
+| Check on tiny (throwaway pod `s1b-gnb`, namespace `default`, no `hostNetwork`, deleted afterwards) | Result |
+|---|---|
+| Pod spec | caps `SYS_NICE`, `IPC_LOCK`, `PERFMON`; limits = requests = 4 CPU / 6 GiB; `taskset -c 0-15` (P-cores) |
+| Start | `commit e0db566`, `Available radio types: zmq and realtime_loopback.`, ZMQ on `127.0.0.1:4556/4557`, cell PCI 1 n78 20 MHz, `gNB started` |
+| Memory / threads | RSS 2.73 GB at 8 s and 16 s (stable, no growth while waiting for the UE), 12 threads, `Cpus_allowed_list: 0-15` |
+| Stop | SIGINT gives a clean `Stopping...` (usable as the pod's stop signal) |
+| Core | `open5gs` pods 12/12 Running before and after; disk `/` 74 % |
 
 ## Proposed stages (each only with the user's OK)
 | Stage | Where | Changes the bench? |
 |---|---|---|
 | S0 | tiny: read-only inventory (done 2026-11-03: CPU, RAM, load) | No |
 | S1 | tiny: pull and verify the OCUDU image, test start and ZMQ in throwaway pods, check the UE image. **Done 2026-11-04**: no ZMQ in published images | Images only (disk on tiny) |
-| S1b | REDLAB: own OCUDU image with ZMQ (**built and checked 2026-11-06**); import into tiny (needs sudo); throwaway-pod check on tiny | REDLAB CPU for 20 min; image on tiny |
+| S1b | REDLAB: own OCUDU image with ZMQ; import into tiny; throwaway-pod check on tiny. **Done 2026-11-06** | REDLAB CPU for 20 min; image on tiny |
 | S2 | tiny: subscriber `ue2`; namespace `ran2` with Secret, ConfigMaps, Deployment, `ran2.sh check`; experiment steps 0-1 | Yes (core subscriber DB, new gNB on the AMF) |
 | S3 | iperf3 port 5203; experiment steps 2-4 and 6 | Yes (iperf server pod) |
 | S4 | Relay sidecar + Service + NetworkPolicy + Prometheus scrape job + dashboard column; experiment step 5 | Yes (Prometheus config, dashboard) |
