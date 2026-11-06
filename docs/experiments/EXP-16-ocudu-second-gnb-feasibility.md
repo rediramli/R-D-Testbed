@@ -1,7 +1,8 @@
 # Experiment 16 (feasibility): a second gNB built on OCUDU
 
-Status: **feasibility study** (2026-11-03), **stage S1 done 2026-11-04** (images pulled and tested in throwaway pods
-on tiny, see [S1 results](#s1-results-2026-11-04)). No bench service was changed.
+Status: **feasibility study** (2026-11-03), **stages S1 (2026-11-04), S1b and S2 (2026-11-06) done: the OCUDU cell is live on tiny** (images pulled and tested in throwaway pods
+on tiny, see [S1 results](#s1-results-2026-11-04) and [S2 results](#s2-results-2026-11-06-second-cell-live-experiment-steps-0-1)).
+Bench changes so far: subscriber `ue2` in the core, namespace `ran2` (OCUDU cell) on tiny's k3s; the OAI cell is unchanged.
 S1 found that no published OCUDU image contains the ZMQ driver; **stage S1b (2026-11-06) built our own image with ZMQ** (see [S1b](#s1b-our-own-gnb-image-with-zmq-built-2026-11-06)).
 Question: can the bench get a second gNB, built on OCUDU (the Linux Foundation successor of the srsRAN Project), next to
 the OAI cell, on the same Open5GS core? Answer: **yes**, as a separate cell with its own UE and its own virtual radio
@@ -318,13 +319,56 @@ real use: scan the image (e.g. grype), because the upstream vulnerability attest
 | Stop | SIGINT gives a clean `Stopping...` (usable as the pod's stop signal) |
 | Core | `open5gs` pods 12/12 Running before and after; disk `/` 74 % |
 
+## S2 results (2026-11-06): second cell live, experiment steps 0-1
+Files: [`infra/ran2/`](../../infra/ran2/) (`gnb.yml`, `nr-ue2.yaml.tpl`, `uecap_ports1.xml` from OAI 2026.w40,
+`ocudu-cell.yaml`, `ran2.sh`); [`infra/core/open5gs.sh`](../../infra/core/open5gs.sh) takes `UE=ue2` (default `ue1`
+unchanged). Run: `ssh -t tiny 'sudo MODE=subscriber UE=ue2 bash /tmp/open5gs.sh'` (after `scp`), then
+`MODE=apply bash infra/ran2/ran2.sh` on REDLAB as the normal user.
+
+**Step 0, core baseline on tiny** (2026-11-06 17:41 +08, before ran2): load 0.31; 27.4 GB RAM available; node
+0.69 cores; all `open5gs` pods together 16m CPU / 1.93 GiB; AMF metrics `gnb 1`, `ran_ue 0`, `amf_session 0` (OAI
+gNB up on REDLAB, its UE stopped at that time). Two core pods already had 2 restarts each (from before this work).
+
+**Subscriber `ue2`**: `open5gs.sh MODE=subscriber UE=ue2` created `tiny:~/testbed-secrets/ue2.env` (random K/OPc,
+mode 600) and wrote IMSI 001700000000002; its full core check: RESULT PASS.
+
+**Step 1, attach** (`ran2.sh MODE=apply`, first try): **RESULT PASS, 16/16 gates**: pod on pod IP 10.244.0.98, no
+`hostNetwork`, no restarts; ZMQ radio; NGAP association from the pod IP; AMF `gnb = 2`; UE `oaitun_ue1 10.45.0.22/24`;
+`ip route get 10.45.0.1` → `dev oaitun_ue1` inside the pod; ping 10.45.0.1 through the UE tunnel; tiny host has no
+10.45 route outside `ogstun`; ZMQ 4556 and remote control 8001 on 127.0.0.1 only; UE log holds none of the SIM values
+and shows the masked [SIM] line; all core pods Running; the OAI gNB's NGAP association on REDLAB still up.
+
+| Time (UTC, 2026-11-06) | Event | Source |
+|---|---|---|
+| 09:48:39 / :40 / :41 | pod / gNB / UE container start | pod status |
+| 09:48:43.6 | ZMQ TX bound 127.0.0.1:4556, RX connected 127.0.0.1:4557; `Cell pci=1, bw=20 MHz, dl_arfcn=632628 (n78), dl_ssb_arfcn=632256` | gNB log |
+| 09:48:45.05 | `N2: Connection to AMF on 10.42.0.2:38412 completed`; AMF: `gNB-N2 accepted[10.244.0.98]`, `Number of gNBs is now 2` | gNB, AMF |
+| 09:48:47.08 | UE carrier scan: cell detected at GSCN 7835, SSB 3483.84 MHz (= SSB ARFCN 632256), PSS peak 107 dB | UE log |
+| 09:48:47.72 / :47.84 | RAR received (RAPID 8), RRCSetup, `NR_RRC_CONNECTED`, Registration Request | UE log |
+| 09:48:48.12 | AMF: InitialUEMessage (SUCI) | AMF log |
+| 09:48:48.81 | AMF: Registration complete; SM context for DNN `fctoai`, S-NSSAI SST 1 | AMF log |
+| about 09:48:49 | PDU session up (AMF `amf_session 1`, `ran_ue 1`) | AMF metrics |
+
+Pod start to user plane: **about 10 s**, of which about 3 s are the gNB's start-up (memory allocation before ZMQ).
+
+First observations (idle cell, no traffic; to be measured properly in steps 3-5):
+| Item | Value |
+|---|---|
+| CPU (`kubectl top`, idle) | gNB 1.18 cores, UE 0.11 cores. Hypothesis: the OCUDU lower PHY polls ZMQ continuously, while the OAI UE waits on it |
+| Memory | gNB 2.69 GiB, UE 0.50 GiB |
+| tiny after start | load 1.58, node 1.73 cores (5 %), 24.1 GB RAM available; core pods unchanged |
+| Ping UE → 10.45.0.1 (10 × 0.2 s) | 0 % loss, RTT min/avg/max 49 / 119 / 168 ms: much higher than expected for a 5 ms TDD period. To investigate in step 3 (ZMQ pacing slower than real time? UL scheduling request / grant delay?) |
+
+The cell keeps running on tiny after S2. Stop it with `MODE=remove CONFIRM=yes bash infra/ran2/ran2.sh`
+(the `ue2` subscriber and SIM file stay).
+
 ## Proposed stages (each only with the user's OK)
 | Stage | Where | Changes the bench? |
 |---|---|---|
 | S0 | tiny: read-only inventory (done 2026-11-03: CPU, RAM, load) | No |
 | S1 | tiny: pull and verify the OCUDU image, test start and ZMQ in throwaway pods, check the UE image. **Done 2026-11-04**: no ZMQ in published images | Images only (disk on tiny) |
 | S1b | REDLAB: own OCUDU image with ZMQ; import into tiny; throwaway-pod check on tiny. **Done 2026-11-06** | REDLAB CPU for 20 min; image on tiny |
-| S2 | tiny: subscriber `ue2`; namespace `ran2` with Secret, ConfigMaps, Deployment, `ran2.sh check`; experiment steps 0-1 | Yes (core subscriber DB, new gNB on the AMF) |
+| S2 | tiny: subscriber `ue2`; namespace `ran2` with Secret, ConfigMaps, Deployment, `ran2.sh check`; experiment steps 0-1. **Done 2026-11-06, PASS** | Yes (core subscriber DB, new gNB on the AMF) |
 | S3 | iperf3 port 5203; experiment steps 2-4 and 6 | Yes (iperf server pod) |
 | S4 | Relay sidecar + Service + NetworkPolicy + Prometheus scrape job + dashboard column; experiment step 5 | Yes (Prometheus config, dashboard) |
 

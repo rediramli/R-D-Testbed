@@ -45,7 +45,7 @@ Teaching material built on these experiments (theory, formulas, worked examples,
 | 13 | Network identity: PLMN, TAC and subscriber provisioning | PLMN yes; writing physical SIM cards needs hardware | Planned | |
 | 14 | Core network procedures end to end | yes | Planned | |
 | 15 | N2 control-plane flood and anomaly detection (isolated bench LAN only) | yes | Planned | |
-| 16 | Second gNB on OCUDU (ZMQ virtual radio, own UE) next to the OAI cell on the same core | no rfsim (ZMQ); on tiny in k3s | Feasibility study 2026-11-03 | [EXP-16](EXP-16-ocudu-second-gnb-feasibility.md) |
+| 16 | Second gNB on OCUDU (ZMQ virtual radio, own UE) next to the OAI cell on the same core | no rfsim (ZMQ); on tiny in k3s | Cell live on tiny 2026-11-06 (attach PASS); steps 2-6 next | [EXP-16](EXP-16-ocudu-second-gnb-feasibility.md) |
 
 The rfsim column is a first assessment, to be confirmed in each experiment's issue before work starts.
 Order (decided 2026-10-14): 0 (bench rerun), 0c, 0b, then 1 to 15 in order. Next: Experiment 2.
