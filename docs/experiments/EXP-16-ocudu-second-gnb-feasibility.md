@@ -270,6 +270,10 @@ between two pods), E2 KPM from both cells into one xApp (Experiment 12), OCUDU O
 9. Why does the UL ratio iperf (wall) / MAC (sim) come out at 3.4 while the measured speed is 2.8-2.9 (S3)?
    Possibly `ul_brate` counts only part of the UL (e.g. without retransmissions or padding), or the UL report window
    differs; check against OCUDU's MAC PCAP.
+10. Cell 1 (OAI, 106 PRB) gave 34-37 Mbit/s on one TCP flow during `kpi.sh` on 2026-11-06 (baseline 50.9, target
+    40.7) at CQI 15, MCS 28, BLER 0. **Not cell 2**: the same with cell 2 scaled to 0 (S4 A/B). Next suspects: the
+    rfsim speed of cell 1 (TCP is paced in wall time, the MAC rate is counted in simulated time) or a change on
+    REDLAB since the baseline; compare the UDP capacity (Experiment 1 method) with the baseline first.
 
 ## S1 results (2026-11-04)
 Throwaway pods in namespace `default` on tiny (label `fct/stage=s1`, all deleted afterwards; no `hostNetwork`,
@@ -458,6 +462,65 @@ OCUDU cell loaded (+2 %, both runs); not explained, within run-to-run spread of 
 Afterwards: OAI cell back on `bw-106` (relay, 25 s), `oai-nr-ue` back to 0 replicas, temporary iperf3 server removed
 (port 5203 closed); `ran2.sh MODE=check`: PASS.
 
+## S4 results (2026-11-06): cell 2 on the dashboard and in Prometheus
+Files: [`infra/ran2/metrics-relay.py`](../../infra/ran2/metrics-relay.py), [`infra/ran2/ocudu-cell.yaml`](../../infra/ran2/ocudu-cell.yaml)
+(container `metrics-relay`, Service `ocudu-cell-metrics`, NetworkPolicy `ocudu-cell-ingress`, Role `fct-dash-read`),
+[`infra/dash/prom-core.yaml`](../../infra/dash/prom-core.yaml) (job `ocudu-cell`), [`app.py`](../../app.py) and
+[`index.html`](../../index.html) (namespace `ran2`, "Cells on the shared core" table, gNB-2 in the object tree).
+
+**Relay.** A fourth container in the `ocudu-cell` pod subscribes to `ws://127.0.0.1:8001` (`metrics_subscribe`) and
+serves the last report as Prometheus text on `:9105`. Standard library only (a 60-line WebSocket client), so it runs
+on the dashboard's `python:3.12-alpine3.20` image as user 65534 with a read-only root and no capabilities; no package
+install at start. Series, all with `cell="ocudu"` and per UE `pci`, `rnti` (hex, as the OAI cell):
+
+| Series | Meaning |
+|---|---|
+| `ocudu_ue_cqi`, `ocudu_ue_dl_mcs`, `ocudu_ue_ul_mcs` | from the scheduler UE metrics |
+| `ocudu_ue_dl_brate_bps`, `ocudu_ue_ul_brate_bps` | MAC bit rate, bit/s of **simulated** time |
+| `ocudu_ue_{dl,ul}_nof_{ok,nok}`, `ocudu_ue_{dl,ul}_bler` | HARQ / CRC counts of the last report; BLER = nok / (ok + nok), **absent without transmissions** |
+| `ocudu_ue_pusch_snr_db`, `ocudu_ue_pucch_snr_db` | gNB-side SNR; absent when OCUDU reports `null` or its `-99.9` "no measurement" value |
+| `ocudu_sim_speed_ratio` | 1 / median wall interval of the last 5 DU reports (one per 1000 ms simulated): simulated s per wall s |
+| `ocudu_app_cpu_usage_percent`, `ocudu_app_mem_bytes` | gNB process (from `app_resource_usage`) |
+| `ocudu_cell_ues`, `ocudu_relay_connected`, `ocudu_relay_report_age_seconds` | UEs in the last report; relay health |
+
+**Network policy (first one on tiny's k3s, kube-router enforces it).** Ingress to the cell pod: TCP 9105 from the
+Prometheus pod in `fct-dash` only, UDP 2152 (N3) from 10.42.0.2. N2 is opened by the gNB (reply traffic allowed),
+kube-router accepts traffic from the node's own addresses (kubelet probes, host-network AMF/UPF). Proven by the gates:
+UE ping through N3 still works, the dashboard pod gets a timeout on `pod-IP:9105`, REDLAB has no route to it.
+
+**Dashboard.** Namespace `ran2` is listed through the core cluster's account (Role `fct-dash-read` in `ran2`: pods
+and pods/log, get/list). The one pod appears as two entries, gNB and UE, one per container, with their own logs
+(`/api/logs?...&container=gnb|ue`, only these two). Cell 2's KPIs come from Prometheus (the relay admits nothing
+else), every 5 s; cell 1's stay on the OAI gNB log, unchanged. `/api/state` has a new `ran2` object.
+
+**A/B test: is cell 2 the reason for cell 1's lower TCP throughput? No.** Same day, OAI UE started for the test,
+`kpi.sh` (one TCP flow DL, dashboard speed test, 30 s per phase), cell 1 on `bw-106`:
+
+| Run | Cell 2 | Cell 1 DL, noise off / off again (Mbit/s, MAC) | Noise poor | tiny load (1 min) |
+|---|---|---|---|---|
+| 1 (S4 gates) | running (light ping) | 35.0 / 35.4 | 13.9 | - |
+| B | **scaled to 0** | 34.7 / 36.6 | 13.9 | 0.45 after the run |
+| A | running (light ping) | 34.0 / 35.7 | 13.9 | 3.45 after the run |
+
+CQI 15, MCS 28, BLER 0 in every "off" phase; the difference with and without cell 2 is within the run-to-run spread
+(about ±1.5 Mbit/s). The baseline (50.9) and target (40.7) in `kpi.sh` are from before Experiment 16; the cause of
+the lower single-flow TCP rate is still open (question 10). Run A also showed that the cell-2 isolation check must
+not treat a missing DL BLER (no DL transmission in that report, printed as -1) as a change; fixed in `kpi.sh`
+(same CQI and no DL BLER above 10 %).
+
+**Observation: the cell-2 UE goes RRC idle when there is no traffic.** About 10 s (wall) after the last packet the
+gNB sends `RRCRelease` (inactivity), the UE keeps its PDU session and IP and resumes with a Service Request on the
+next UL packet (`TUN idle listener`). While idle, the gNB reports no UE and the per-UE series disappear; the table
+says "UE idle". The gates therefore send a light ping through the cell-2 UE while they read the KPIs.
+
+**Gates (2026-11-06, both cells up, OAI UE started for the checks and stopped again afterwards):**
+| Gate | Result |
+|---|---|
+| `MODE=check bash infra/ran2/ran2.sh` | **PASS** (24 checks; new: relay subscribed, 10 KPI families, no identity in the output, NetworkPolicy present and enforced, Prometheus job `ocudu-cell` up with CQI, dashboard RBAC in `ran2`) |
+| `MODE=check bash infra/dash/prom.sh` | **PASS** (6 targets up, OCUDU series stored: CQI 15, speed 5.7x) |
+| `sudo MODE=check bash infra/dash/dash.sh` | First run after apply: all cell-2 checks PASS (pod listed, RNTI 4607 CQI 15 DL MCS 28 BLER 0, speed 5.75x, no SIM value in the 15 pod logs served, reader may not create pods / read Secrets / patch in `ran2`); 2 FAIL in older checks that expected exactly 1 gNB at the AMF. Fixed (expected = 1 + cell 2 running); **re-run: PASS** (all 47 checks; cell 2 RNTI 460b CQI 15 DL MCS 28 BLER 0, speed 5.89x; gNBs 2 at the AMF) |
+| `MODE=check bash infra/dash/kpi.sh` | New check **PASS**: cell 2 unaffected by cell 1's noise (CQI / DL MCS / DL BLER 15 / 28 / 0 with noise off and poor). Overall **FAIL (7)**: cell 1's single TCP flow reached 35.0 / 35.4 Mbit/s with noise off (CQI 15, MCS 28, BLER 0), below the 40.7 Mbit/s target (80 % of the 50.9 baseline), so the "off" phases grade throughput bad. **Not caused by cell 2** (A/B below); open question 10 |
+
 ## Proposed stages (each only with the user's OK)
 | Stage | Where | Changes the bench? |
 |---|---|---|
@@ -466,7 +529,7 @@ Afterwards: OAI cell back on `bw-106` (relay, 25 s), `oai-nr-ue` back to 0 repli
 | S1b | REDLAB: own OCUDU image with ZMQ; import into tiny; throwaway-pod check on tiny. **Done 2026-11-06** | REDLAB CPU for 20 min; image on tiny |
 | S2 | tiny: subscriber `ue2`; namespace `ran2` with Secret, ConfigMaps, Deployment, `ran2.sh check`; experiment steps 0-1. **Done 2026-11-06, PASS** | Yes (core subscriber DB, new gNB on the AMF) |
 | S3 | Experiment steps 2-6 (`exp16-ocudu.sh`, `exp16-step2.sh`). **Done 2026-11-06, all PASS** | OCUDU pod; for step 2 temporarily the OAI cell (UE on, `bw-51`) and a temporary iperf3 server, both undone |
-| S4 | Relay sidecar + Service + NetworkPolicy + Prometheus scrape job + dashboard column; experiment step 5 | Yes (Prometheus config, dashboard) |
+| S4 | Relay sidecar + Service + NetworkPolicy + Prometheus scrape job + dashboard column. **Done 2026-11-06**: ran2, prom, dash gates PASS; kpi.sh: cell-1 TCP below target (open question 10) | Yes (cell 2 restarted twice, Prometheus restarted, dashboard redeployed) |
 
 ## Sources
 - OCUDU code and releases: [gitlab.com/ocudu/ocudu](https://gitlab.com/ocudu/ocudu) (tags `release_26_04`, `release_26_10`; `CHANGELOG`, `LICENSE`, `docker/Dockerfile`, `docker/docker-compose.yml`, `docker/.env`, `docker/scripts/install_dependencies.sh`, `CMakeLists.txt` `ENABLE_ZEROMQ`)
