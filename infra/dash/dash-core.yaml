@@ -1,5 +1,6 @@
 # Stage 4a, core cluster (P3 Tiny): the dashboard (app.py + index.html from the repo root), read-only.
 # It reads the open5gs namespace in its own cluster and the RAN cluster (REDLAB) through the token in Secret fct-dash-ran.
+# Since EXP-16 S4 it also lists namespace ran2 (cell 2, OCUDU) here and reads cell 2's KPIs from Prometheus.
 # Reachable only on the bench LAN: hostPort 30880 bound to 10.42.0.2 (no NodePort, so not on other interfaces).
 # The ctl / admin / noise / profile Secrets are optional and come with stage 4b-4d and E1; without them the controls stay disabled.
 # Experiment results (Record button, stage E2) live in the PVC fct-dash-results. dash.sh MODE=remove deletes the namespace,
@@ -78,6 +79,7 @@ spec:
         - {name: RADIO_MODE, value: rfsim}
         - {name: CORE_NAMESPACE, value: open5gs}
         - {name: RAN_NAMESPACE, value: default}
+        - {name: RAN2_NAMESPACE, value: ran2}     # Experiment 16 cell 2 (OCUDU); its read Role is in infra/ran2/ocudu-cell.yaml
         - {name: CAPTURE_URL, value: "http://10.42.0.1:8091"}
         - {name: NOISE_URL, value: "http://10.42.0.1:8092"}
         - {name: PROFILE_URL, value: "http://10.42.0.1:8093"}

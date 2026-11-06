@@ -394,6 +394,18 @@ svg#topo { max-width: none; }
 .topo-legend i { border-top-width: 2px; }
 .topo-legend i.p { border-top: 2px dashed #9aa5b1; } .topo-legend i.c { border-top: 2px solid #6d4fa3; }
 #topoInfo { display: none; }
+.cells { margin-top: 6px; background: #fff; border: 1px solid var(--line2); }
+.cells h2 { margin: 0; font: 700 16px var(--cond); }
+.cells .ch { display: flex; flex-wrap: wrap; align-items: baseline; gap: 4px 12px; padding: 8px 10px; border-bottom: 1px solid var(--line2); }
+.cells .cn { color: var(--muted); font-size: 12px; }
+.cells .cs { overflow-x: auto; }
+.cells table { width: 100%; border-collapse: collapse; font-size: 12.5px; }
+.cells th, .cells td { padding: 4px 10px; border-bottom: 1px solid var(--line2); text-align: left; vertical-align: baseline; }
+.cells thead th { background: var(--pane2); font-weight: 600; }
+.cells tbody th { font-weight: 400; color: var(--muted); white-space: nowrap; }
+.cells td { font-variant-numeric: tabular-nums; }
+.cells td small { color: var(--muted); }
+.cells button { font-size: 11.5px; padding: 0 6px; margin-left: 6px; }
 .tile rect.body { fill: #ffffff; stroke: #9aa5b1; }
 .chipnf rect.body { fill: #ffffff; stroke: #b3a6cf; }
 .tile:hover rect.body, .tile:focus rect.body { stroke: var(--rf); stroke-width: 1.6; }
@@ -653,6 +665,10 @@ aside#drawer pre { background: #fbfcfd; font-size: 11.5px; }
 <div class="topo-legend"><span><i></i>user plane / radio, live</span><span><i class="c"></i>N2, captured</span><span><i class="p"></i>planned (experiment not done yet)</span><span>Network functions, gNB and UE: select to read the log. Other boxes: select for details.</span></div>
 <div id="topoInfo"></div>
 </div></div>
+<section class="cells" aria-label="Both cells on the shared core">
+  <div class="ch"><h2>Cells on the shared core</h2><span class="cn" id="cellsNote">Cell 2 (Experiment 16): OCUDU gNB with an OAI UE over ZMQ, one pod on the P3 Tiny. Rates are MAC goodput in simulated time.</span></div>
+  <div class="cs"><table><thead><tr><th></th><th>Cell 1 · OAI</th><th>Cell 2 · OCUDU</th></tr></thead><tbody id="cellsBody"></tbody></table></div>
+</section>
 <section class="flow" aria-label="5G SA message flow">
   <div class="flow-head">
     <h2>5G SA message flow</h2>
@@ -977,7 +993,7 @@ function render(data) {
   $("errors").innerHTML = "";
   for (const [c, msg] of Object.entries(data.errors || {})) {
     const d = document.createElement("div");
-    d.textContent = (c === "core" ? "Core cluster (P3 Tiny)" : "RAN cluster (REDLAB)") + ": " + msg;
+    d.textContent = ({core: "Core cluster (P3 Tiny)", ran2: "Cell 2, namespace ran2 (P3 Tiny)"}[c] || "RAN cluster (REDLAB)") + ": " + msg;
     $("errors").append(d);
   }
   let coreUp = 0, coreAll = 0;
@@ -1020,6 +1036,7 @@ function render(data) {
   u.dataset.t = Date.parse(data.time);
   $("sbUpd").innerHTML = ""; $("sbUpd").append(u);
   renderRan(data);
+  renderCells(data);
   renderControls(data.controls);
   tick();
   if (typeof renderShell === "function") renderShell(data);
@@ -1050,7 +1067,7 @@ async function openLog(n) {
   $("logBody").textContent = p ? "Loading…" : "There is no pod for this function, so there is no log to show.";
   if (!p) return;
   try {
-    const r = await fetch(`api/logs?cluster=${p.cluster}&pod=${encodeURIComponent(p.pod)}&lines=200`);
+    const r = await fetch(`api/logs?cluster=${p.cluster}&pod=${encodeURIComponent(p.pod)}&lines=200` + (p.container ? `&container=${p.container}` : ""));
     $("logBody").textContent = await r.text() || "(the log is empty)";
     $("logBody").scrollTop = $("logBody").scrollHeight;
   } catch (e) { $("logBody").textContent = "Could not reach the dashboard backend."; }
@@ -1091,6 +1108,45 @@ function renderRan(data) {
   }
   g.append(line(678, [["DL channel", nz && nz.available ? `${nz.preset} (${fmt(nz.noiseDb, 1)} dB)` : "relay not reachable"]]));
 }
+
+// Both cells side by side (Experiment 16): cell 1 from the OAI gNB log, cell 2 from the OCUDU relay via Prometheus
+const CELL2 = {gnb: {c: "ran2", role: "gnb", label: "OCUDU gNB"}, ue: {c: "ran2", role: "ue", label: "UE (cell 2)"}};
+function cell2() { return (latest && latest.ran2) || null; }
+function cell2Ue() { const c = cell2(); return c && c.ues && c.ues.length ? c.ues[c.ues.length - 1] : null; }
+function cell2State(role) {
+  if (latest && latest.errors && latest.errors.ran2) return "unknown";
+  const p = podFor(CELL2[role]); return p ? p.state : "missing";
+}
+function renderCells(data) {
+  const body = $("cellsBody"); if (!body) return;
+  const u1 = lastUe(), ch = (data.ran && data.ran.ueChan) || {}, c2 = data.ran2;
+  const u2 = cell2Ue(), pr = profNow(), q = (pr.profiles || {})[pr.current];
+  const pct = v => fmt(v * 100, 1), st = (n, role) => `<span style="color:${COLORS[role]}">${esc(WORDS[role])}</span>` +
+    (podFor(n) ? `<button type="button" data-log="${n.c}:${n.role}">log</button>` : "");
+  const s1 = r => nodeState(NODES.find(n => n.role === r));
+  const rows = [
+    ["gNB", st(NODES.find(n => n.role === "gnb"), s1("gnb")) + " <small>OAI 2026.w40 · REDLAB</small>",
+            c2 ? st(CELL2.gnb, cell2State("gnb")) + " <small>OCUDU 26.10 · P3 Tiny</small>" : "–"],
+    ["UE", st(NODES.find(n => n.role === "ue"), s1("ue")) + " <small>OAI nrUE w40</small>",
+           c2 ? st(CELL2.ue, cell2State("ue")) + " <small>OAI nrUE w43 (same pod)</small>" : "–"],
+    ["Radio", "RF simulator" + (q ? ` · ${q.prb} PRB` : ""), "ZMQ · 51 PRB"],
+    ["RNTI", u1 ? "0x" + esc(u1.rnti) : "–", u2 ? "0x" + esc(u2.rnti) : "–"],
+    ["CQI", u1 ? fmt(u1.cqi, 0) : "–", u2 ? fmt(u2.cqi, 0) : "–"],
+    ["MCS DL / UL", u1 ? `${fmt(u1.mcsDl, 0)} / ${fmt(u1.mcsUl, 0)}` : "–", u2 ? `${fmt(u2.mcsDl, 0)} / ${fmt(u2.mcsUl, 0)}` : "–"],
+    ["BLER DL / UL, %", u1 ? `${pct(u1.blerDl)} / ${pct(u1.blerUl)}` : "–", u2 ? `${pct(u2.blerDl)} / ${pct(u2.blerUl)}` : "–"],
+    ["Goodput DL / UL, Mbit/s", u1 ? `${fmt(u1.goodputDl, 1)} / ${fmt(u1.goodputUl, 1)}` : "–", u2 ? `${fmt(u2.goodputDl, 1)} / ${fmt(u2.goodputUl, 1)}` : "–"],
+    ["SNR", typeof ch.sinrUe === "number" ? `${fmt(ch.sinrUe, 1)} dB <small>SINR at the UE</small>` : "–",
+            u2 ? `${fmt(u2.snrPusch, 1)} / ${fmt(u2.snrPucch, 1)} dB <small>PUSCH / PUCCH at the gNB</small>` : "–"],
+    ["Simulation speed", "– <small>not reported</small>", c2 && c2.speed != null ? `${fmt(c2.speed, 2)}× real time` : "–"],
+    ["gNB CPU", "–", c2 && c2.cpuPct != null ? `${fmt(c2.cpuPct / 100, 2)} cores <small>${fmt((c2.memBytes || 0) / 1073741824, 2)} GiB</small>` : "–"],
+    ["Source", "gNB log, every second", c2 ? (c2.error ? `<span style="color:${COLORS.failed}">${esc(c2.error)}</span>` : "relay → Prometheus, every 5 s") : "not configured"]];
+  body.innerHTML = rows.map(r => `<tr><th>${r[0]}</th><td>${r[1]}</td><td>${r[2]}</td></tr>`).join("");
+}
+$("cellsBody").addEventListener("click", e => {
+  const b = e.target.closest("[data-log]"); if (!b) return;
+  const [c, role] = b.dataset.log.split(":");
+  openLog(c === "ran2" ? CELL2[role] : NODES.find(n => n.role === role));
+});
 
 // 5G SA message flow: N2 from packet capture, Uu from gNB/UE logs
 let flowLast = 0, uuLast = 0, flowHideT = 0, flowRows = [], uuRows = [], flowNewestFirst = false;
@@ -1774,6 +1830,9 @@ function treeModel() {
       {k: "cell", l: q ? `NR cell · n78 · ${q.prb} PRB` : "NR cell · n78", sv: nodeState(g) === "running" ? "clear" : "grey", m: p.state === "switching" ? "switching" : "", kids: [
         {k: "nf:ue", l: ue ? `UE RNTI 0x${ue.rnti}` : "UE", sv: SEV[nodeState(u)], m: ue && ue.mcsDl !== undefined ? `MCS ${fmt(ue.mcsDl, 0)}` : ""}]}]},
     {k: "box:ru", l: "RU → RF simulator", sv: nodeState(g) === "running" ? "clear" : "grey"}];
+  const c2 = cell2(), u2 = cell2Ue();
+  if (c2) ranKids.push({k: "cell2", l: "gNB-2 · OCUDU 26.10 (ZMQ)", sv: SEV[cell2State("gnb")], m: c2.speed != null ? `${fmt(c2.speed, 1)}×` : "", kids: [
+    {k: "cell2:ue", l: u2 ? `UE RNTI 0x${u2.rnti}` : "UE (cell 2)", sv: SEV[cell2State("ue")], m: u2 && u2.mcsDl != null ? `MCS ${fmt(u2.mcsDl, 0)}` : ""}]});
   const tools = [{k: "box:n2", l: "N2 capture (tshark)", sv: "clear"},
                  {k: "box:relay", l: "Noise relay", sv: latest && latest.controls && latest.controls.noise && latest.controls.noise.available ? "clear" : "grey"},
                  {k: "box:profile", l: "Carrier profile relay", sv: p.available ? "clear" : "grey"}];
@@ -1782,7 +1841,7 @@ function treeModel() {
              kids: EXPS.filter(e => e[2] === "planned").map(e => ({k: "plan:" + e[0], l: `${e[0]} · ${e[1]}`, sv: "plan", dim: true}))});
   const bench = [
     {k: "core", l: "5G Core · Open5GS 2.8.0", sv: worst(nf), m: `${up}/${nf.length}`, kids: nf},
-    {k: "ran", l: "RAN · OAI 2026.w40", sv: worst(ranKids), kids: ranKids},
+    {k: "ran", l: cell2() ? "RAN · OAI 2026.w40 + OCUDU" : "RAN · OAI 2026.w40", sv: worst(ranKids), kids: ranKids},
     {k: "box:infra", l: "O-Cloud (bench hosts)", sv: "clear", kids: [
       {k: "host:redlab", l: "REDLAB · k3s RAN", sv: latest && latest.errors && latest.errors.ran ? "crit" : "clear", m: "10.42.0.1"},
       {k: "host:tiny", l: "P3 Tiny · k3s core", sv: latest && latest.errors && latest.errors.core ? "crit" : "clear", m: "10.42.0.2"},
@@ -1862,6 +1921,17 @@ function renderProps() {
                 ["DL channel", nz.available ? `${nz.preset} (${fmt(nz.noiseDb, 1)} dB)` : nz.reason], ["Identity"], ["SIM", "masked in all logs"], ["Tunnel", "oaitun_ue1"]);
     }
     html = propRows(rows) + `<div class="propbtns"><button type="button" id="propLog">Open log</button></div>`;
+  } else if (k === "cell2" || k === "cell2:ue") {
+    const c2 = cell2() || {}, u2 = cell2Ue(), role = k === "cell2" ? "gnb" : "ue", p = podFor(CELL2[role]);
+    title = k === "cell2" ? "gNB-2 (OCUDU)" : "UE (cell 2)";
+    html = propRows([["Kubernetes"], ["State", WORDS[cell2State(role)]], ["Pod / container", p ? `${p.pod} / ${p.container}` : null, 1], ["Pod IP", p && p.ip, 1],
+                     ["Restarts", p ? String(p.restarts) : null], ["Cluster", "core (P3 Tiny), namespace ran2"],
+                     ["Radio"], ["RNTI", u2 ? "0x" + u2.rnti : null, 1], ["CQI", u2 ? fmt(u2.cqi, 0) : null], ["MCS DL / UL", u2 ? `${fmt(u2.mcsDl, 0)} / ${fmt(u2.mcsUl, 0)}` : null],
+                     ["BLER DL / UL", u2 ? `${fmt(u2.blerDl * 100, 1)} / ${fmt(u2.blerUl * 100, 1)} %` : null],
+                     ["Goodput DL / UL", u2 ? `${fmt(u2.goodputDl, 1)} / ${fmt(u2.goodputUl, 1)} Mbit/s (simulated time)` : null],
+                     ["SNR PUSCH / PUCCH", u2 ? `${fmt(u2.snrPusch, 1)} / ${fmt(u2.snrPucch, 1)} dB` : null],
+                     ["Simulation speed", c2.speed != null ? fmt(c2.speed, 2) + "× real time" : null], ["Metrics", c2.error || "relay → Prometheus"]]) +
+           `<div class="propbtns"><button type="button" id="propLog2">Open log</button></div>`;
   } else if (k === "cell") {
     const pr = profNow(), q = (pr.profiles || {})[pr.current];
     title = "NR cell";
@@ -1881,6 +1951,8 @@ function renderProps() {
   box.innerHTML = html;
   const b = $("propLog");
   if (b) b.onclick = () => openLog(NODES.find(x => x.role === k.slice(3)));
+  const b2 = $("propLog2");
+  if (b2) b2.onclick = () => openLog(CELL2[k === "cell2" ? "gnb" : "ue"]);
 }
 function renderShell(data) {
   let up = 0, all = 0;

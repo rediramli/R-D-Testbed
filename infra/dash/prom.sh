@@ -5,7 +5,7 @@
 # Run ON REDLAB from the repo root as the login user (no sudo):   MODE=preview bash infra/dash/prom.sh
 #   MODE=preview  image tag exists, dashboard /metrics answers, storage class present, kubectl diff; changes nothing
 #   MODE=apply    apply prom-core.yaml, wait for Prometheus, collect 60 s, then check
-#   MODE=check    5 targets up, retention 30d / 5GB, ClusterIP only and not reachable from REDLAB, RAN and core series
+#   MODE=check    6 targets up (5 + the OCUDU cell relay, EXP-16 S4), retention 30d / 5GB, ClusterIP only and not reachable from REDLAB, RAN and core series
 #                 present, and the data survives a Prometheus restart
 #   MODE=remove   delete Prometheus and its Services/ConfigMap; KEEPS the data volume
 #   MODE=purge    remove + delete the data volume (all history; asks for confirmation)
@@ -54,7 +54,7 @@ import json, sys
 a = json.load(sys.stdin)["data"]["activeTargets"]
 for x in a: print(x["labels"].get("nf"), x["health"], (x.get("lastError") or "-")[:80])' 2>/dev/null)
   echo "$t" | sed 's/^/  info  target /'
-  [ "$(echo "$t" | grep -c ' up ')" = 5 ] && ok "5 targets up (amf, smf, upf, pcf, gnb via dashboard)" || bad "targets up: $(echo "$t" | grep -c ' up ') of 5"
+  [ "$(echo "$t" | grep -c ' up ')" = 6 ] && ok "6 targets up (amf, smf, upf, pcf, gnb via dashboard, gnb2 = OCUDU relay)" || bad "targets up: $(echo "$t" | grep -c ' up ') of 6"
   # Flags as Prometheus reports them, and the retention it actually applies (runtime status).
   ret=$( { pq /api/v1/status/flags; echo; pq /api/v1/status/runtimeinfo; } | python3 -c '
 import json, sys
@@ -71,7 +71,9 @@ print(f.get("storage.tsdb.retention.time"), f.get("storage.tsdb.retention.size")
   v=$(q 'count(up{job="open5gs"} == 1)'); [ "$v" = 4 ] && ok "Open5GS series stored: 4 NFs" || bad "Open5GS NFs up in storage: $v"
   v=$(q 'count(fct_gnb_mac_total)'); [ "$v" != none ] && ok "gNB MAC counter series stored: $v" || bad "no fct_gnb_mac_total series (UE down?)"
   v=$(q 'max(fct_ue_radio{field="cqi"})'); [ "$v" != none ] && ok "UE radio series stored (CQI $v)" || bad "no fct_ue_radio series"
-  echo "  info  series per job: open5gs $(q 'count({job="open5gs"})'), fct-dash $(q 'count({job="fct-dash"})')"
+  v=$(q 'max(ocudu_ue_cqi{cell="ocudu"})'); w=$(q 'max(ocudu_sim_speed_ratio{cell="ocudu"})')
+  [ "$v" != none ] && [ "$w" != none ] && ok "OCUDU cell series stored (CQI $v, simulation speed ${w}x)" || bad "no ocudu_* series (ran2.sh apply with the relay?)"
+  echo "  info  series per job: open5gs $(q 'count({job="open5gs"})'), fct-dash $(q 'count({job="fct-dash"})'), ocudu-cell $(q 'count({job="ocudu-cell"})')"
   # Persistence: samples of the last hour before and after a restart of Prometheus.
   n1=$(q 'count_over_time(up{nf="amf"}[1h])')
   tk rollout restart deploy/prometheus >/dev/null && tk rollout status deploy/prometheus --timeout=180s >/dev/null; sleep 20

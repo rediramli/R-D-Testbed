@@ -5,6 +5,8 @@
 #   poor -> SINR, CQI, DL MCS and DL user throughput bad, diagnosis "radio_sinr" (SINR -> CQI -> MCS -> throughput)
 #   off  -> ok again
 # The RAN (cell) DL user throughput must follow the same ok / bad / ok.
+# With cell 2 deployed (Experiment 16, OCUDU on the P3 Tiny): its CQI and DL BLER must not move, since the noise is
+# added in cell 1's UE channel model only.
 # Run ON REDLAB from the repo root as the login user (no sudo):   MODE=check bash infra/dash/kpi.sh
 # Do not use the dashboard controls while it runs: a UE stop/start gives a new RNTI and the phases are not comparable.
 #   MODE=preview  dashboard, relay and UE KPIs answer, noise off; changes nothing
@@ -47,6 +49,12 @@ r(c["status"] == want, "RAN DL user throughput %s (%s Mbit/s, want %s)" % (c["st
 sys.exit(fail)' "$1" "$2" || F=$((F+$?))
 }
 
+cell2(){  # "CQI DL-MCS DL-BLER" of cell 2 from the dashboard (Prometheus), or nothing when cell 2 is not deployed
+  curl -s -m 8 "$URL/api/state" | python3 -c '
+import json, sys
+m = json.load(sys.stdin).get("ran2") or {}; u = (m.get("ues") or [None])[-1]
+if m.get("up") and u: print("%g %g %g" % (u.get("cqi", -1), u.get("mcsDl", -1), u.get("blerDl", -1)))' 2>/dev/null; }
+
 pre(){
   echo "== Preconditions"
   [ "$(curl -s -m 5 $URL/healthz)" = ok ] && ok "dashboard answers" || bad "dashboard not answering"
@@ -54,6 +62,7 @@ pre(){
   [ "${n:-0}" -ge 1 ] && ok "UE KPIs answer ($n UE)" || bad "no UE KPIs (dashboard without K3, or UE down)"
   [ "$(noise_db)" = "-100.0" ] && ok "noise off (-100 dB)" || bad "noise not off: '$(noise_db)'"
   ip -4 -br addr show oaitun_ue1 2>/dev/null | grep -q "10\.45\." && ok "UE tunnel up" || bad "UE tunnel down"
+  c=$(cell2); [ -n "$c" ] && echo "  info  cell 2 (OCUDU) KPIs answer: CQI DL-MCS DL-BLER = $c" || echo "  info  cell 2 not deployed: isolation check skipped"
 }
 
 check(){
@@ -63,9 +72,9 @@ check(){
   KEY=$(tiny "k3s kubectl -n fct-dash get secret fct-dash-admin -o jsonpath='{.data.password}'" 2>/dev/null | base64 -d)
   trap 'api noise-off >/dev/null; api speed-stop >/dev/null' EXIT
   c=$(api speed-dl); [ "$c" = 200 ] && ok "DL speed test started" || { bad "dashboard refused speed-dl (HTTP $c)"; exit 1; }
-  sleep 10; sleep "$PH"; grade off ok
+  sleep 10; sleep "$PH"; grade off ok; c2off=$(cell2)
   c=$(api noise-poor); [ "$c" = 200 ] && ok "preset poor set ($(noise_db) dB)" || bad "dashboard refused noise-poor (HTTP $c)"
-  sleep "$PH"; grade poor bad
+  sleep "$PH"; grade poor bad; c2poor=$(cell2)
   c=$(api noise-off); [ "$c" = 200 ] && ok "preset off set ($(noise_db) dB)" || bad "dashboard refused noise-off (HTTP $c)"
   sleep "$PH"; grade off-again ok
   api speed-stop >/dev/null; trap - EXIT
@@ -73,6 +82,12 @@ check(){
   [ "$(echo $r | wc -w)" = 1 ] && [ -n "$r" ] && ok "same RNTI in all phases ($r)" \
     || bad "UE re-attached during the test (RNTI changed: $r): rerun without touching the controls"
   rm -f /tmp/kpi-rnti-*
+  if [ -n "$c2off$c2poor" ]; then
+    set -- $c2off; o_cqi=${1:-}; o_bler=${3:-}; set -- $c2poor
+    [ -n "$o_cqi" ] && [ "$1" = "$o_cqi" ] && [ "$3" = "$o_bler" ] \
+      && ok "cell 2 unaffected by cell 1's noise (CQI DL-MCS DL-BLER off: $c2off, poor: $c2poor)" \
+      || bad "cell 2 changed with cell 1's noise (off: '$c2off', poor: '$c2poor')"
+  fi
   [ "$(noise_db)" = "-100.0" ] && ok "noise back at -100 dB" || bad "noise not back at -100 dB: $(noise_db)"
   # P1b: the RAN trend from Prometheus must show the dip (DL user throughput per 15 s bucket over the test)
   curl -s -m 20 "$URL/api/kpi?domain=ran&seconds=$((3 * PH + 10))&source=prom" | python3 -c '
