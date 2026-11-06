@@ -537,11 +537,11 @@ aside#drawer pre { background: #fbfcfd; font-size: 11.5px; }
 <div class="errors" id="errors"></div>
 <main id="overview">
 <div class="topo-wrap"><div class="topo-panel">
-<svg id="topo" viewBox="0 0 1280 720" role="img" aria-label="O-RAN view of the bench: live parts with their state, planned parts hatched">
+<svg id="topo" viewBox="0 0 1280 850" role="img" aria-label="O-RAN view of the bench: live parts with their state, planned parts hatched">
   <defs>
     <pattern id="hatch" width="7" height="7" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="7" stroke="#e4e8ec" stroke-width="2.5"/></pattern>
   </defs>
-  <rect x="0" y="0" width="1280" height="720" fill="#fbfcfd"/>
+  <rect x="0" y="0" width="1280" height="850" fill="#fbfcfd"/>
   <g class="pbox" data-k="infra">
     <rect class="frame" x="16" y="150" width="214" height="360" fill="#f4f6f8" stroke="#9aa5b1" stroke-dasharray="5 4"/>
     <text x="28" y="172" font-size="12.5" fill="#34414e" font-weight="600">Bench infrastructure (O-Cloud)</text>
@@ -661,6 +661,21 @@ aside#drawer pre { background: #fbfcfd; font-size: 11.5px; }
 
   <g id="wires"></g>
   <g id="tiles"></g>
+  <!-- Cell 2 (Experiment 16): OCUDU gNB + OAI nrUE over ZMQ, one pod in namespace ran2 on the P3 Tiny -->
+  <g class="pbox" data-k="cell2">
+    <rect class="frame" x="16" y="732" width="904" height="104" fill="#fdf5ec" stroke="#b5651d" stroke-width="1.2"/>
+    <rect x="16" y="732" width="904" height="22" fill="#b5651d"/>
+    <text x="28" y="748" font-size="13" fill="#ffffff" font-weight="600">Cell 2 · OCUDU gNB 26.10 + OAI nrUE w43 · one pod, namespace ran2 on the P3 Tiny (Experiment 16)</text>
+    <rect x="300" y="772" width="190" height="40" fill="#ffffff" stroke="#8a96a3"/>
+    <text x="395" y="789" text-anchor="middle" font-size="12.5" fill="#1d2733" font-weight="600">ZMQ virtual radio</text>
+    <text x="395" y="804" text-anchor="middle" font-size="11" fill="#5d6b7a">127.0.0.1:4556/4557 · no RF</text>
+  </g>
+  <path d="M146 792 H300" stroke="#2e8b3e" stroke-width="2.5" fill="none"/>
+  <path d="M490 792 H520" stroke="#2e8b3e" stroke-width="2.5" fill="none"/>
+  <path id="lC2" d="M920 784 H1272 V450 H1260" stroke="#b5651d" stroke-width="2.5" fill="none"/>
+  <text x="1100" y="776" font-size="11" fill="#b5651d" font-weight="600">N2 + N3 · pod IP → 10.42.0.2</text>
+  <circle id="dC2" r="3.5" fill="#b5651d" visibility="hidden"><animateMotion dur="3s" repeatCount="indefinite"><mpath href="#lC2"/></animateMotion></circle>
+  <g id="cell2svg" class="uecard"></g>
 </svg>
 <div class="topo-legend"><span><i></i>user plane / radio, live</span><span><i class="c"></i>N2, captured</span><span><i class="p"></i>planned (experiment not done yet)</span><span>Network functions, gNB and UE: select to read the log. Other boxes: select for details.</span></div>
 <div id="topoInfo"></div>
@@ -949,6 +964,7 @@ const INFO = {
   uebox: "<b>OAI nrUE</b>: test SIM (values masked in all logs), tunnel oaitun_ue1. Channel model 0 is AWGN on the downlink; the noise relay changes it. Select the UE chip to read its log.",
   core: "<b>Open5GS 2.8.0</b> on the P3 Tiny: 11 NFs and MongoDB. AMF and UPF on the host network. DNN fctoai, slice SST 1. Select a function to read its log.",
   n2: "<b>N2 capture</b>: tshark on SCTP 38412 on REDLAB; decoded NGAP/NAS appear in the message flow. Bench LAN only.",
+  cell2: "<b>Cell 2 (Experiment 16)</b>: OCUDU gNB 26.10 (own image with ZMQ) and an OAI nrUE 2026.w43 in one pod without host networking, on the P3 Tiny. Same core (N2/N3 from the pod IP), same PLMN and DNN. KPIs come from the gNB's JSON metrics through a relay and Prometheus; rates are MAC goodput in simulated time. Select the gNB or UE chip to read its log.",
   relay: "<b>Noise relay</b>: sets the UE's AWGN noise through the UE telnet on 127.0.0.1:9090. Needs a token; the DL channel buttons use it."
 };
 document.querySelectorAll(".pbox").forEach(g => g.addEventListener("click", () => { $("topoInfo").innerHTML = INFO[g.dataset.k] || ""; }));
@@ -1117,7 +1133,41 @@ function cell2State(role) {
   if (latest && latest.errors && latest.errors.ran2) return "unknown";
   const p = podFor(CELL2[role]); return p ? p.state : "missing";
 }
+function renderCell2Svg(data) {
+  const g = $("cell2svg"); if (!g) return;
+  g.innerHTML = "";
+  const c2 = data.ran2, u2 = cell2Ue();
+  const chip = (role, x, label) => {
+    const st = cell2State(role), t = el("g", {class: "tile", tabindex: 0, role: "button"});
+    t.append(el("rect", {class: "body", x, y: 772, width: 110, height: 40}),
+             el("rect", {class: "bar", x, y: 772, width: 5, height: 40, fill: COLORS[st]}),
+             el("text", {class: "name", x: x + 12, y: 789}, label),
+             el("text", {class: "status", x: x + 12, y: 805, fill: COLORS[st]}, WORDS[st]),
+             el("title", {}, (podFor(CELL2[role]) || {}).pod ? `${podFor(CELL2[role]).pod} / ${role}\nselect to read the log` : `${label}: no pod`));
+    const open = e => { e.stopPropagation(); openLog(CELL2[role]); };
+    t.addEventListener("click", open);
+    t.addEventListener("keydown", e => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); open(e); } });
+    g.append(t);
+  };
+  chip("gnb", 36, "gNB-2");
+  chip("ue", 520, "UE");
+  const k = (x, y, parts) => {
+    const t = el("text", {x, y, class: "k"});
+    parts.forEach(([label, val], i) => { t.append(document.createTextNode((i ? " · " : "") + label + " ")); t.append(el("tspan", {class: "n"}, val)); });
+    g.append(t);
+  };
+  if (u2) {
+    k(642, 784, [["RNTI", "0x" + u2.rnti], ["CQI", fmt(u2.cqi, 0)], ["MCS", `${fmt(u2.mcsDl, 0)} / ${fmt(u2.mcsUl, 0)}`], ["BLER", fmt(u2.blerDl * 100, 1) + "%"]]);
+    k(642, 802, [["DL", fmt(u2.goodputDl, 1)], ["UL", fmt(u2.goodputUl, 1) + " Mbit/s (MAC, simulated)"]]);
+  } else {
+    k(642, 790, [["UE", c2 && c2.ueCount === 0 ? "idle (RRC released; traffic resumes it)" : (c2 && c2.error ? c2.error : "no statistics")]]);
+  }
+  k(642, 820, [["speed", c2 && c2.speed != null ? fmt(c2.speed, 2) + "× real time" : "–"], ["gNB CPU", c2 && c2.cpuPct != null ? fmt(c2.cpuPct / 100, 2) + " cores" : "–"]]);
+  k(300, 828, [["metrics", "relay → Prometheus"]]);
+  $("dC2").setAttribute("visibility", cell2State("gnb") === "running" ? "visible" : "hidden");
+}
 function renderCells(data) {
+  renderCell2Svg(data);
   const body = $("cellsBody"); if (!body) return;
   const u1 = lastUe(), ch = (data.ran && data.ran.ueChan) || {}, c2 = data.ran2;
   const u2 = cell2Ue(), pr = profNow(), q = (pr.profiles || {})[pr.current];
