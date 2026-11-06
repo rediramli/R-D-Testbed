@@ -42,7 +42,11 @@ check(){
   [ "$(id -u)" = 0 ] && [ -n "${SUDO_USER:-}" ] || { echo "STOP: run with sudo as your login user: sudo MODE=$MODE bash infra/dash/dash.sh"; exit 1; }
   tiny 'k3s kubectl -n fct-dash rollout status deploy/fct-dash --timeout=120s' >/dev/null 2>&1 && ok "fct-dash running on the core" || bad "fct-dash not running"
   [ "$(curl -s -m 5 $URL/healthz)" = ok ] && ok "$URL/healthz answers from REDLAB" || bad "$URL/healthz does not answer"
-  for i in $(seq 1 15); do st=$(curl -s -m 8 $URL/api/state); echo "$st" | python3 -c 'import json,sys; d=json.load(sys.stdin); sys.exit(0 if d["ran"]["ueStats"] else 1)' 2>/dev/null && break; sleep 2; done
+  # cell 2's UE goes RRC idle without traffic (no per-UE KPIs then): a light ping keeps it connected during the checks
+  tiny 'k3s kubectl get ns ran2' >/dev/null 2>&1 && { tiny "k3s kubectl -n ran2 exec deploy/ocudu-cell -c ue -- ping -I oaitun_ue1 -c 300 -i 0.2 10.45.0.1" >/dev/null 2>&1 & }
+  for i in $(seq 1 15); do st=$(curl -s -m 8 $URL/api/state); echo "$st" | python3 -c '
+import json,sys; d=json.load(sys.stdin); c2 = d.get("ran2") or {}
+sys.exit(0 if d["ran"]["ueStats"] and (not c2.get("up") or c2.get("ues")) else 1)' 2>/dev/null && break; sleep 2; done
   echo "$st" | python3 -c '
 import json, sys
 d = json.load(sys.stdin); fail = 0
@@ -66,7 +70,7 @@ if c2 or d.get("ran2", {}).get("up"):
     r({"gnb", "ue"} <= set(c2) and all(c2[x]["state"] == "running" for x in ("gnb", "ue")),
       "cell 2 pod listed (ran2): %s" % ", ".join("%s %s" % (k, v["state"]) for k, v in sorted(c2.items())))
     m2 = d.get("ran2") or {}; u2 = (m2.get("ues") or [{}])[-1]
-    r(m2.get("up") and all(u2.get(k) is not None for k in ("cqi", "mcsDl", "mcsUl", "blerDl", "blerUl", "goodputDl", "goodputUl")),
+    r(m2.get("up") and all(u2.get(k) is not None for k in ("cqi", "mcsDl", "mcsUl", "goodputDl", "goodputUl")),   # BLER: only with traffic
       "cell 2 KPIs from Prometheus: RNTI %s CQI %s DL MCS %s DL BLER %s DL goodput %s Mbit/s (sim), speed %sx%s" % (
       u2.get("rnti"), u2.get("cqi"), u2.get("mcsDl"), u2.get("blerDl"), u2.get("goodputDl") and round(u2["goodputDl"], 1),
       m2.get("speed") and round(m2["speed"], 2), (", error " + m2["error"]) if m2.get("error") else ""))

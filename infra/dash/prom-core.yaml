@@ -27,7 +27,7 @@ data:
     - job_name: ocudu-cell          # Experiment 16 S4: second cell (OCUDU gNB on tiny), relay sidecar in namespace ran2
       scrape_interval: 5s
       static_configs:
-      - {targets: ["ocudu-cell-metrics.ran2.svc:9105"], labels: {nf: gnb2, cell: ocudu}}
+      - {targets: ["ocudu-cell-metrics.ran2.svc:9105"], labels: {nf: gnb2}}   # cell="ocudu" comes from the relay
 ---
 apiVersion: v1
 kind: Service

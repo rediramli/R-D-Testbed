@@ -1130,7 +1130,7 @@ function renderCells(data) {
     ["UE", st(NODES.find(n => n.role === "ue"), s1("ue")) + " <small>OAI nrUE w40</small>",
            c2 ? st(CELL2.ue, cell2State("ue")) + " <small>OAI nrUE w43 (same pod)</small>" : "–"],
     ["Radio", "RF simulator" + (q ? ` · ${q.prb} PRB` : ""), "ZMQ · 51 PRB"],
-    ["RNTI", u1 ? "0x" + esc(u1.rnti) : "–", u2 ? "0x" + esc(u2.rnti) : "–"],
+    ["RNTI", u1 ? "0x" + esc(u1.rnti) : "–", u2 ? "0x" + esc(u2.rnti) : (c2 && c2.ueCount === 0 ? "– <small>UE idle: RRC released after inactivity, traffic resumes it</small>" : "–")],
     ["CQI", u1 ? fmt(u1.cqi, 0) : "–", u2 ? fmt(u2.cqi, 0) : "–"],
     ["MCS DL / UL", u1 ? `${fmt(u1.mcsDl, 0)} / ${fmt(u1.mcsUl, 0)}` : "–", u2 ? `${fmt(u2.mcsDl, 0)} / ${fmt(u2.mcsUl, 0)}` : "–"],
     ["BLER DL / UL, %", u1 ? `${pct(u1.blerDl)} / ${pct(u1.blerUl)}` : "–", u2 ? `${pct(u2.blerDl)} / ${pct(u2.blerUl)}` : "–"],

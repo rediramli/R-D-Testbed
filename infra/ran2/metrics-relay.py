@@ -123,7 +123,7 @@ UE_GAUGES = [  # (metric, JSON field, scale, help)
     ("ocudu_ue_dl_nof_nok", "dl_nof_nok", 1, "DL HARQ transmissions not acknowledged in the last report."),
     ("ocudu_ue_ul_nof_ok", "ul_nof_ok", 1, "UL CRC ok in the last report."),
     ("ocudu_ue_ul_nof_nok", "ul_nof_nok", 1, "UL CRC not ok in the last report."),
-    ("ocudu_ue_pusch_snr_db", "pusch_snr_db", 1, "PUSCH SNR measured by the gNB, dB."),
+    ("ocudu_ue_pusch_snr_db", "pusch_snr_db", 1, "PUSCH SNR measured by the gNB, dB (absent while the UE sends no PUSCH)."),
     ("ocudu_ue_pucch_snr_db", "pucch_snr_db", 1, "PUCCH SNR measured by the gNB, dB."),
     ("ocudu_ue_dl_bs_bytes", "dl_bs", 1, "DL buffer status (bytes waiting at the gNB)."),
 ]
@@ -167,7 +167,8 @@ def metrics():
             "ocudu_cell_ues{%s} %d" % (c, len(ues))] if cells is not None else []
     for name, field, scale, help_ in UE_GAUGES:
         rows = [(p, u, num(u.get(field))) for p, u in ues]
-        rows = [r for r in rows if r[2] is not None]
+        # no measurement: null, or -99.9 dB for an SNR (idle UE, no PUSCH/PUCCH in the report)
+        rows = [r for r in rows if r[2] is not None and not (field.endswith("_snr_db") and r[2] <= -99)]
         if rows:
             out += ["# HELP %s %s" % (name, help_), "# TYPE %s gauge" % name]
             out += ['%s{%s,pci="%s",rnti="%04x"} %s' % (name, c, p, int(u.get("rnti", 0)), repr(v * scale)) for p, u, v in rows]
@@ -178,7 +179,7 @@ def metrics():
             if ok_ + nok:
                 rows.append('ocudu_ue_%s_bler{%s,pci="%s",rnti="%04x"} %s' % (d, c, p, int(u.get("rnti", 0)), repr(nok / (ok_ + nok))))
         if rows:
-            out += ["# HELP ocudu_ue_%s_bler %s BLER 0-1 of the last report (nok / (ok + nok))." % (d, d.upper()),
+            out += ["# HELP ocudu_ue_%s_bler %s BLER 0-1 of the last report (nok / (ok + nok)); absent without transmissions." % (d, d.upper()),
                     "# TYPE ocudu_ue_%s_bler gauge" % d] + rows
     if app:
         for k, name, scale, help_ in (("cpu_usage_percent", "ocudu_app_cpu_usage_percent", 1, "gNB process CPU, percent of one core."),

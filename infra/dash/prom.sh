@@ -71,7 +71,7 @@ print(f.get("storage.tsdb.retention.time"), f.get("storage.tsdb.retention.size")
   v=$(q 'count(up{job="open5gs"} == 1)'); [ "$v" = 4 ] && ok "Open5GS series stored: 4 NFs" || bad "Open5GS NFs up in storage: $v"
   v=$(q 'count(fct_gnb_mac_total)'); [ "$v" != none ] && ok "gNB MAC counter series stored: $v" || bad "no fct_gnb_mac_total series (UE down?)"
   v=$(q 'max(fct_ue_radio{field="cqi"})'); [ "$v" != none ] && ok "UE radio series stored (CQI $v)" || bad "no fct_ue_radio series"
-  v=$(q 'max(ocudu_ue_cqi{cell="ocudu"})'); w=$(q 'max(ocudu_sim_speed_ratio{cell="ocudu"})')
+  v=$(q 'max(max_over_time(ocudu_ue_cqi{cell="ocudu"}[1h]))'); w=$(q 'max(ocudu_sim_speed_ratio{cell="ocudu"})')   # the UE is RRC idle without traffic
   [ "$v" != none ] && [ "$w" != none ] && ok "OCUDU cell series stored (CQI $v, simulation speed ${w}x)" || bad "no ocudu_* series (ran2.sh apply with the relay?)"
   echo "  info  series per job: open5gs $(q 'count({job="open5gs"})'), fct-dash $(q 'count({job="fct-dash"})'), ocudu-cell $(q 'count({job="ocudu-cell"})')"
   # Persistence: samples of the last hour before and after a restart of Prometheus.

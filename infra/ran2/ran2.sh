@@ -96,8 +96,11 @@ except Exception:
 
 relay(){  # S4: metrics relay answers with the cell's KPIs; only Prometheus may reach it; Prometheus has the series
   local pod=$1 pip=$2 m n
-  for i in $(seq 1 20); do m=$(T "k3s kubectl get --raw /api/v1/namespaces/$NS/services/ocudu-cell-metrics:9105/proxy/metrics" 2>/dev/null)
-    echo "$m" | grep -q '^ocudu_ue_cqi{' && break; sleep 3; done
+  # BLER and PUSCH SNR exist only while the UE transmits: a short ping keeps DL and UL busy while the relay is read
+  K "exec $pod -c ue -- ping -I oaitun_ue1 -c 40 -i 0.1 -s 1000 10.45.0.1" >/dev/null 2>&1 &
+  for i in $(seq 1 20); do sleep 2; m=$(T "k3s kubectl get --raw /api/v1/namespaces/$NS/services/ocudu-cell-metrics:9105/proxy/metrics" 2>/dev/null)
+    echo "$m" | grep -q '^ocudu_ue_dl_bler{' && echo "$m" | grep -q '^ocudu_ue_pusch_snr_db{' && break; done
+  wait
   echo "$m" | grep -q '^ocudu_relay_connected{cell="ocudu"} 1' && ok "metrics relay subscribed to the gNB remote control" || bad "metrics relay not connected to 127.0.0.1:8001"
   n=$(for x in ocudu_ue_cqi ocudu_ue_dl_mcs ocudu_ue_ul_mcs ocudu_ue_dl_brate_bps ocudu_ue_ul_brate_bps ocudu_ue_dl_bler ocudu_ue_ul_bler \
          ocudu_ue_pusch_snr_db ocudu_sim_speed_ratio ocudu_app_cpu_usage_percent; do echo "$m" | grep -q "^$x{cell=\"ocudu\"" && echo "$x"; done | wc -l)
@@ -113,7 +116,7 @@ except Exception as e: print('blocked', type(e).__name__)\"" 2>/dev/null)
   case "$r" in blocked*) ok "relay not reachable from the dashboard pod ($r): only Prometheus may scrape";; *) bad "relay reachable from a non-Prometheus pod ('$r')";; esac
   curl -s -m 3 "http://$pip:9105/metrics" >/dev/null 2>&1 && bad "relay reachable from REDLAB on $pip:9105" || ok "relay not reachable from REDLAB"
   if T "k3s kubectl -n fct-dash get deploy prometheus" >/dev/null 2>&1; then
-    for i in $(seq 1 10); do v=$(pm 'max(ocudu_ue_cqi{cell="ocudu"})'); [ "$v" != none ] && break; sleep 3; done
+    for i in $(seq 1 10); do v=$(pm 'max(max_over_time(ocudu_ue_cqi{cell="ocudu"}[5m]))'); [ "$v" != none ] && break; sleep 3; done
     [ "$(pm 'up{job="ocudu-cell"}')" = 1 ] && [ "$v" != none ] && ok "Prometheus scrapes the relay (job ocudu-cell up, CQI $v)" \
       || bad "Prometheus: job ocudu-cell up='$(pm 'up{job="ocudu-cell"}')', CQI '$v' (MODE=apply bash infra/dash/prom.sh)"
   else echo "  info  Prometheus not installed: scrape check skipped"; fi

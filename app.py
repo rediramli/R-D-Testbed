@@ -405,7 +405,7 @@ def mock_state():
                      "started": "2026-11-06T09:48:39Z"})
     w = math.sin(time.time() / 20)
     ran2 = {"source": "prometheus", "up": True, "connected": True, "speed": 6.2 - 3.3 * max(0, w), "cpuPct": 230.0,
-            "memBytes": 2.86e9, "age": 0.4, "error": None,
+            "memBytes": 2.86e9, "age": 0.4, "ueCount": 1, "error": None,
             "ues": [{"rnti": "4602", "cqi": 15, "mcsDl": 28, "mcsUl": 27, "blerDl": 0.0, "blerUl": 0.0,
                      "goodputDl": round(49.5 * max(0, w), 1), "goodputUl": 0.11, "snrPusch": 40.5, "snrPucch": 31.0}]}
     return {"time": now_iso(), "radioMode": RADIO_MODE, "pods": pods, "errors": {}, "ran": ran, "ran2": ran2, "controls": ctl}
@@ -1460,7 +1460,7 @@ CELL2_FIELDS = {  # Prometheus series of the OCUDU relay (infra/ran2/metrics-rel
 def cell2_metrics():
     """Radio KPIs of the OCUDU cell (Experiment 16) from Prometheus, job ocudu-cell (the relay itself admits Prometheus only)."""
     out = {"source": "prometheus", "up": False, "connected": False, "speed": None, "cpuPct": None, "memBytes": None,
-           "age": None, "ues": [], "error": None}
+           "age": None, "ueCount": None, "ues": [], "error": None}
     if MOCK:
         return out
     try:
@@ -1484,6 +1484,8 @@ def cell2_metrics():
             out["memBytes"] = v
         elif name == "ocudu_relay_report_age_seconds":
             out["age"] = v
+        elif name == "ocudu_cell_ues":   # 0 while the UE is RRC idle (released after inactivity, resumes with traffic)
+            out["ueCount"] = v
         elif name in CELL2_FIELDS and m.get("rnti") and v is not None:
             k, sc = CELL2_FIELDS[name]
             ues.setdefault(m["rnti"], {"rnti": m["rnti"]})[k] = v * sc

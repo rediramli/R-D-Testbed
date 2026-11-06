@@ -71,6 +71,8 @@ check(){
   echo "   do not use the dashboard controls until RESULT"
   KEY=$(tiny "k3s kubectl -n fct-dash get secret fct-dash-admin -o jsonpath='{.data.password}'" 2>/dev/null | base64 -d)
   trap 'api noise-off >/dev/null; api speed-stop >/dev/null' EXIT
+  # cell 2 (if deployed) carries a light ping so its UE stays RRC connected and reports KPIs
+  tiny 'k3s kubectl get ns ran2' >/dev/null 2>&1 && { tiny "k3s kubectl -n ran2 exec deploy/ocudu-cell -c ue -- ping -I oaitun_ue1 -w $((3 * PH + 30)) -i 0.2 10.45.0.1" >/dev/null 2>&1 & }
   c=$(api speed-dl); [ "$c" = 200 ] && ok "DL speed test started" || { bad "dashboard refused speed-dl (HTTP $c)"; exit 1; }
   sleep 10; sleep "$PH"; grade off ok; c2off=$(cell2)
   c=$(api noise-poor); [ "$c" = 200 ] && ok "preset poor set ($(noise_db) dB)" || bad "dashboard refused noise-poor (HTTP $c)"
