@@ -267,6 +267,9 @@ between two pods), E2 KPM from both cells into one xApp (Experiment 12), OCUDU O
    same path, or a private registry if rebuilds become frequent.
 8. tiny's disk: `/` went from 65 % to 74 % used after S1 (13 GB free). The test images `ocudu_nightly_avx2` (0.5 GB)
    and `images/gnb-uhd` (0.3 GB) are no longer needed; removing them needs `sudo k3s crictl rmi` on tiny.
+9. Why does the UL ratio iperf (wall) / MAC (sim) come out at 3.4 while the measured speed is 2.8-2.9 (S3)?
+   Possibly `ul_brate` counts only part of the UL (e.g. without retransmissions or padding), or the UL report window
+   differs; check against OCUDU's MAC PCAP.
 
 ## S1 results (2026-11-04)
 Throwaway pods in namespace `default` on tiny (label `fct/stage=s1`, all deleted afterwards; no `hostNetwork`,
@@ -362,6 +365,78 @@ First observations (idle cell, no traffic; to be measured properly in steps 3-5)
 The cell keeps running on tiny after S2. Stop it with `MODE=remove CONFIRM=yes bash infra/ran2/ran2.sh`
 (the `ue2` subscriber and SIM file stay).
 
+## S3 results (2026-11-06): experiment steps 3-6 (OCUDU cell alone)
+Script: [`infra/exp/exp16-ocudu.sh`](../../infra/exp/exp16-ocudu.sh) (`MODE=run`, from REDLAB, no sudo). The pod got a
+third container `tools` (alpine 3.20: iperf3, Python WebSocket reader [`wsdump.py`](../../infra/ran2/wsdump.py)) so the
+measurements run in the pod's namespace through `oaitun_ue1`. CPU per container comes from the host cgroup
+(`cpu.stat` of each container scope on tiny), because the privileged UE container sees the host's root cgroup.
+
+### The OAI w40 UE made the ZMQ cell run at 0.2x real time
+OCUDU reports metrics every 1000 ms of **simulated** time (slot-counted); with the w40 UE these reports arrived every
+**4.9 s of wall time**: the cell ran at **0.20x real time**, and ping UE → 10.45.0.1 took 49 / 119 / 168 ms
+(min / avg / max). OAI's ZMQ driver at w40 polled its TX queue every 10 ms; OAI fixed this on 2026-10-14 (`439dc0eb`,
+"wake tx_poll_thread on queue push instead of 10ms poll") and the RX rounding of negative samples on 2026-10-16
+(`02a4a2df`); both are first in tag **2026.w43**. With `oai-nr-ue:2026.w43` (OCUDU cell only; the OAI cell stays on
+w40) the same cell runs at **5.9-6.6x real time when idle** (report interval 0.167-0.179 s) and ping takes
+3.9 / 5.4 / 6.6 ms wall (about 30 ms simulated). Like rfsim (Experiment 0c), ZMQ is not paced: the simulation runs as
+fast as the slower side allows, so throughput is reported both in wall time (iperf) and in simulated time (MAC).
+
+### Steps 3-5: capacity, TCP, compute (51 PRB, TDD as the OAI cell, CQI 15, BLER 0 in every phase)
+| Run | Phase | Speed (sim s / wall s) | MAC goodput (sim) | iperf (wall) | MCS | CPU cores gNB / UE (wall) | Cores per simulated s gNB / UE |
+|---|---|---|---|---|---|---|---|
+| A: default 256QAM table ([data](data/bench-ocudu-20261106T100325Z)) | UDP DL 600M | 2.82 | **65.0 Mbit/s** | 183.4 (69 % loss = saturated) | 27 | 2.32 / 1.95 | 0.82 / 0.69 |
+| | UDP UL 300M | 2.92 | 18.4 | 63.0 | 27 | 2.16 / 1.10 | 0.74 / 0.38 |
+| | TCP DL, 1 flow | 2.79 | 65.0 | 172.3 | 27 | 2.25 / 1.98 | 0.81 / 0.71 |
+| | TCP UL, 1 flow | 2.54 | 17.4 | 42.2 | 27 | 2.13 / 1.16 | 0.84 / 0.46 |
+| | idle | 6.62 | - | - | - | 2.33 / 1.01 | 0.35 / 0.15 |
+| B: `pdsch mcs_table: qam64`, as OAI ([data](data/bench-ocudu-20261106T100810Z)) | UDP DL 600M | 2.90 | **49.5 Mbit/s** | 146.1 (76 % loss) | 28 | 2.33 / 1.83 | 0.80 / 0.63 |
+| | UDP UL 300M | 2.81 | 18.0 | 60.4 | 27 | 2.11 / 1.11 | 0.75 / 0.39 |
+| | idle | 5.88 | - | - | - | 2.27 / 1.32 | 0.39 / 0.22 |
+
+Check of the method: for UDP DL, iperf (wall) / MAC (sim) = 183.4 / 65.0 = 2.82 and 146.1 / 49.5 = 2.95, equal to the
+measured speed (2.82, 2.90). For UL the ratio is 3.4 against a speed of 2.8-2.9: not explained yet (open question 9).
+
+**Comparison with the OAI cell at 51 PRB (Experiment 1, same TDD pattern, 64QAM, BLER 0):**
+| | OAI gNB (rfsim, REDLAB) | OCUDU gNB (ZMQ, tiny), run B |
+|---|---|---|
+| MAC DL goodput (simulated time) | 43.3 Mbit/s, MCS 28 | **49.5 Mbit/s (+14 %)**, MCS 28 |
+| Share of the 3GPP TDD peak (60.8 Mbit/s at 64QAM) | 71 % | 81 % |
+| With OCUDU's default 256QAM table | (not configured) | 65.0 Mbit/s (+50 %), above the 64QAM peak |
+| Simulation speed under DL load | 3.40x | 2.90x |
+| CPU per simulated second, gNB / UE | 0.33 / 0.71 | 0.80 / 0.63 (UE = OAI nrUE w43 over ZMQ) |
+| CPU-seconds per Mbit (simulated), gNB / UE / total | 0.0076 / 0.0164 / 0.024 | 0.0162 / 0.0127 / 0.029 |
+
+Reading (hypotheses, not yet proven):
+- **More goodput at the same MCS and PRBs**: OCUDU spends less of the slot on overhead or schedules more DL symbols
+  (PDCCH, DMRS, CSI-RS and SSB placement differ). To check by comparing PDSCH symbols and PRBs per slot
+  (`pdsch_prbs_used_per_tdd_slot_idx` in OCUDU's metrics, the T-tracer grid of Experiment 1b for OAI).
+- **256QAM is the default in OCUDU** (`du_high_config.h`: `mcs_table = qam256`): at CQI 15 it gives +31 % over 64QAM.
+  A teaching point: same cell, same SINR, different MCS table.
+- **The OCUDU gNB costs about 2.2 cores regardless of load** (idle 2.27-2.33, saturated 2.1-2.3): its threads poll
+  rather than sleep. Per simulated second it is therefore cheapest when the simulation runs fast. Per Mbit it costs
+  about twice the OAI gNB; the OAI UE costs a little less behind OCUDU than behind OAI's gNB. Different CPUs (tiny
+  i9-14900 P-cores vs REDLAB Core Ultra 9 285) and different simulators (ZMQ vs rfsim), so read the CPU numbers as
+  orders of magnitude, not as a ranking of the two stacks.
+- **One TCP flow** reaches 94 % (DL) and 67 % (UL) of the UDP wall goodput.
+
+Core during the runs: UPF 39m CPU, AMF/SMF 1m; tiny node 3.3 cores (10 %); `open5gs` pods unchanged (no new restarts).
+
+### Step 6: stop/start (pod recreated by a config change, 2026-11-06 17:56 +08, AMF metrics polled every second)
+| Time | AMF `gnb` / `ran_ue` / `amf_session` |
+|---|---|
+| 17:56:12 | 2 / 1 / 1 (both cells, OCUDU UE attached) |
+| 17:56:23 | 1 / 0 / 1 (old OCUDU pod gone; session context still held) |
+| 17:56:36.5 | 2 / 0 / 1 (new gNB: NG Setup) |
+| 17:56:39.6 | 2 / 1 / 1 (UE registered again, new PDU session) |
+
+The OCUDU cell was down for **about 16 s**; the OAI gNB's NGAP association on REDLAB stayed up the whole time.
+`ran2.sh MODE=check` afterwards: PASS.
+
+### Step 2 (both cells loaded at once): not run yet
+It needs the OAI UE running on REDLAB (stopped at the time of these runs), the OAI cell on its `bw-51` profile for a
+like-for-like load, and a third iperf3 port (5203) on tiny, so both cells can be loaded at once. All three change
+the OAI cell or the core's iperf pod, so they wait for the user's OK.
+
 ## Proposed stages (each only with the user's OK)
 | Stage | Where | Changes the bench? |
 |---|---|---|
@@ -369,7 +444,7 @@ The cell keeps running on tiny after S2. Stop it with `MODE=remove CONFIRM=yes b
 | S1 | tiny: pull and verify the OCUDU image, test start and ZMQ in throwaway pods, check the UE image. **Done 2026-11-04**: no ZMQ in published images | Images only (disk on tiny) |
 | S1b | REDLAB: own OCUDU image with ZMQ; import into tiny; throwaway-pod check on tiny. **Done 2026-11-06** | REDLAB CPU for 20 min; image on tiny |
 | S2 | tiny: subscriber `ue2`; namespace `ran2` with Secret, ConfigMaps, Deployment, `ran2.sh check`; experiment steps 0-1. **Done 2026-11-06, PASS** | Yes (core subscriber DB, new gNB on the AMF) |
-| S3 | iperf3 port 5203; experiment steps 2-4 and 6 | Yes (iperf server pod) |
+| S3 | Experiment steps 3-6 on the OCUDU cell (tools container, `exp16-ocudu.sh`). **Done 2026-11-06**; step 2 (both cells at once, iperf3 port 5203, OAI UE on `bw-51`) open | OCUDU pod only; step 2: iperf server pod and the OAI cell |
 | S4 | Relay sidecar + Service + NetworkPolicy + Prometheus scrape job + dashboard column; experiment step 5 | Yes (Prometheus config, dashboard) |
 
 ## Sources

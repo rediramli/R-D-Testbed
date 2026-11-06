@@ -47,13 +47,23 @@ cell_cfg:
     nof_dl_symbols: 6
     nof_ul_slots: 2
     nof_ul_symbols: 4
+  # OCUDU defaults to the 256QAM PDSCH MCS table; the OAI cell uses 64QAM. qam64 keeps the comparison like for like
+  # (EXP-16 S3: 65.0 Mbit/s with qam256 vs 43.3 for OAI at 51 PRB). Set qam256 to show the gain.
+  pdsch:
+    mcs_table: qam64
   csi:
     csi_rs_enabled: true
   pucch:
     nof_cell_csi_res: 1
 
 metrics:
-  enable_json: true
+  enable_json: true           # JSON reports over the remote-control WebSocket (127.0.0.1:8001): metrics_subscribe
+  layers:
+    enable_sched: true        # per-UE CQI, MCS, bit rates, HARQ ok/nok (simulated time; Experiment 16 steps 3-5)
+    enable_mac: true
+    enable_app_usage: true
+  periodicity:
+    du_report_period: 1000    # ms
 remote_control:
   enabled: true
   bind_addr: 127.0.0.1        # no authentication: pod loopback only (the docs use 0.0.0.0)

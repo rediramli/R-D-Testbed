@@ -62,7 +62,10 @@ spec:
         volumeMounts:
         - {name: cfg, mountPath: /cfg, readOnly: true}
       - name: ue
-        image: docker.io/oaisoftwarealliance/oai-nr-ue:2026.w40
+        # 2026.w43, not the OAI cell's w40: w40's ZMQ driver polled its TX queue every 10 ms, and the simulation ran at
+        # 0.20x real time (EXP-16 S3). w43 is the first tag with "wake tx_poll_thread on queue push" (439dc0eb) and
+        # "fix rounding of negative samples in RX conversion" (02a4a2df).
+        image: docker.io/oaisoftwarealliance/oai-nr-ue:2026.w43
         imagePullPolicy: IfNotPresent
         # OAI's [SIM] module prints "UICC simulation: IMSI=..., Ki=..., OPc=..." at start; sed masks the three values
         # (from the same Secret) before anything reaches the pod log, as in infra/ran/ran.yaml.
@@ -90,6 +93,17 @@ spec:
         volumeMounts:
         - {name: cfg, mountPath: /cfg, readOnly: true}
         - {name: uecap, mountPath: /uecap, readOnly: true}
+      - name: tools
+        # measurement client in the pod namespace (Experiment 16 steps 3-5): iperf3 through oaitun_ue1 and a WebSocket
+        # reader for the gNB's JSON metrics on 127.0.0.1:8001. Same image and install pattern as the bench iperf pods.
+        image: docker.io/library/alpine:3.20
+        command: ["sh", "-c", "apk add --no-cache iperf3 python3 py3-websocket-client >/dev/null && touch /tmp/ready && exec sleep infinity"]
+        securityContext:
+          capabilities: {drop: ["ALL"]}
+          runAsUser: 0                   # apk needs root; no capabilities
+        resources:
+          requests: {cpu: "1", memory: 256Mi}
+          limits: {cpu: "1", memory: 256Mi}
       volumes:
       - name: tpl
         configMap: {name: ran2-templates}

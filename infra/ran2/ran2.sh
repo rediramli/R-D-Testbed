@@ -52,6 +52,7 @@ check(){
   rc=$(K "get pod $pod -o jsonpath='{.status.containerStatuses[*].restartCount}'" 2>/dev/null)
   [ "$(echo $rc | tr ' ' '\n' | awk '{s+=$1} END{print s+0}')" = 0 ] && ok "no container restarts" || bad "container restarts: $rc (ZMQ needs MODE=restart)"
   K "logs $pod -c gnb" 2>/dev/null | grep -q "Available radio types: zmq" && ok "gNB: ZMQ radio available" || bad "gNB log: no ZMQ radio type"
+  for i in $(seq 1 15); do K "logs $pod -c gnb" 2>/dev/null | grep -q "gNB started" && break; sleep 2; done   # about 5 s after start
   K "logs $pod -c gnb" 2>/dev/null | grep -q "gNB started" && ok "gNB started" || bad "gNB not started (see: logs -c gnb)"
   # NGAP: state, not log lines
   for i in $(seq 1 15); do T "ss -HnS state established src $AMF:38412 dst $pip" 2>/dev/null | grep -q . && break; sleep 2; done
