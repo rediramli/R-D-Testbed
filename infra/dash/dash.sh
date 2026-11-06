@@ -94,7 +94,8 @@ sys.exit(fail)' || F=$((F+$?))
   sn=$(curl -s -m 5 "$URL/api/history?seconds=60" | python3 -c 'import json,sys; print(sum(r.get("sinrUe") is not None for r in json.load(sys.stdin)["rows"]))' 2>/dev/null)
   [ "${sn:-0}" -ge 10 ] && ok "UE SINR in the history: $sn samples in the last 60 s" || bad "UE SINR in the history: '${sn:-none}' samples (want >= 10)"
   [ "${rows:-0}" -ge 10 ] && ok "KPI history: $rows samples in the last 60 s" || bad "KPI history: '${rows:-none}' samples in the last 60 s (want >= 10)"
-  # K1: core KPIs from the Open5GS counters
+  # K1: core KPIs from the Open5GS counters. gNBs at the AMF: the OAI cell, plus cell 2 (EXP-16) when it runs.
+  export WANT_GNBS=$(( 1 + $(echo "$st" | python3 -c 'import json,sys; print(int(any(p["cluster"] == "ran2" and p["role"] == "gnb" and p["state"] == "running" for p in json.load(sys.stdin)["pods"])))' 2>/dev/null || echo 0) ))
   for i in $(seq 1 12); do kp=$(curl -s -m 8 "$URL/api/kpi?seconds=900"); echo "$kp" | python3 -c 'import json,sys; sys.exit(0 if json.load(sys.stdin)["samples"] >= 2 else 1)' 2>/dev/null && break; sleep 5; done
   echo "$kp" | python3 -c '
 import json, sys
@@ -103,7 +104,8 @@ def r(good, msg):
     global fail; fail += not good; print(("  PASS  " if good else "  FAIL  ") + msg)
 r(not d["errors"], "core metrics scraped from AMF, SMF, UPF, PCF (errors: %s)" % (d["errors"] or "none"))
 r(len(k) == 17, "%d core KPIs computed (want 17)" % len(k))
-r(k["gnb"]["value"] == 1 and k["pfcp_peers"]["value"] == 1, "gauges: gNBs %s, PFCP peers %s" % (k["gnb"]["value"], k["pfcp_peers"]["value"]))
+import os; ng = int(os.environ.get("WANT_GNBS", "1"))
+r(k["gnb"]["value"] == ng and k["pfcp_peers"]["value"] == 1, "gauges: gNBs %s (want %d), PFCP peers %s" % (k["gnb"]["value"], ng, k["pfcp_peers"]["value"]))
 r((k["pdu_sessions"]["value"] or 0) >= 1, "active PDU sessions: %s" % k["pdu_sessions"]["value"])
 bad = [x["name"] for x in d["kpis"] if x["status"] == "bad"]
 r(not bad, "no KPI below target: %s" % (", ".join(bad) or "none"))
@@ -152,7 +154,8 @@ kp = {x["id"]: x for x in cp["kpis"]}; km = {x["id"]: x for x in cm["kpis"]}; kr
 r(cp["source"] == "prometheus" and len(kp) == 17 and "prometheus" not in cp["errors"],
   "core KPIs over 1 h from Prometheus: %d KPIs, %d samples" % (len(kp), cp["samples"]))
 g = [p[1] for p in cp["series"].get("gnb", []) if p[1] is not None]
-r(len(g) >= min(10, cp["samples"] - 1) and len(g) >= 3 and g[-1] == 1,
+import os
+r(len(g) >= min(10, cp["samples"] - 1) and len(g) >= 3 and g[-1] == int(os.environ.get("WANT_GNBS", "1")),
   "core trend: %d gNB points (of %d buckets with data), last %s" % (len(g), cp["samples"] - 1, g[-1] if g else None))
 same = [i for i in ("gnb", "pfcp_peers", "pdu_sessions", "reg_subs") if kp[i]["value"] == km[i]["value"]]
 r(len(same) == 4, "memory and Prometheus agree on the gauges: %s" % ", ".join("%s %s/%s" % (i, kp[i]["value"], km[i]["value"]) for i in ("gnb", "pfcp_peers", "pdu_sessions", "reg_subs")))
