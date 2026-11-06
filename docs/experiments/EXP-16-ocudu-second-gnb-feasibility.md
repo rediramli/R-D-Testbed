@@ -1,7 +1,7 @@
 # Experiment 16 (feasibility): a second gNB built on OCUDU
 
-Status: **feasibility study** (2026-11-03), **stages S1 (2026-11-04), S1b and S2 (2026-11-06) done: the OCUDU cell is live on tiny** (images pulled and tested in throwaway pods
-on tiny, see [S1 results](#s1-results-2026-11-04) and [S2 results](#s2-results-2026-11-06-second-cell-live-experiment-steps-0-1)).
+Status: **feasibility study** (2026-11-03), **stages S1 (2026-11-04), S1b, S2 and S3 (2026-11-06) done: the OCUDU cell is live on tiny; experiment steps 1-6 PASS** (images pulled and tested in throwaway pods
+on tiny, see [S1](#s1-results-2026-11-04), [S2](#s2-results-2026-11-06-second-cell-live-experiment-steps-0-1) and [S3](#s3-results-2026-11-06-experiment-steps-2-6) results).
 Bench changes so far: subscriber `ue2` in the core, namespace `ran2` (OCUDU cell) on tiny's k3s; the OAI cell is unchanged.
 S1 found that no published OCUDU image contains the ZMQ driver; **stage S1b (2026-11-06) built our own image with ZMQ** (see [S1b](#s1b-our-own-gnb-image-with-zmq-built-2026-11-06)).
 Question: can the bench get a second gNB, built on OCUDU (the Linux Foundation successor of the srsRAN Project), next to
@@ -365,7 +365,7 @@ First observations (idle cell, no traffic; to be measured properly in steps 3-5)
 The cell keeps running on tiny after S2. Stop it with `MODE=remove CONFIRM=yes bash infra/ran2/ran2.sh`
 (the `ue2` subscriber and SIM file stay).
 
-## S3 results (2026-11-06): experiment steps 3-6 (OCUDU cell alone)
+## S3 results (2026-11-06): experiment steps 2-6
 Script: [`infra/exp/exp16-ocudu.sh`](../../infra/exp/exp16-ocudu.sh) (`MODE=run`, from REDLAB, no sudo). The pod got a
 third container `tools` (alpine 3.20: iperf3, Python WebSocket reader [`wsdump.py`](../../infra/ran2/wsdump.py)) so the
 measurements run in the pod's namespace through `oaitun_ue1`. CPU per container comes from the host cgroup
@@ -432,10 +432,31 @@ Core during the runs: UPF 39m CPU, AMF/SMF 1m; tiny node 3.3 cores (10 %); `open
 The OCUDU cell was down for **about 16 s**; the OAI gNB's NGAP association on REDLAB stayed up the whole time.
 `ran2.sh MODE=check` afterwards: PASS.
 
-### Step 2 (both cells loaded at once): not run yet
-It needs the OAI UE running on REDLAB (stopped at the time of these runs), the OAI cell on its `bw-51` profile for a
-like-for-like load, and a third iperf3 port (5203) on tiny, so both cells can be loaded at once. All three change
-the OAI cell or the core's iperf pod, so they wait for the user's OK.
+### Step 2: both cells loaded at once (isolation), 2026-11-06
+Script: [`infra/exp/exp16-step2.sh`](../../infra/exp/exp16-step2.sh). Setup by hand before, undone after:
+OAI UE started on REDLAB (`oai-nr-ue` 0 → 1 replica; it had been stopped), OAI cell switched to `bw-51` through the
+profile relay (25 s), and a temporary iperf3 server on tiny `10.45.0.1:5203` (pod `exp16-iperf5203`, namespace `ran2`)
+for the OCUDU cell; the OAI cell keeps `10.45.0.1:5202`. Both cells at 51 PRB, 64QAM, TDD 7/2. UDP DL above the link
+rate: OAI 250M (as Experiment 1), OCUDU 600M; 30 s per phase: OAI alone, OCUDU alone, both.
+
+| Run | Phase | OAI cell iperf (wall), loss | OCUDU cell iperf (wall), loss | OCUDU speed / MAC DL (sim) | CPU OAI gNB / UE (REDLAB) | CPU OCUDU gNB / UE (tiny) | UPF cores | tiny load (1 min) |
+|---|---|---|---|---|---|---|---|---|
+| [1](data/bench-ocudu-step2-20261106T101508Z) | OAI alone | 140.7 Mbit/s, 43.7 % | - | - | 1.21 / 2.48 | 2.38 / 1.05 (idle) | 0.09 | 4.1 |
+| | OCUDU alone | - | 145.6, 75.7 % | 2.90 / 49.5 | 0.93 / 1.28 (idle) | 2.36 / 1.84 | 0.31 | 4.1 |
+| | **both** | **143.4, 42.6 %** | **144.0, 76.0 %** | 2.86 / 49.5 | 1.22 / 2.48 | 2.37 / 1.86 | 0.41 | 5.6 |
+| [2](data/bench-ocudu-step2-20261106T101728Z) | OAI alone | 140.4, 43.8 % | - | - | 1.24 / 2.49 | 2.40 / 1.05 | 0.09 | 4.4 |
+| | OCUDU alone | - | 145.2, 75.8 % | 2.89 / 49.5 | 0.92 / 1.28 | 2.36 / 1.84 | 0.31 | 5.2 |
+| | **both** | **143.6, 42.6 %** | **143.5, 76.1 %** | 2.84 / 49.5 | 1.22 / 2.47 | 2.37 / 1.85 | 0.41 | 5.2 |
+
+**RESULT: PASS in both runs.** With the other cell loaded, the OAI cell's goodput changed by +1.9 % / +2.3 % and the
+OCUDU cell's by −1.1 % / −1.2 % (limit −5 %); the OCUDU MAC goodput in simulated time stayed at 49.5 Mbit/s; no core
+pod restarted. The shared core is not a bottleneck at these rates: the UPF needed 0.09 cores for the OAI cell's
+140 Mbit/s and 0.41 cores for both cells together. It costs more for the OCUDU cell because its 600M offered load is
+forwarded by the UPF and dropped later, in the radio queue (76 % loss). The OAI cell runs slightly faster with the
+OCUDU cell loaded (+2 %, both runs); not explained, within run-to-run spread of other experiments.
+
+Afterwards: OAI cell back on `bw-106` (relay, 25 s), `oai-nr-ue` back to 0 replicas, temporary iperf3 server removed
+(port 5203 closed); `ran2.sh MODE=check`: PASS.
 
 ## Proposed stages (each only with the user's OK)
 | Stage | Where | Changes the bench? |
@@ -444,7 +465,7 @@ the OAI cell or the core's iperf pod, so they wait for the user's OK.
 | S1 | tiny: pull and verify the OCUDU image, test start and ZMQ in throwaway pods, check the UE image. **Done 2026-11-04**: no ZMQ in published images | Images only (disk on tiny) |
 | S1b | REDLAB: own OCUDU image with ZMQ; import into tiny; throwaway-pod check on tiny. **Done 2026-11-06** | REDLAB CPU for 20 min; image on tiny |
 | S2 | tiny: subscriber `ue2`; namespace `ran2` with Secret, ConfigMaps, Deployment, `ran2.sh check`; experiment steps 0-1. **Done 2026-11-06, PASS** | Yes (core subscriber DB, new gNB on the AMF) |
-| S3 | Experiment steps 3-6 on the OCUDU cell (tools container, `exp16-ocudu.sh`). **Done 2026-11-06**; step 2 (both cells at once, iperf3 port 5203, OAI UE on `bw-51`) open | OCUDU pod only; step 2: iperf server pod and the OAI cell |
+| S3 | Experiment steps 2-6 (`exp16-ocudu.sh`, `exp16-step2.sh`). **Done 2026-11-06, all PASS** | OCUDU pod; for step 2 temporarily the OAI cell (UE on, `bw-51`) and a temporary iperf3 server, both undone |
 | S4 | Relay sidecar + Service + NetworkPolicy + Prometheus scrape job + dashboard column; experiment step 5 | Yes (Prometheus config, dashboard) |
 
 ## Sources
