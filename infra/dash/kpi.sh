@@ -85,8 +85,9 @@ check(){
     || bad "UE re-attached during the test (RNTI changed: $r): rerun without touching the controls"
   rm -f /tmp/kpi-rnti-*
   if [ -n "$c2off$c2poor" ]; then
-    set -- $c2off; o_cqi=${1:-}; o_bler=${3:-}; set -- $c2poor
-    [ -n "$o_cqi" ] && [ "$1" = "$o_cqi" ] && [ "$3" = "$o_bler" ] \
+    # same CQI, and no DL BLER above 10 % (-1 = no DL transmission in that report: BLER undefined, not a change)
+    set -- $c2off; o_cqi=${1:-}; o_bler=${3:--1}; set -- $c2poor
+    [ -n "$o_cqi" ] && [ "${1:-}" = "$o_cqi" ] && awk -v a="$o_bler" -v b="${3:--1}" 'BEGIN{exit !(a <= 0.1 && b <= 0.1)}' \
       && ok "cell 2 unaffected by cell 1's noise (CQI DL-MCS DL-BLER off: $c2off, poor: $c2poor)" \
       || bad "cell 2 changed with cell 1's noise (off: '$c2off', poor: '$c2poor')"
   fi

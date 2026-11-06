@@ -270,9 +270,10 @@ between two pods), E2 KPM from both cells into one xApp (Experiment 12), OCUDU O
 9. Why does the UL ratio iperf (wall) / MAC (sim) come out at 3.4 while the measured speed is 2.8-2.9 (S3)?
    Possibly `ul_brate` counts only part of the UL (e.g. without retransmissions or padding), or the UL report window
    differs; check against OCUDU's MAC PCAP.
-10. Cell 1 (OAI, 106 PRB) gave 35 Mbit/s on one TCP flow during `kpi.sh` on 2026-11-06 (baseline 50.9, target 40.7)
-    at CQI 15, MCS 28, BLER 0. Is it cell 2 on tiny (2.3 cores polling next to the UPF, since S2) or something else?
-    Test: one `kpi.sh` run with cell 2 scaled to 0, one with it running.
+10. Cell 1 (OAI, 106 PRB) gave 34-37 Mbit/s on one TCP flow during `kpi.sh` on 2026-11-06 (baseline 50.9, target
+    40.7) at CQI 15, MCS 28, BLER 0. **Not cell 2**: the same with cell 2 scaled to 0 (S4 A/B). Next suspects: the
+    rfsim speed of cell 1 (TCP is paced in wall time, the MAC rate is counted in simulated time) or a change on
+    REDLAB since the baseline; compare the UDP capacity (Experiment 1 method) with the baseline first.
 
 ## S1 results (2026-11-04)
 Throwaway pods in namespace `default` on tiny (label `fct/stage=s1`, all deleted afterwards; no `hostNetwork`,
@@ -492,6 +493,21 @@ and pods/log, get/list). The one pod appears as two entries, gNB and UE, one per
 (`/api/logs?...&container=gnb|ue`, only these two). Cell 2's KPIs come from Prometheus (the relay admits nothing
 else), every 5 s; cell 1's stay on the OAI gNB log, unchanged. `/api/state` has a new `ran2` object.
 
+**A/B test: is cell 2 the reason for cell 1's lower TCP throughput? No.** Same day, OAI UE started for the test,
+`kpi.sh` (one TCP flow DL, dashboard speed test, 30 s per phase), cell 1 on `bw-106`:
+
+| Run | Cell 2 | Cell 1 DL, noise off / off again (Mbit/s, MAC) | Noise poor | tiny load (1 min) |
+|---|---|---|---|---|
+| 1 (S4 gates) | running (light ping) | 35.0 / 35.4 | 13.9 | - |
+| B | **scaled to 0** | 34.7 / 36.6 | 13.9 | 0.45 after the run |
+| A | running (light ping) | 34.0 / 35.7 | 13.9 | 3.45 after the run |
+
+CQI 15, MCS 28, BLER 0 in every "off" phase; the difference with and without cell 2 is within the run-to-run spread
+(about ±1.5 Mbit/s). The baseline (50.9) and target (40.7) in `kpi.sh` are from before Experiment 16; the cause of
+the lower single-flow TCP rate is still open (question 10). Run A also showed that the cell-2 isolation check must
+not treat a missing DL BLER (no DL transmission in that report, printed as -1) as a change; fixed in `kpi.sh`
+(same CQI and no DL BLER above 10 %).
+
 **Observation: the cell-2 UE goes RRC idle when there is no traffic.** About 10 s (wall) after the last packet the
 gNB sends `RRCRelease` (inactivity), the UE keeps its PDU session and IP and resumes with a Service Request on the
 next UL packet (`TUN idle listener`). While idle, the gNB reports no UE and the per-UE series disappear; the table
@@ -503,7 +519,7 @@ says "UE idle". The gates therefore send a light ping through the cell-2 UE whil
 | `MODE=check bash infra/ran2/ran2.sh` | **PASS** (24 checks; new: relay subscribed, 10 KPI families, no identity in the output, NetworkPolicy present and enforced, Prometheus job `ocudu-cell` up with CQI, dashboard RBAC in `ran2`) |
 | `MODE=check bash infra/dash/prom.sh` | **PASS** (6 targets up, OCUDU series stored: CQI 15, speed 5.7x) |
 | `sudo MODE=check bash infra/dash/dash.sh` | First run after apply: all cell-2 checks PASS (pod listed, RNTI 4607 CQI 15 DL MCS 28 BLER 0, speed 5.75x, no SIM value in the 15 pod logs served, reader may not create pods / read Secrets / patch in `ran2`); 2 FAIL in older checks that expected exactly 1 gNB at the AMF. Fixed (expected = 1 + cell 2 running); **re-run: PASS** (all 47 checks; cell 2 RNTI 460b CQI 15 DL MCS 28 BLER 0, speed 5.89x; gNBs 2 at the AMF) |
-| `MODE=check bash infra/dash/kpi.sh` | New check **PASS**: cell 2 unaffected by cell 1's noise (CQI / DL MCS / DL BLER 15 / 28 / 0 with noise off and poor). Overall **FAIL (7)**: cell 1's single TCP flow reached 35.0 / 35.4 Mbit/s with noise off (CQI 15, MCS 28, BLER 0), below the 40.7 Mbit/s target (80 % of the 50.9 baseline), so the "off" phases grade throughput bad. Not caused by S4 (the relay and dashboard only read), possibly by cell 2 sharing tiny with the UPF since S2; open question 10 |
+| `MODE=check bash infra/dash/kpi.sh` | New check **PASS**: cell 2 unaffected by cell 1's noise (CQI / DL MCS / DL BLER 15 / 28 / 0 with noise off and poor). Overall **FAIL (7)**: cell 1's single TCP flow reached 35.0 / 35.4 Mbit/s with noise off (CQI 15, MCS 28, BLER 0), below the 40.7 Mbit/s target (80 % of the 50.9 baseline), so the "off" phases grade throughput bad. **Not caused by cell 2** (A/B below); open question 10 |
 
 ## Proposed stages (each only with the user's OK)
 | Stage | Where | Changes the bench? |
