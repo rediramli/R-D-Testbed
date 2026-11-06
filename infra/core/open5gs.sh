@@ -5,16 +5,19 @@
 #   MODE=preview     show what would change (default, changes nothing)
 #   MODE=apply       apply /tmp/open5gs.yaml, wait for every NF, add the test subscriber, then check
 #   MODE=subscriber  (re)write the test subscriber from the local secrets file
+#                    UE=ue2 for the second cell's subscriber (Experiment 16); default UE=ue1
 #   MODE=check       tests only
 #   MODE=remove      delete the namespace (subscriber DB included), ogstun and the NAT rule; needs CONFIRM=yes
-# The test SIM (IMSI, K, OPc) lives only in /home/<user>/testbed-secrets/ue1.env (mode 600). It is created with
+# The test SIM (IMSI, K, OPc) lives only in /home/<user>/testbed-secrets/<UE>.env (mode 600). It is created with
 # random K/OPc on first use and is never printed, committed or copied into the manifest.
 set -u
 MODE=${MODE:-preview}
-NS=open5gs; HOST_IP=10.42.0.2; DNN=fctoai; IMSI_DEFAULT=001700000000001
+NS=open5gs; HOST_IP=10.42.0.2; DNN=fctoai
+UE=${UE:-ue1}
+case "$UE" in ue[1-9]) IMSI_DEFAULT=00170000000000${UE#ue} ;; *) echo "UE must be ue1..ue9"; exit 1 ;; esac
 YAML=${YAML:-/tmp/open5gs.yaml}
 USER_NAME=${SUDO_USER:-root}; UHOME=$(getent passwd "$USER_NAME" | cut -d: -f6)
-SECRETS=$UHOME/testbed-secrets/ue1.env
+SECRETS=$UHOME/testbed-secrets/$UE.env
 NFS="nrf scp ausf udm udr pcf bsf nssf smf amf upf"
 export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
 F=0; ok(){ echo "  PASS  $1"; }; bad(){ echo "  FAIL  $1"; F=$((F+1)); }
@@ -35,18 +38,18 @@ pre(){
 }
 
 subscriber(){
-  echo "== Test subscriber"
+  echo "== Test subscriber $UE"
   if [ ! -f "$SECRETS" ]; then
     install -d -m 700 -o "$USER_NAME" -g "$USER_NAME" "$(dirname "$SECRETS")"
     ( umask 077; printf 'IMSI=%s\nKI=%s\nOPC=%s\n' "$IMSI_DEFAULT" "$(openssl rand -hex 16)" "$(openssl rand -hex 16)" > "$SECRETS" )
     chown "$USER_NAME:$USER_NAME" "$SECRETS"; echo "  created $SECRETS (random K/OPc, mode 600, not shown)"
   else echo "  using $SECRETS (not shown)"; fi
-  k create secret generic ue1-sim --from-env-file="$SECRETS" --dry-run=client -o yaml | k apply -f - >/dev/null
-  k delete job add-ue1 --ignore-not-found >/dev/null
+  k create secret generic $UE-sim --from-env-file="$SECRETS" --dry-run=client -o yaml | k apply -f - >/dev/null
+  k delete job add-$UE --ignore-not-found >/dev/null
   cat <<YAML | k apply -f - >/dev/null
 apiVersion: batch/v1
 kind: Job
-metadata: {name: add-ue1, namespace: $NS}
+metadata: {name: add-$UE, namespace: $NS}
 spec:
   backoffLimit: 2
   ttlSecondsAfterFinished: 600
@@ -57,10 +60,10 @@ spec:
       - name: dbctl
         image: docker.io/gradiant/open5gs-dbctl:0.10.3
         env: [{name: DB_URI, value: "mongodb://open5gs-mongodb/open5gs"}]
-        envFrom: [{secretRef: {name: ue1-sim}}]
+        envFrom: [{secretRef: {name: $UE-sim}}]
         command: ["bash", "-c", "open5gs-dbctl remove \"\$IMSI\" >/dev/null 2>&1; open5gs-dbctl add_ue_with_apn \"\$IMSI\" \"\$KI\" \"\$OPC\" $DNN >/dev/null && echo added"]
 YAML
-  k wait --for=condition=complete job/add-ue1 --timeout=180s >/dev/null 2>&1 && echo "  subscriber written" || echo "  subscriber job did not complete: $(k logs job/add-ue1 2>&1 | tail -2)"
+  k wait --for=condition=complete job/add-$UE --timeout=180s >/dev/null 2>&1 && echo "  subscriber written" || echo "  subscriber job did not complete: $(k logs job/add-$UE 2>&1 | tail -2)"
 }
 
 check(){
@@ -83,7 +86,7 @@ check(){
   k logs deploy/open5gs-smf 2>/dev/null | grep -q "PFCP associated" && ok "SMF-UPF PFCP associated" || bad "no PFCP association in SMF log"
   c=$(k exec deploy/open5gs-mongodb -- mongosh --quiet open5gs --eval \
       "const s=db.subscribers.findOne({imsi:'$(grep ^IMSI= "$SECRETS" 2>/dev/null | cut -d= -f2)'},{_id:0,'slice.sst':1,'slice.session.name':1}); print(s ? s.slice[0].sst+' '+s.slice[0].session[0].name : 'none')" 2>/dev/null)
-  [ "$c" = "1 $DNN" ] && ok "subscriber in DB with SST 1, DNN $DNN (keys not shown)" || bad "subscriber in DB: '$c' (want '1 $DNN')"
+  [ "$c" = "1 $DNN" ] && ok "subscriber $UE in DB with SST 1, DNN $DNN (keys not shown)" || bad "subscriber in DB: '$c' (want '1 $DNN')"
   echo "RESULT: $([ $F = 0 ] && echo PASS || echo "FAIL ($F)")"
 }
 

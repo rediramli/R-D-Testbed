@@ -1,0 +1,113 @@
+# Second cell of the bench (Experiment 16) on tiny's k3s: OCUDU gNB (own image, ZMQ) + OAI nrUE over ZMQ in ONE pod,
+# namespace ran2, WITHOUT hostNetwork. Why: tiny's host namespace holds ogstun (10.45.0.1/16) and the iperf servers; a
+# host-network UE tunnel (10.45.x) next to it would let test traffic bypass the radio. In this pod the ZMQ sample
+# ports, the UE tunnel and the gNB remote control (8001) exist only in the pod namespace (127.0.0.1).
+# N2 (SCTP 38412) and N3 (GTP-U 2152) go from the pod IP to the AMF/UPF on 10.42.0.2 over cni0; the pod IP is rendered
+# into the gNB config at start. No over-the-air radio: ZMQ only. Created by infra/ran2/ran2.sh (ConfigMaps, Secret).
+# Both softmodems are pinned to tiny's P-cores (CPUs 0-15); E-cores stay for the core. ZMQ devices cannot reconnect,
+# so a restart of one container needs a restart of the pod (ran2.sh MODE=restart).
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: ran2
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: ocudu-cell
+  namespace: ran2
+  labels: {app: ocudu-cell}
+spec:
+  replicas: 1
+  strategy: {type: Recreate}
+  selector: {matchLabels: {app: ocudu-cell}}
+  template:
+    metadata:
+      labels: {app: ocudu-cell}
+      annotations: {fct/config-hash: "CONFIG_HASH"}
+    spec:
+      terminationGracePeriodSeconds: 15
+      initContainers:
+      - name: render
+        image: docker.io/library/busybox:1.36
+        env:
+        - name: POD_IP
+          valueFrom: {fieldRef: {fieldPath: status.podIP}}
+        envFrom:
+        - secretRef: {name: ue2-sim}
+        command: ["sh", "-c", "sed -e \"s/__POD_IP__/$POD_IP/g\" /tpl/gnb.yml > /cfg/gnb.yml && sed -e \"s/__IMSI__/$IMSI/\" -e \"s/__KI__/$KI/\" -e \"s/__OPC__/$OPC/\" /tpl/nr-ue2.yaml.tpl > /cfg/nr-ue2.yaml && echo rendered for $POD_IP"]
+        volumeMounts:
+        - {name: tpl, mountPath: /tpl}
+        - {name: cfg, mountPath: /cfg}
+      containers:
+      - name: gnb
+        image: docker.io/fct/ocudu-gnb:26.10-zmq
+        imagePullPolicy: Never          # built on REDLAB (infra/ran2/Dockerfile.ocudu) and imported into tiny
+        command: ["/bin/bash", "-c"]
+        # bash stays PID 1 and passes SIGTERM on to the gNB as SIGINT (its clean stop).
+        args:
+        - |
+          taskset -c 0-15 /usr/local/bin/gnb -c /cfg/gnb.yml &
+          g=$!
+          trap 'kill -INT $g 2>/dev/null' TERM INT
+          wait $g; rc=$?
+          if [ $rc -gt 128 ] && kill -0 $g 2>/dev/null; then wait $g; rc=$?; fi
+          exit $rc
+        securityContext:
+          # the binary carries cap_ipc_lock,cap_sys_nice,cap_perfmon=ep as file capabilities: all three or exec fails
+          capabilities: {add: ["SYS_NICE", "IPC_LOCK", "PERFMON"], drop: ["NET_RAW"]}
+        resources:
+          requests: {cpu: "4", memory: 6Gi}
+          limits: {cpu: "4", memory: 6Gi}       # RSS 2.73 GB right after start (S1b); OOM-killed under 2 GiB
+        volumeMounts:
+        - {name: cfg, mountPath: /cfg, readOnly: true}
+      - name: ue
+        # 2026.w43, not the OAI cell's w40: w40's ZMQ driver polled its TX queue every 10 ms, and the simulation ran at
+        # 0.20x real time (EXP-16 S3). w43 is the first tag with "wake tx_poll_thread on queue push" (439dc0eb) and
+        # "fix rounding of negative samples in RX conversion" (02a4a2df).
+        image: docker.io/oaisoftwarealliance/oai-nr-ue:2026.w43
+        imagePullPolicy: IfNotPresent
+        # OAI's [SIM] module prints "UICC simulation: IMSI=..., Ki=..., OPc=..." at start; sed masks the three values
+        # (from the same Secret) before anything reaches the pod log, as in infra/ran/ran.yaml.
+        envFrom:
+        - secretRef: {name: ue2-sim}
+        command: ["/bin/bash", "-c"]
+        args:
+        - |
+          taskset -c 0-15 stdbuf -oL -eL /opt/oai-nr-ue/bin/nr-uesoftmodem -O /cfg/nr-ue2.yaml -E -r 51 --numerology 1 --band 78 \
+            -C 3489420000 --ue-scan-carrier --uecap_file /uecap/uecap_ports1.xml \
+            --device.name oai_zmqdevif "--zmq.[0].tx_channels" tcp://127.0.0.1:4557 "--zmq.[0].rx_channels" tcp://127.0.0.1:4556 \
+            --log_config.global_log_options level,nocolor,time \
+            > >(sed -u -E "s/$KI/<K masked>/Ig; s/$OPC/<OPc masked>/Ig; s/$IMSI/<IMSI masked>/g") 2>&1 &
+          ue=$!
+          trap 'kill -INT $ue 2>/dev/null' TERM INT
+          wait $ue; rc=$?
+          if [ $rc -gt 128 ] && kill -0 $ue 2>/dev/null; then wait $ue; rc=$?; fi
+          sleep 0.5
+          exit $rc
+        securityContext:
+          privileged: true                 # tun device (oaitun_ue1), as on REDLAB
+        resources:
+          requests: {cpu: "3", memory: 4Gi}
+          limits: {cpu: "3", memory: 4Gi}
+        volumeMounts:
+        - {name: cfg, mountPath: /cfg, readOnly: true}
+        - {name: uecap, mountPath: /uecap, readOnly: true}
+      - name: tools
+        # measurement client in the pod namespace (Experiment 16 steps 3-5): iperf3 through oaitun_ue1 and a WebSocket
+        # reader for the gNB's JSON metrics on 127.0.0.1:8001. Same image and install pattern as the bench iperf pods.
+        image: docker.io/library/alpine:3.20
+        command: ["sh", "-c", "apk add --no-cache iperf3 python3 py3-websocket-client >/dev/null && touch /tmp/ready && exec sleep infinity"]
+        securityContext:
+          capabilities: {drop: ["ALL"]}
+          runAsUser: 0                   # apk needs root; no capabilities
+        resources:
+          requests: {cpu: "1", memory: 256Mi}
+          limits: {cpu: "1", memory: 256Mi}
+      volumes:
+      - name: tpl
+        configMap: {name: ran2-templates}
+      - name: uecap
+        configMap: {name: ran2-uecap}
+      - name: cfg
+        emptyDir: {medium: Memory}
