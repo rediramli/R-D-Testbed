@@ -497,12 +497,12 @@ gNB sends `RRCRelease` (inactivity), the UE keeps its PDU session and IP and res
 next UL packet (`TUN idle listener`). While idle, the gNB reports no UE and the per-UE series disappear; the table
 says "UE idle". The gates therefore send a light ping through the cell-2 UE while they read the KPIs.
 
-**Gates (2026-11-06, both cells up, OAI UE started for the checks):**
+**Gates (2026-11-06, both cells up, OAI UE started for the checks and stopped again afterwards):**
 | Gate | Result |
 |---|---|
 | `MODE=check bash infra/ran2/ran2.sh` | **PASS** (24 checks; new: relay subscribed, 10 KPI families, no identity in the output, NetworkPolicy present and enforced, Prometheus job `ocudu-cell` up with CQI, dashboard RBAC in `ran2`) |
 | `MODE=check bash infra/dash/prom.sh` | **PASS** (6 targets up, OCUDU series stored: CQI 15, speed 5.7x) |
-| `sudo MODE=check bash infra/dash/dash.sh` | First run after apply: all cell-2 checks PASS (pod listed, RNTI 4607 CQI 15 DL MCS 28 BLER 0, speed 5.75x, no SIM value in the 15 pod logs served, reader may not create pods / read Secrets / patch in `ran2`); 2 FAIL in older checks that expected exactly 1 gNB at the AMF. Fixed (expected = 1 + cell 2 running); re-run: see the PR |
+| `sudo MODE=check bash infra/dash/dash.sh` | First run after apply: all cell-2 checks PASS (pod listed, RNTI 4607 CQI 15 DL MCS 28 BLER 0, speed 5.75x, no SIM value in the 15 pod logs served, reader may not create pods / read Secrets / patch in `ran2`); 2 FAIL in older checks that expected exactly 1 gNB at the AMF. Fixed (expected = 1 + cell 2 running); **re-run: PASS** (all 47 checks; cell 2 RNTI 460b CQI 15 DL MCS 28 BLER 0, speed 5.89x; gNBs 2 at the AMF) |
 | `MODE=check bash infra/dash/kpi.sh` | New check **PASS**: cell 2 unaffected by cell 1's noise (CQI / DL MCS / DL BLER 15 / 28 / 0 with noise off and poor). Overall **FAIL (7)**: cell 1's single TCP flow reached 35.0 / 35.4 Mbit/s with noise off (CQI 15, MCS 28, BLER 0), below the 40.7 Mbit/s target (80 % of the 50.9 baseline), so the "off" phases grade throughput bad. Not caused by S4 (the relay and dashboard only read), possibly by cell 2 sharing tiny with the UPF since S2; open question 10 |
 
 ## Proposed stages (each only with the user's OK)
@@ -513,7 +513,7 @@ says "UE idle". The gates therefore send a light ping through the cell-2 UE whil
 | S1b | REDLAB: own OCUDU image with ZMQ; import into tiny; throwaway-pod check on tiny. **Done 2026-11-06** | REDLAB CPU for 20 min; image on tiny |
 | S2 | tiny: subscriber `ue2`; namespace `ran2` with Secret, ConfigMaps, Deployment, `ran2.sh check`; experiment steps 0-1. **Done 2026-11-06, PASS** | Yes (core subscriber DB, new gNB on the AMF) |
 | S3 | Experiment steps 2-6 (`exp16-ocudu.sh`, `exp16-step2.sh`). **Done 2026-11-06, all PASS** | OCUDU pod; for step 2 temporarily the OAI cell (UE on, `bw-51`) and a temporary iperf3 server, both undone |
-| S4 | Relay sidecar + Service + NetworkPolicy + Prometheus scrape job + dashboard column. **Done 2026-11-06**: ran2, prom gates PASS; kpi.sh: cell-1 TCP below target (open question 10) | Yes (cell 2 restarted twice, Prometheus restarted, dashboard redeployed) |
+| S4 | Relay sidecar + Service + NetworkPolicy + Prometheus scrape job + dashboard column. **Done 2026-11-06**: ran2, prom, dash gates PASS; kpi.sh: cell-1 TCP below target (open question 10) | Yes (cell 2 restarted twice, Prometheus restarted, dashboard redeployed) |
 
 ## Sources
 - OCUDU code and releases: [gitlab.com/ocudu/ocudu](https://gitlab.com/ocudu/ocudu) (tags `release_26_04`, `release_26_10`; `CHANGELOG`, `LICENSE`, `docker/Dockerfile`, `docker/docker-compose.yml`, `docker/.env`, `docker/scripts/install_dependencies.sh`, `CMakeLists.txt` `ENABLE_ZEROMQ`)
