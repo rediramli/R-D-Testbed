@@ -4,17 +4,24 @@
 # Standard library only (minimal WebSocket client), so it runs on the dashboard's python:3.12-alpine image as non-root.
 # Rates are in SIMULATED time: the gNB reports every 1000 ms of simulated time and ZMQ is not paced, so
 # ocudu_sim_speed_ratio = 1 / (wall seconds between two DU reports) tells how fast the cell runs.
-import base64, json, os, socket, struct, threading, time
+# Watchdog: if no gNB report arrives for WATCHDOG_SECONDS (ZMQ stall: the UE stops and the gNB waits for samples
+# forever), the relay deletes its own pod so the Deployment recreates it. Container restarts would not help: the ZMQ
+# devices cannot reconnect, gNB and UE must start together. Only this container gets the API token (delete pods, ran2).
+import base64, json, os, socket, ssl, struct, threading, time, urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 WS_HOST, WS_PORT = "127.0.0.1", int(os.environ.get("WS_PORT", "8001"))
 PORT = int(os.environ.get("PORT", "9105"))
 CELL = os.environ.get("CELL", "ocudu")
 STALE = float(os.environ.get("STALE_SECONDS", "15"))   # the slowest cell seen (0.2x real time) reported every 4.9 s
+WATCHDOG = float(os.environ.get("WATCHDOG_SECONDS", "0"))   # 0 = off
+POD = os.environ.get("POD_NAME", "")
+SA = os.environ.get("SA_DIR", "/var/run/secrets/kubernetes.io/serviceaccount")
+API = os.environ.get("API_URL", "https://kubernetes.default.svc")
 
 lock = threading.Lock()
 S = {"connected": 0, "reports": 0, "reconnects": 0, "cells": None, "cells_t": 0.0, "app": None, "app_t": 0.0,
-     "du_walls": []}
+     "du_walls": [], "start": time.time()}
 
 
 def ws_connect():
@@ -113,6 +120,33 @@ def ws_loop():
         time.sleep(2)
 
 
+def delete_own_pod():
+    ns = open(os.path.join(SA, "namespace")).read().strip()
+    tok = open(os.path.join(SA, "token")).read().strip()   # projected token, rotated by the kubelet: read every time
+    req = urllib.request.Request("%s/api/v1/namespaces/%s/pods/%s" % (API, ns, POD), method="DELETE",
+                                 headers={"Authorization": "Bearer " + tok})
+    ctx = ssl.create_default_context(cafile=os.path.join(SA, "ca.crt"))
+    with urllib.request.urlopen(req, timeout=10, context=ctx) as r:
+        return r.status
+
+
+def watchdog():
+    fired = 0.0
+    while True:
+        time.sleep(5)
+        now = time.time()
+        with lock:
+            last = max([S["start"], S["cells_t"]] + S["du_walls"][-1:])
+        if now - last < WATCHDOG or now - fired < WATCHDOG:
+            continue
+        fired = now
+        print("relay: watchdog: no gNB report for %.0f s (ZMQ stall?); deleting pod %s" % (now - last, POD), flush=True)
+        try:
+            print("relay: watchdog: delete answered %s" % delete_own_pod(), flush=True)
+        except Exception as e:
+            print("relay: watchdog: delete failed: %s; retry in %.0f s" % (e, WATCHDOG), flush=True)
+
+
 UE_GAUGES = [  # (metric, JSON field, scale, help)
     ("ocudu_ue_cqi", "cqi", 1, "Latest wideband CQI reported by the UE."),
     ("ocudu_ue_dl_mcs", "dl_mcs", 1, "DL MCS index chosen by the scheduler."),
@@ -150,6 +184,9 @@ def metrics():
            "# TYPE ocudu_relay_reports_total counter", "ocudu_relay_reports_total{%s} %d" % (c, reps),
            "# HELP ocudu_relay_reconnects_total WebSocket reconnects since the relay started.",
            "# TYPE ocudu_relay_reconnects_total counter", "ocudu_relay_reconnects_total{%s} %d" % (c, rec)]
+    if WATCHDOG and POD:
+        out += ["# HELP ocudu_relay_watchdog_seconds The relay deletes its pod after this many seconds without a gNB report.",
+                "# TYPE ocudu_relay_watchdog_seconds gauge", "ocudu_relay_watchdog_seconds{%s} %g" % (c, WATCHDOG)]
     if S["cells_t"]:
         out += ["# HELP ocudu_relay_report_age_seconds Wall seconds since the last cell report.",
                 "# TYPE ocudu_relay_report_age_seconds gauge", "ocudu_relay_report_age_seconds{%s} %.3f" % (c, age)]
@@ -209,5 +246,8 @@ class H(BaseHTTPRequestHandler):
 
 if __name__ == "__main__":
     threading.Thread(target=ws_loop, daemon=True).start()
-    print("relay: ws://%s:%d -> :%d/metrics (cell=%s)" % (WS_HOST, WS_PORT, PORT, CELL), flush=True)
+    if WATCHDOG and POD:
+        threading.Thread(target=watchdog, daemon=True).start()
+    print("relay: ws://%s:%d -> :%d/metrics (cell=%s, watchdog %s)" % (WS_HOST, WS_PORT, PORT, CELL,
+          "%g s" % WATCHDOG if WATCHDOG and POD else "off"), flush=True)
     ThreadingHTTPServer(("", PORT), H).serve_forever()

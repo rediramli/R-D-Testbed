@@ -106,6 +106,15 @@ relay(){  # S4: metrics relay answers with the cell's KPIs; only Prometheus may 
          ocudu_ue_pusch_snr_db ocudu_sim_speed_ratio ocudu_app_cpu_usage_percent; do echo "$m" | grep -q "^$x{cell=\"ocudu\"" && echo "$x"; done | wc -l)
   [ "$n" = 10 ] && ok "relay :9105 serves the cell KPIs (CQI $(echo "$m" | awk '/^ocudu_ue_cqi\{/{print $2; exit}'), DL MCS $(echo "$m" | awk '/^ocudu_ue_dl_mcs\{/{print $2; exit}'), speed $(echo "$m" | awk '/^ocudu_sim_speed_ratio\{/{print $2; exit}')x)" \
     || bad "relay serves $n of 10 KPI families (want all; UE attached?)"
+  [ "$(echo "$m" | awk '/^ocudu_relay_watchdog_seconds\{/{print $2}')" = 120 ] && ok "relay watchdog armed: pod is recreated after 120 s without a gNB report" \
+    || bad "relay watchdog not armed (WATCHDOG_SECONDS / POD_NAME)"
+  W=system:serviceaccount:$NS:ocudu-cell-watchdog
+  [ "$(T "k3s kubectl auth can-i delete pods -n $NS --as=$W" 2>/dev/null)" = yes ] && [ "$(T "k3s kubectl auth can-i get secrets -n $NS --as=$W" 2>/dev/null)" = no ] \
+    && [ "$(T "k3s kubectl auth can-i delete pods -n open5gs --as=$W" 2>/dev/null)" = no ] \
+    && ok "watchdog account may delete pods in $NS only (no Secrets, no other namespace)" || bad "watchdog RBAC not as expected"
+  mt=$(K "get pod $pod -o jsonpath='{.spec.automountServiceAccountToken}{range .spec.containers[*]}{\";\"}{.name}={.volumeMounts[*].name}{end}'" 2>/dev/null)
+  [ "${mt%%;*}" = false ] && [ "$(echo "$mt" | tr ';' '\n' | grep -w sa)" = "metrics-relay=relay sa" ] \
+    && ok "API token mounted in metrics-relay only" || bad "API token mounted in more containers than metrics-relay"
   echo "$m" | grep -qiE 'imsi|supi|[0-9a-f]{32}' && bad "relay output contains an identity or key-like value" || ok "relay output has no IMSI/SUPI or key-like value"
   [ "$(K "get networkpolicy ocudu-cell-ingress -o jsonpath='{.spec.ingress[0].ports[0].port}'" 2>/dev/null)" = 9105 ] \
     && ok "NetworkPolicy ocudu-cell-ingress present" || bad "NetworkPolicy ocudu-cell-ingress missing"
@@ -152,6 +161,8 @@ preview)
   echo "  Deployment ocudu-cell (config hash $HASH): gNB ID $GNB_ID (0xe01), PCI 1, n78 20 MHz, ZMQ on the pod loopback, N2/N3 from the pod IP to $AMF"
   echo "  S4: sidecar metrics-relay (:9105), Service ocudu-cell-metrics (ClusterIP), NetworkPolicy ocudu-cell-ingress"
   echo "      (9105 from the Prometheus pod only, GTP-U from $AMF), Role/RoleBinding fct-dash-read (pods, pods/log)"
+  echo "  relay watchdog: ServiceAccount ocudu-cell-watchdog (delete pods in $NS only, token in metrics-relay only);"
+  echo "      deletes the pod after 120 s without a gNB report (ZMQ stall), the Deployment recreates it"
   echo "  pod template change: the cell restarts once (about 16 s, EXP-16 step 6)"
   echo "  undo: MODE=remove CONFIRM=yes bash infra/ran2/ran2.sh" ;;
 apply)

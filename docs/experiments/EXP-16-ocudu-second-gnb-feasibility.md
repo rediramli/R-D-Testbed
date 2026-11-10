@@ -513,6 +513,15 @@ gNB sends `RRCRelease` (inactivity), the UE keeps its PDU session and IP and res
 next UL packet (`TUN idle listener`). While idle, the gNB reports no UE and the per-UE series disappear; the table
 says "UE idle". The gates therefore send a light ping through the cell-2 UE while they read the KPIs.
 
+**Observation (2026-11-10): ZMQ stall after 3.9 days.** The cell-2 UE lost the cell, repeated random access (865
+times `RA-Msg3 transmitted`, RLC "SDU buffer full") and stopped; the gNB then logged only `zmq:rx/tx Waiting for
+data` (lockstep: simulated time stops with the UE), so the relay got no report and the dashboard showed no KPIs. A pod
+restart recovered it (`ran2.sh check` PASS). Since ZMQ devices cannot reconnect, a container liveness probe would not
+help; instead the relay has a **watchdog**: after 120 s without a gNB report it deletes its own pod and the
+Deployment recreates it. ServiceAccount `ocudu-cell-watchdog` may only delete pods in `ran2`; its token is mounted
+into `metrics-relay` only (`automountServiceAccountToken: false` for the pod). `ran2.sh check` verifies all three.
+The cause of the UE losing the cell is not investigated.
+
 **Gates (2026-11-06, both cells up, OAI UE started for the checks and stopped again afterwards):**
 | Gate | Result |
 |---|---|
