@@ -404,6 +404,12 @@ svg#topo { max-width: none; }
 .cells thead th { background: var(--pane2); font-weight: 600; }
 .cells tbody th { font-weight: 400; color: var(--muted); white-space: nowrap; }
 .cells td { font-variant-numeric: tabular-nums; }
+.cells.stack .pl { display: inline-block; padding: 0 5px; font-size: 11px; border: 1px solid var(--line2); white-space: nowrap; }
+.cells.stack .pl.cp { color: #1f5f99; border-color: #9cc0e2; }
+.cells.stack .pl.up { color: #2d7a3a; border-color: #a5d1ac; }
+.cells.stack .pl.tn { color: #b5651d; border-color: #e3bc94; }
+.cells.stack td:nth-child(2), .cells.stack td:nth-child(3) { white-space: nowrap; }
+.cells.stack tbody tr.grp th { color: var(--ink); font-weight: 600; background: var(--pane2); }
 .cells td small { color: var(--muted); }
 .cells button { font-size: 11.5px; padding: 0 6px; margin-left: 6px; }
 .tile rect.body { fill: #ffffff; stroke: #9aa5b1; }
@@ -683,6 +689,10 @@ aside#drawer pre { background: #fbfcfd; font-size: 11.5px; }
 <section class="cells" aria-label="Both cells on the shared core">
   <div class="ch"><h2>Cells on the shared core</h2><span class="cn" id="cellsNote">Cell 2 (Experiment 16): OCUDU gNB with an OAI UE over ZMQ, one pod on the P3 Tiny. Rates are MAC goodput in simulated time.</span></div>
   <div class="cs"><table><thead><tr><th></th><th>Cell 1 · OAI</th><th>Cell 2 · OCUDU</th></tr></thead><tbody id="cellsBody"></tbody></table></div>
+</section>
+<section class="cells stack" aria-label="5G protocol stack per cell">
+  <div class="ch"><h2>5G protocol stack</h2><span class="cn">3GPP layers, top to bottom, with what the bench measures at each layer. OSI column: L1 physical, L2 data link, L3 network; the radio stack has no counterpart for OSI layers 5 to 7.</span></div>
+  <div class="cs"><table><thead><tr><th>Layer</th><th>OSI</th><th>Plane</th><th>Cell 1 · OAI</th><th>Cell 2 · OCUDU</th></tr></thead><tbody id="stackBody"></tbody></table></div>
 </section>
 <section class="flow" aria-label="5G SA message flow">
   <div class="flow-head">
@@ -1053,6 +1063,7 @@ function render(data) {
   $("sbUpd").innerHTML = ""; $("sbUpd").append(u);
   renderRan(data);
   renderCells(data);
+  renderStack(data);
   renderControls(data.controls);
   tick();
   if (typeof renderShell === "function") renderShell(data);
@@ -1191,6 +1202,32 @@ function renderCells(data) {
     ["gNB CPU", "–", c2 && c2.cpuPct != null ? `${fmt(c2.cpuPct / 100, 2)} cores <small>${fmt((c2.memBytes || 0) / 1073741824, 2)} GiB</small>` : "–"],
     ["Source", "gNB log, every second", c2 ? (c2.error ? `<span style="color:${COLORS.failed}">${esc(c2.error)}</span>` : "relay → Prometheus, every 5 s") : "not configured"]];
   body.innerHTML = rows.map(r => `<tr><th>${r[0]}</th><td>${r[1]}</td><td>${r[2]}</td></tr>`).join("");
+}
+// 5G protocol stack (3GPP layers instead of the 7 OSI layers): each layer with the KPIs the bench measures there
+function renderStack(data) {
+  const body = $("stackBody"); if (!body) return;
+  const u1 = lastUe(), ch = (data.ran && data.ran.ueChan) || {}, c2 = data.ran2, u2 = cell2Ue();
+  const pct = v => fmt(v * 100, 1), sm = t => ` <small>${t}</small>`;
+  const PL = {cp: "control", up: "user", tn: "transport"};
+  const pl = (...ks) => ks.map(k => `<span class="pl ${k}">${PL[k]}</span>`).join(" ");
+  const idle2 = c2 && c2.ueCount === 0 ? "idle" + sm("RRC released after inactivity, traffic resumes it") : "–";
+  const rows = [
+    ["grp", "Uu: UE ↔ gNB (radio)"],
+    ["NAS", "L3", pl("cp"), "5GMM / 5GSM, UE ↔ AMF" + sm("carried in RRC and NGAP"), "5GMM / 5GSM, same AMF"],
+    ["RRC", "L3", pl("cp"), u1 ? "connected" + sm("RNTI 0x" + esc(u1.rnti)) : "–", u2 ? "connected" + sm("RNTI 0x" + esc(u2.rnti)) : idle2],
+    ["SDAP", "L2", pl("up"), "QoS flow → DRB", "QoS flow → DRB"],
+    ["PDCP", "L2", pl("cp", "up"), "ciphering, integrity, reordering", "ciphering, integrity, reordering"],
+    ["RLC", "L2", pl("cp", "up"), "segmentation, ARQ", "segmentation, ARQ"],
+    ["MAC", "L2", pl("cp", "up"), u1 ? `MCS ${fmt(u1.mcsDl, 0)} / ${fmt(u1.mcsUl, 0)} · BLER ${pct(u1.blerDl)} / ${pct(u1.blerUl)} % · ${fmt(u1.goodputDl, 1)} / ${fmt(u1.goodputUl, 1)} Mbit/s` + sm("DL / UL") : "–",
+                                  u2 ? `MCS ${fmt(u2.mcsDl, 0)} / ${fmt(u2.mcsUl, 0)} · BLER ${pct(u2.blerDl)} / ${pct(u2.blerUl)} % · ${fmt(u2.goodputDl, 1)} / ${fmt(u2.goodputUl, 1)} Mbit/s` + sm("DL / UL, simulated time") : "–"],
+    ["PHY", "L1", pl("cp", "up"), (u1 ? `CQI ${fmt(u1.cqi, 0)}` : "CQI –") + (typeof ch.sinrUe === "number" ? ` · SINR ${fmt(ch.sinrUe, 1)} dB` : "") + sm("RF simulator, no RF"),
+                                  (u2 ? `CQI ${fmt(u2.cqi, 0)} · SNR ${fmt(u2.snrPusch, 1)} dB` : "CQI –") + sm("ZMQ virtual radio, no RF")],
+    ["grp", "gNB ↔ core"],
+    ["NGAP / SCTP", "L3–L4", pl("cp", "tn"), "N2 to the AMF" + sm("REDLAB host network"), c2 ? "N2 to the AMF" + sm("pod IP → P3 Tiny") : "–"],
+    ["GTP-U / UDP", "L3–L4", pl("up", "tn"), "N3 to the UPF", c2 ? "N3 to the UPF" + sm("UDP 2152") : "–"],
+    ["PFCP / UDP", "L3–L4", pl("cp", "tn"), "N4 SMF ↔ UPF, shared by both cells", ""]];
+  body.innerHTML = rows.map(r => r[0] === "grp" ? `<tr class="grp"><th colspan="5">${r[1]}</th></tr>` :
+    `<tr><th>${r[0]}</th><td>${r[1]}</td><td>${r[2]}</td>` + (r[4] === "" ? `<td colspan="2">${r[3]}</td>` : `<td>${r[3]}</td><td>${r[4]}</td>`) + "</tr>").join("");
 }
 $("cellsBody").addEventListener("click", e => {
   const b = e.target.closest("[data-log]"); if (!b) return;
