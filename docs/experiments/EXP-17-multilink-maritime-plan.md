@@ -1,132 +1,149 @@
 # Experiment 17 (plan): resilient multilink connectivity for a ship
 
-Status: **plan** (2026-11-11). Nothing on the bench has changed yet. Every bench change below needs the user's OK first.
-Depends on [EXP-16](EXP-16-ocudu-second-gnb-feasibility.md) (second 5G cell on OCUDU, PR #39).
+Status: **plan** (2026-11-11), **decisions D1-D5 taken 2026-11-11** (section 4). Nothing on the bench has changed yet.
+Every bench change below needs the user's OK first. Depends on [EXP-16](EXP-16-ocudu-second-gnb-feasibility.md)
+(second 5G cell on OCUDU, PR #39).
 
-Project context: build connectivity resilience for a ship by using **all of its links together** (multilink), not
-one link with a manual backup. The research angle: an AI component that predicts link degradation and steers
-traffic before an outage. Literature that does this stops at simulation or recorded traces.
+Project context: build connectivity resilience for a ship by using **all of its links together** (multilink
+bonding), not one link with a manual backup. The ship carries **two cellular operators (two SIMs)** today;
+satellite is planned later. The research angle: an AI component that predicts link degradation from the ship's
+position and recent signal, and steers traffic before an outage. Published work on this stops at simulation or
+recorded traces.
 
-No over-the-air transmission: the 5G links are the bench's two virtual-radio cells (OAI rfsim, OCUDU ZMQ). Satellite
-links are emulated with `tc netem` driven by recorded traces. The claims this plan can support concern **the
-multilink and steering layer**. It cannot support claims about the maritime radio channel itself.
+No over-the-air transmission: the two operators are the bench's two virtual-radio cells (OAI rfsim, OCUDU ZMQ),
+driven by coverage profiles derived from a real shipborne drive test. The claims this plan can support concern **the
+multilink and steering layer**, not the maritime radio channel itself.
 
 ## Summary
 | Question | Answer |
 |---|---|
-| What is tested | Steering, switching and splitting of a ship's traffic over 2 x 5G + LEO + GEO, under a scripted voyage (port, coast, open sea). AI policy vs the static 3GPP ATSSS steering modes and vs default MPTCP |
-| Where | 5G links: OAI cell (REDLAB) and OCUDU cell (tiny), one Open5GS core. Satellite links: netem. **Ship router: the Jetson Orin NX** on the bench LAN. Shore end: tiny |
-| Multipath layer | Stage 1: Linux **MPTCP** (kernel, over the top of the 5G PDU sessions). 3GPP ATSSS (MA-PDU session) is a later option: Open5GS has no MA-PDU support |
-| AI part | Link-quality predictor (seconds ahead) + steering policy, running on the Jetson. Trained on data recorded on the bench in this experiment |
-| Main metrics | Outage time per traffic class, goodput, p99 latency of critical traffic, satellite bytes (cost), number of switches, prediction lead time |
-| Main gap closed | AI multilink steering with a **real 5G SA stack** in the loop (attach, RRC, PDU session, GTP-U), not only traces or ns-3 |
-| Main limits | No maritime radio channel. The OCUDU cell's ZMQ radio is not paced to real time, so its delay is reshaped with netem. Satellite traces are not from Indonesian waters |
-| AI-RAN Alliance fit | AI-on-RAN and the Data-for-AI task group (an open multilink dataset). Not AI-for-RAN: steering is above the RAN |
+| What is tested | Steering, switching and splitting of a ship's traffic over **two cellular operators**, along a replayed real voyage. AI policy vs the static 3GPP ATSSS steering modes and vs plain multipath |
+| Where | Operator 1: OAI cell (REDLAB). Operator 2: OCUDU cell (tiny). One Open5GS core (the two operators share it; enough for over-the-top multipath). **Ship router: the Jetson Orin NX**. Shore end: tiny |
+| Multipath layer | **Over the top**, in user space on the Jetson: **multipath QUIC** (MPQUIC) between the ship router and a shore proxy. 3GPP ATSSS (MA-PDU session) is not needed now (D3) |
+| Coverage input | The project's shipborne **scanner drive test** (2026-11-05): RSRP per frequency along the GPS track, both operators measured at once. Kept outside this public repo (section 4) |
+| AI part | Link-quality predictor (seconds ahead, from position + recent RSRP/SINR) + steering policy, on the Jetson |
+| Main metrics | Outage time of the critical class (engine/navigation telemetry), goodput, p99 latency, number of switches, prediction lead time |
+| Main gap closed | AI multilink steering with a **real 5G SA stack** in the loop (attach, RRC, PDU session, GTP-U), fed by **measured maritime coverage** |
+| Main limits | No maritime radio channel (coverage is replayed as SINR, not propagated). The OCUDU cell's ZMQ radio has no channel model and is not paced to real time. The drive test has no throughput or latency |
+| Later | Satellite paths (LEO/GEO, emulated with netem) as stage M7 |
+| AI-RAN Alliance fit | AI-on-RAN and the Data-for-AI task group. Not AI-for-RAN: steering is above the RAN |
 
 ## 1. Problem and scope
-A ship has several links with very different properties, and their availability changes along the voyage:
-
-| Link | Typical availability | Properties (to confirm, see section 4) | Bench emulation |
+| Path | Link | Availability | Bench emulation |
 |---|---|---|---|
-| A: operator 4G/5G from the coast | Port and coastal waters, fades with distance from shore | Lowest delay, variable capacity, cheap | OAI cell (rfsim), downlink noise raised along the voyage (method of [EXP-00](EXP-00-downlink-noise.md)) |
-| B: private 5G in port | Port only | Low delay, high capacity | OCUDU cell (ZMQ), switched off at departure; delay reshaped with netem |
-| C: LEO satellite (Starlink class) | Almost everywhere, short outages (obstruction, satellite handover) | 25-60 ms RTT, 50-200 Mbit/s, bursty, metered | netem replaying a recorded trace |
-| D: GEO VSAT | Everywhere, weather fades | ~600 ms RTT, a few Mbit/s, expensive | netem, fixed profile + fade events |
+| A | Operator 1, LTE/5G from the coast | Varies along the route with distance and band | OAI cell (rfsim); SINR along the route set through the downlink noise setting (method of [EXP-00](EXP-00-downlink-noise.md), SINR to CQI curve of part 0b) |
+| B | Operator 2, LTE/5G from the coast | Different coverage holes from operator 1 | OCUDU cell (ZMQ); how to replay its SINR is open (section 7, risk 1) |
+| C, D (M7) | LEO and GEO satellite | Planned on the ship later | netem replay of traces |
 
-Resilience here means: **critical traffic never stops**, and the other traffic gets the best available capacity at
-the lowest cost. Traffic classes (to confirm): engine/navigation telemetry (small, critical), VoIP, CCTV video
-uplink, crew internet (bulk).
+Resilience here means: **critical traffic (engine/navigation telemetry) never stops**; the other classes get the best
+available capacity. Traffic classes: telemetry (critical, small), VoIP, CCTV video uplink, crew internet (bulk,
+first to be cut). Only telemetry has a hard requirement (D2).
 
-Out of scope: the maritime radio channel (sea-surface reflection, ship motion), ship-to-ship relaying (IAB), real
-satellite terminals.
+Out of scope: the maritime radio channel (sea-surface reflection, ship motion), ship-to-ship relaying, real modems.
 
 ## 2. Literature and gap (abstracts read, full papers not yet)
 | Work | What it does | Method | Gap for us |
 |---|---|---|---|
-| [Marlink Sealink Multi-LEO](https://www.satellitetoday.com/mobility/2026/03/03/marlink-launches-leo-based-service-for-maritime-customers/) (2026) | One managed service over Starlink + OneWeb, network chosen by performance and coverage | Commercial, closed | Method unknown; satellite links only |
-| [VTT and partners](https://www.vttresearch.com/en/news-and-ideas/5g-maritime-environments-vtt-and-partners-push-boundaries-connectivity-sea) | Public 5G at the coast, private 5G between ships, satellite as backup | Field trial | Backup, not joint use; no AI |
-| 3GPP ATSSS, [TS 24.193 Rel-19](https://www.3gpp.org/ftp/specs/PDF/2026-09/Rel-19/24_series/24193-j60.pdf); [TR 22.841](https://3gpp.org/ftp/tsg_sa/WG1_Serv/TSGS1_104_Chicago/inbox/post_meeting_draft_TRs/DraftTR%2022841v220_rm.docx) (TN + NTN dual access use cases) | MA-PDU session; steering modes Active-Standby, Smallest Delay, Load-Balancing, Priority-based; MPTCP and (Rel-19) MPQUIC | Standard | Rules are static, set by policy; no prediction |
-| [FTRL-WRR](https://dspace.library.uvic.ca/items/e300fab6-9d1a-4ed4-940b-bf9ad0aa252e) (UVic thesis, 2024) | Online learning of the traffic split over two paths, QUIC over Starlink | Experiments on two paths | Two paths, no 5G stack, no voyage dynamics. **Reproducible baseline** |
+| [MP-QUIC as aggregator for multiple cellular networks](https://www.mdpi.com/2079-9292/11/9/1492) (Electronics 2022) | MPQUIC over several operators at once | Measurements | **Closest to our setup** (multi-operator, MPQUIC); no prediction, no ship |
+| [MAMS](https://www.ece.uvic.ca/~cai/ton24-mams.pdf) (IEEE/ACM ToN) | MPQUIC scheduler that forecasts link variation of a moving sender | Cellular + Wi-Fi | Not maritime; no 5G stack in the loop |
 | [PRISM, DRL schedulers for MPQUIC](https://www.sciencedirect.com/science/article/abs/pii/S2542660525001301) (2025) | DRL actor-critic scheduler, robust to outages | Lumos5G + Starlink traces | Trace-driven only |
-| [MAMS](https://www.ece.uvic.ca/~cai/ton24-mams.pdf) (IEEE/ACM ToN) | Multipath QUIC scheduler that forecasts link variation | Cellular + Wi-Fi | No satellite |
-| [5G-MANTRA](https://dl.acm.org/doi/pdf/10.1145/3609382.3610511) | ATSSS testbed: Open5GS + free5GC N3IWF + MPTCP proxy at the UPF | Testbed | Maintenance status unknown; 3GPP + Wi-Fi, no satellite |
-| [Starlink Robot dataset](https://arxiv.org/abs/2506.19781) (2025) | Starlink metrics while moving, with motion and sky visibility | Dataset (land) | Land, not sea; usable as LEO trace source |
-| [CNN-BiLSTM-AM](https://doi.org/10.3390/electronics14071367) (Electronics 2025) | Predicts ship-to-shore link connection probability from sea and ship-motion data | Historical data | Prediction only, no steering |
+| [FTRL-WRR](https://dspace.library.uvic.ca/items/e300fab6-9d1a-4ed4-940b-bf9ad0aa252e) (UVic thesis, 2024) | Online learning of the split over two paths | Two real paths (QUIC, Starlink) | **Reproducible learning baseline** |
+| [Adaptive-FEC for MPQUIC](https://arxiv.org/abs/2607.14482) (2026) | FEC over commercial cellular paths for vehicles | Field test | Another baseline for loss bursts |
+| 3GPP ATSSS, [TS 24.193 Rel-19](https://www.3gpp.org/ftp/specs/PDF/2026-09/Rel-19/24_series/24193-j60.pdf); [TR 22.841](https://3gpp.org/ftp/tsg_sa/WG1_Serv/TSGS1_104_Chicago/inbox/post_meeting_draft_TRs/DraftTR%2022841v220_rm.docx) (dual 3GPP access, TN + NTN) | Steering modes Active-Standby, Smallest Delay, Load-Balancing, Priority-based | Standard | Static rules; used here as **baselines** |
+| [CNN-BiLSTM-AM](https://doi.org/10.3390/electronics14071367) (Electronics 2025) | Predicts ship-to-shore link connectivity from sea and ship-motion data | Historical data | Prediction only, no steering |
+| [Marlink Sealink Multi-LEO](https://www.satellitetoday.com/mobility/2026/03/03/marlink-launches-leo-based-service-for-maritime-customers/), [VTT](https://www.vttresearch.com/en/news-and-ideas/5g-maritime-environments-vtt-and-partners-push-boundaries-connectivity-sea) | Commercial and trial maritime multilink | Closed / field trial | Method unknown; relevant for M7 |
 
-**Gap**: no published work runs predictive, AI-driven multilink steering for a ship with a real 5G SA stack in the
-loop. The standard has the mechanism (ATSSS) but static rules. The learning work is trace-driven.
+**Gap**: no published work runs predictive multilink steering for a ship with a real 5G SA stack in the loop,
+driven by measured maritime coverage of the operators the ship actually uses.
 
 ## 3. Target architecture on the bench
 ```
-             SHIP                                                   SHORE
- ┌─────────────────────────────────┐
- │ Jetson Orin NX: ship router     │── wg-a ── UE1 netns (REDLAB) ── OAI cell ──┐
- │  - MPTCP endpoint, policy       │── wg-b ── UE2 pod (tiny)  ── OCUDU cell ───┤ Open5GS UPF ── shore server
- │    routing per traffic class    │                                            │ (10.45.0.1)    (tiny)
- │  - predictor + steering policy  │── sat-c ── netem (LEO trace) ── LAN ───────┤ (10.42.0.2)
- │  - traffic generators per class │── sat-d ── netem (GEO profile) ─ LAN ──────┘
- └─────────────────────────────────┘
+              SHIP                                                        SHORE
+ ┌───────────────────────────────────┐
+ │ Jetson Orin NX: ship router       │── tun-a (wireguard-go) ── UE1 netns (REDLAB) ── OAI cell ───┐
+ │  - MPQUIC client (user space)     │                                                              ├ UPF ─ shore proxy (tiny,
+ │  - predictor + steering policy    │── tun-b (wireguard-go) ── UE2 pod (tiny) ──── OCUDU cell ───┘        MPQUIC server)
+ │  - traffic generators per class   │
+ └───────────────────────────────────┘
+            ▲
+   voyage controller: replays the drive test along its clock → SINR per operator → noise setting (A) / see risk 1 (B)
 ```
-- **Paths A and B** use the real 5G stack. The UE tunnels live on two machines (REDLAB, tiny), so each is reached from
-  the Jetson through a WireGuard tunnel into the UE's network namespace, with policy routing so that traffic entering
-  `wg-a` can only leave through `oaitun_ue1` (gate, as the route checks in `infra/ran2/ran2.sh`).
-- **Paths C and D** go over the bench LAN through netem qdiscs (on the Jetson egress and the shore ingress, so both
-  directions are shaped).
-- **Shore end** on tiny: an MPTCP server reachable at 10.45.0.1 (through the 5G paths) and 10.42.0.2 (through the
-  satellite paths). MPTCP announces both addresses, one subflow per path.
-- **Voyage controller** (script): one timeline drives all four paths: noise on the OAI cell, OCUDU cell on/off,
-  trace position for LEO, fade events for GEO. Same timeline, same seed, for every policy compared.
+- The UE tunnels live on two machines, so the Jetson reaches each through a **user-space WireGuard** (`wireguard-go`;
+  the Jetson kernel has TUN but no WireGuard) into the UE's network namespace. Policy routing there makes traffic
+  from `tun-a` leave only through `oaitun_ue1` (gate, as the route checks in `infra/ran2/ran2.sh`).
+- **Shore proxy** on tiny, reachable through both UE tunnels (10.45.0.1). Applications on the ship talk to local
+  sockets; the proxy pair carries them over MPQUIC.
+- **netem** (where needed, e.g. to reshape path B's delay) runs on REDLAB or tiny: the Jetson kernel has no
+  `sch_netem`.
+- **Voyage controller**: one clock for the whole run (the drive test's own clock, sped up if wanted); both operators
+  follow the same position, so their coverage holes line up as on the real route.
 
-## 4. Open decisions (needed before stage M1)
-| # | Question | Why it matters |
+## 4. Decisions (2026-11-11)
+| # | Question | Decision |
 |---|---|---|
-| D1 | Which links does the target ship really have (Starlink, VSAT, which coastal operator, port Wi-Fi/5G, VHF data)? | Sets the path list and the profiles |
-| D2 | Which applications are critical, and their needs (rate, delay, loss)? | Sets the traffic classes and the PASS limits |
-| D3 | Who is the client (operator, ship owner, research programme)? Must the result follow 3GPP ATSSS, or is over-the-top multipath enough? | ATSSS needs MA-PDU support in the core (not in Open5GS): much more work |
-| D4 | Is there real voyage data (link logs, AIS track) we may use? | Realistic timelines and a training set closer to the sea |
-| D5 | Jetson Orin NX: JetPack/L4T version and whether its kernel has MPTCP enabled | MPTCP needs `CONFIG_MPTCP`; otherwise MPQUIC in user space (no kernel change) |
+| D1 | Links on the target ship | **Two cellular operators (two SIMs)**, LTE/5G from the coast. Satellite **planned later** → stage M7 |
+| D2 | Critical traffic | **Engine/navigation telemetry**: must never stop. Other classes are best effort, crew internet is cut first |
+| D3 | 3GPP ATSSS or over the top | **Over the top first** (no core change). ATSSS can follow; Open5GS has no MA-PDU session support |
+| D4 | Real voyage data | **Yes**: the project's shipborne scanner drive test of 2026-11-05 (see below) |
+| D5 | Jetson kernel (checked 2026-11-11: L4T R35.5, kernel 5.10.192-tegra, 8 cores, 16 GB) has **no MPTCP, no WireGuard, no netem**; TUN yes | **User space on the Jetson**: MPQUIC + `wireguard-go`; netem on the REDLAB/tiny side. No kernel rebuild |
+
+**Drive-test data (D4).** Location: outside the repo, on REDLAB (the project folder of 2026-11-05). This repo is
+public, so **raw data, operator names, locations and per-operator numbers stay out of it**; only derived,
+anonymised profiles enter it, and only with the data owner's OK. What it contains, as far as it matters here:
+- A scanner survey (SIM-independent): about 1 h along a ferry route out to sea and back, every operator at once.
+- `gps_track.csv`: timestamp (spreadsheet day number), latitude, longitude, altitude; about 1.5 fixes per second.
+- `rsrp_lte.csv`: latitude, longitude, frequency, band, RSRP. **No timestamp**: time comes from joining on the GPS
+  position. No throughput, no latency, no handover events. Bands: LTE 700-2600 MHz and NR n78.
+- Per-operator figures exist (`operator_kpi.json`), but the folder's README says the operator attribution
+  (MCC-MNC) is **not yet decoded**; the attribution method must be checked before it is used (stage M1). The scanner
+  also logged RSRQ and SINR in the raw file; only RSRP is decoded so far.
 
 ## 5. Stages
 Each stage ends with a scripted test with PASS output, as for every experiment ([README](README.md)).
 
 | Stage | Work | Gate (PASS) | Bench change |
 |---|---|---|---|
-| **M0** | Answer D1-D5; pick the LEO trace source; write the voyage timeline (port 15 min, coast 30 min, open sea 30 min, arrival 15 min, compressed for runs) | Decisions recorded in this file | none |
-| **M1** | Link emulator: netem replay of a trace (rate, delay, loss, outages) at 1 s steps, both directions | Replayed path reproduces the trace's median RTT, rate and outage durations within 10 % (iperf3 + ping) | netem on Jetson and shore side (removable) |
-| **M2** | Ship router: WireGuard into both UE namespaces, policy routing, 4 paths up from the Jetson | Each path reachable on its own; traffic of each path leaves only through its own link (route and capture check); 5G cells and core gates unchanged (`ran.sh check`, `ran2.sh check`, `kpi.sh`) | Jetson config, a WireGuard peer in each UE namespace; keys in Secrets, never committed |
-| **M3** | Baselines: MPTCP default scheduler, MPTCP backup mode, and the ATSSS modes (Active-Standby, Smallest Delay, Load-Balancing, Priority-based) as routing policies | Every baseline runs the full voyage timeline 3 times with the same result order; per-class metrics recorded | none new |
-| **M4** | Data: record per path (RTT, loss, rate, outage) and per cell (SINR, CQI, MCS, BLER from the KPI pipeline and OCUDU metrics) at 1 s, aligned on the voyage clock | Dataset with schema and README; no SIM values or keys inside | none new |
-| **M5** | AI: predictor of path degradation 5-30 s ahead (start simple: gradient boosting, then a small LSTM/TCN), and a steering policy (predictive switch + split weights; FTRL-WRR reproduced as the learning baseline). Runs on the Jetson | Predictor beats "last value" on held-out voyages; inference fits a 100 ms control step on the Jetson | model on the Jetson |
-| **M6** | Evaluation: all policies, same timelines, 5 repetitions each; plus failure tests (cut any path suddenly) | PASS limits set in M0 from D2, e.g. critical telemetry outage = 0 s, VoIP outage below the baseline | none new |
+| **M0** | Decisions D1-D5 | Recorded in section 4 (done 2026-11-11) | none |
+| **M1** | Profile builder (outside the repo, on the data): join RSRP to time by GPS position; per operator, best-server RSRP per second (median per cell, as the data's README advises); check the operator attribution; decode SINR from the raw file if possible, otherwise map RSRP to SINR with a stated noise floor. Output: one SINR-per-second series per operator | Profile covers the full route with no gap > 5 s; the attribution method is written down; numbers stay outside the repo | none |
+| **M2** | Replay on the cells: SINR series → noise setting on the OAI cell (EXP-00b curve); for the OCUDU cell, test the options of risk 1 | The cell follows a replayed step profile: CQI/MCS within one step of the EXP-00b curve, 3 repetitions | OAI noise setting (as EXP-00); OCUDU per risk 1 |
+| **M3** | Ship router: `wireguard-go` into both UE namespaces, policy routing, MPQUIC client on the Jetson, proxy on tiny (pick the MPQUIC stack: candidates with multipath support in user space, e.g. XQUIC, picoquic, a multipath quic-go fork) | Each path reachable on its own; each path's traffic leaves only through its own UE tunnel; MPQUIC uses both paths; cell and core gates unchanged (`ran.sh check`, `ran2.sh check`, `kpi.sh`) | Jetson user-space services; a WireGuard peer in each UE namespace; keys in Secrets, never committed |
+| **M4** | Baselines on the replayed voyage: single operator (each), Active-Standby, Smallest Delay, Load-Balancing, Priority-based, MPQUIC default scheduler | Every baseline runs the full voyage 3 times with the same result order; per-class metrics recorded | none new |
+| **M5** | Dataset: per path (RTT, loss, rate, outage) and per cell (SINR, CQI, MCS, BLER) at 1 s, aligned on the voyage clock, plus position | Dataset schema and README; no SIM values, keys or raw project data inside | none new |
+| **M6** | AI: predictor of path degradation 5-30 s ahead (gradient boosting first, then a small LSTM/TCN), input position + recent SINR/CQI/RTT; steering policy: predictive switch + split weights; FTRL-WRR reproduced as the learning baseline. Runs on the Jetson | Predictor beats "last value" on held-out route segments; inference fits a 100 ms control step on the Jetson; telemetry outage = 0 s on the replayed voyage, and lower outage than the best baseline for VoIP | model on the Jetson |
+| **M7** (later) | Satellite paths C/D: netem replay of LEO/GEO traces, added as a third/fourth MPQUIC path | As M3/M4 with 3-4 paths | netem on REDLAB/tiny |
 
 ## 6. Metrics
 | Metric | Per | Note |
 |---|---|---|
-| Outage time (no delivery for > 1 s) | traffic class | Main resilience metric |
-| Goodput | class, path | Wall clock; the OCUDU cell's simulated time does not apply to this experiment because its delay is reshaped |
-| Latency p50/p99 | class | VoIP and telemetry |
-| Satellite bytes | path | Cost proxy (C and D are metered) |
+| Outage time (no delivery for > 1 s) | traffic class | Main resilience metric; telemetry must be 0 |
+| Goodput | class, path | Wall clock |
+| Latency p50/p99 | class | Telemetry and VoIP |
 | Path switches per hour | policy | Stability (flapping) |
 | Prediction lead time and error | predictor | Seconds of warning before a degradation |
+| CPU and memory on the Jetson | policy | The ship router must stay light |
 
 ## 7. Risks
-| Risk | Effect | Mitigation |
-|---|---|---|
-| OCUDU ZMQ link not paced to real time (EXP-16 S3: ~5-6x) | Unrealistic delay and rate on path B | Shape path B with netem to the port-5G profile; keep the 5G stack for its procedures (attach, release, re-attach) |
-| No maritime channel | Path A fading does not look like the sea | Drive the noise setting from a recorded or published coastal profile; say so in every result |
-| Jetson kernel without MPTCP | M3 blocked | MPQUIC in user space, or MPTCP on an x86 ship-router VM (decide in M0) |
-| WireGuard overhead on the 5G paths | Lower goodput on A and B | Measure in M2, report the overhead; same for all policies |
-| Overfitting to our own timelines | Predictor works only on the bench | Hold out whole voyages; use D4 data if available |
-| Trace licence | Cannot publish the dataset | Check the licence of each trace source in M0 |
+| # | Risk | Effect | Mitigation |
+|---|---|---|---|
+| 1 | **The OCUDU cell (ZMQ) has no channel model or noise setting** | Operator 2's coverage cannot be replayed the same way as operator 1 | M2 tests, in order: (a) changing the OCUDU gNB's TX gain at run time, if its remote control allows it; (b) a noise/attenuation step in the ZMQ sample path; (c) shaping path B with netem (rate, loss) from the SINR → rate mapping of EXP-00b. Whichever is used is stated in every result |
+| 2 | OCUDU ZMQ link not paced to real time (EXP-16 S3: ~5-6x) | Unrealistic delay on path B | Reshape path B's delay with netem on tiny |
+| 3 | Operator attribution of the drive test not verified | Wrong operator profiles | M1 gate: method written down and checked against the bands each operator is known to hold |
+| 4 | RSRP only, no throughput/latency in the drive test | Rate on the bench comes from the cell's own link adaptation, not from the sea | Accept and state it; ask whether the next campaign can log throughput/latency with SIMs (or decode SINR/RSRQ from the raw file) |
+| 5 | MPQUIC stack maturity on aarch64 | M3 delay | Try two stacks in M3; fall back to an x86 router on REDLAB with the Jetson only for the AI |
+| 6 | `wireguard-go` overhead on the Jetson | Lower goodput on both paths | Measure in M3; same for all policies |
+| 7 | Overfitting to one voyage | Predictor works only on this route | Hold out route segments; more drive tests when available |
+| 8 | Project data in a public repo | Leak of client data | Raw data and per-operator numbers stay outside the repo (section 4) |
 
 ## 8. Bench rules
-- Emulation only: no over-the-air transmission, no real satellite terminal, bench LAN only.
+- Emulation only: no over-the-air transmission, no real modems or satellite terminals, bench LAN only.
 - Every bench change needs the user's OK. Nothing is applied by this plan.
 - Secrets (SIM values, WireGuard keys) stay in Kubernetes Secrets or `~/testbed-secrets`, never in the repo or logs.
-- Netem and routing changes are scripted with `preview`, `apply`, `check` and `remove` modes, like `infra/ran2/ran2.sh`.
+- Project drive-test data stays outside the repo (section 4).
+- Noise, netem and routing changes are scripted with `preview`, `apply`, `check` and `remove` modes, like
+  `infra/ran2/ran2.sh`.
 
 ## 9. Contribution angle
-- **AI-RAN Alliance**: AI-on-RAN (AI steering of a terminal's traffic over 3GPP and non-3GPP access) and the
-  Data-for-AI task group (an open, labelled multilink voyage dataset with 5G cell metrics, if the trace licences allow).
-- **3GPP angle**: evidence for predictive steering inside ATSSS (TN + NTN use cases of TR 22.841), against the static
-  steering modes.
+- **AI-RAN Alliance**: AI-on-RAN (AI steering of a terminal's traffic over several accesses) and the Data-for-AI
+  task group (a multilink voyage dataset with 5G cell metrics, if the data owner agrees).
+- **3GPP angle**: evidence for predictive steering against the static ATSSS steering modes, for dual 3GPP access
+  (two operators) now and TN + NTN (M7) later, as in the use cases of TR 22.841.
