@@ -1,6 +1,6 @@
 # Experiment 17 (plan): resilient multilink connectivity for a ship
 
-Status: **plan** (2026-11-11), **decisions D1-D5 taken 2026-11-11** (section 4). Nothing on the bench has changed yet.
+Status: **plan** (2026-11-11), **decisions D1-D5 taken, stage M1 done 2026-11-11 (PASS; D6 open)**. Nothing on the bench has changed yet.
 Every bench change below needs the user's OK first. Depends on [EXP-16](EXP-16-ocudu-second-gnb-feasibility.md)
 (second 5G cell on OCUDU, PR #39).
 
@@ -19,7 +19,8 @@ multilink and steering layer**, not the maritime radio channel itself.
 |---|---|
 | What is tested | Steering, switching and splitting of a ship's traffic over **two cellular operators**, along a replayed real voyage. AI policy vs the static 3GPP ATSSS steering modes and vs plain multipath |
 | Where | Operator 1: OAI cell (REDLAB). Operator 2: OCUDU cell (tiny). One Open5GS core (the two operators share it; enough for over-the-top multipath). **Ship router: the Jetson Orin NX**. Shore end: tiny |
-| Multipath layer | **Over the top**, in user space on the Jetson: **multipath QUIC** (MPQUIC) between the ship router and a shore proxy. 3GPP ATSSS (MA-PDU session) is not needed now (D3) |
+| Multipath layer | **Over the top**, in user space: the client project's own **application-level multipath proxy** (sub-streams pinned per path, in-order reassembly at the shore) is reused first; MPQUIC is the alternative. 3GPP ATSSS (MA-PDU session) is not needed now (D3) |
+| Relation to the client project | The project already runs a 2-SIM bonding gateway with a **learned split controller (contextual bandit) on the same Jetson**, evaluated so far on a calibrated simulation and on the live link. EXP-17 gives it what it lacks: **repeatable replays of measured maritime coverage with a real 5G stack in the loop**, to compare the learned controller with a reactive heuristic and a fixed split |
 | Coverage input | The project's shipborne **scanner drive test** (2026-11-05): RSRP per frequency along the GPS track, both operators measured at once. Kept outside this public repo (section 4) |
 | AI part | Link-quality predictor (seconds ahead, from position + recent RSRP/SINR) + steering policy, on the Jetson |
 | Main metrics | Outage time of the critical class (engine/navigation telemetry), goodput, p99 latency, number of switches, prediction lead time |
@@ -85,6 +86,7 @@ driven by measured maritime coverage of the operators the ship actually uses.
 | D2 | Critical traffic | **Engine/navigation telemetry**: must never stop. Other classes are best effort, crew internet is cut first |
 | D3 | 3GPP ATSSS or over the top | **Over the top first** (no core change). ATSSS can follow; Open5GS has no MA-PDU session support |
 | D4 | Real voyage data | **Yes**: the project's shipborne scanner drive test of 2026-11-05 (see below) |
+| D6 (open, from M1) | Coverage input for M2: the scanner profiles of M1 (strong, little stress), the ship gateway's per-SIM log from the real route, or a ROMES decode with SINR? | The scanner record has no SINR and the surveyed route is not the ship's route |
 | D5 | Jetson kernel (checked 2026-11-11: L4T R35.5, kernel 5.10.192-tegra, 8 cores, 16 GB) has **no MPTCP, no WireGuard, no netem**; TUN yes | **User space on the Jetson**: MPQUIC + `wireguard-go`; netem on the REDLAB/tiny side. No kernel rebuild |
 
 **Drive-test data (D4).** Location: outside the repo, on REDLAB (the project folder of 2026-11-05). This repo is
@@ -104,13 +106,32 @@ Each stage ends with a scripted test with PASS output, as for every experiment (
 | Stage | Work | Gate (PASS) | Bench change |
 |---|---|---|---|
 | **M0** | Decisions D1-D5 | Recorded in section 4 (done 2026-11-11) | none |
-| **M1** | Profile builder (outside the repo, on the data): join RSRP to time by GPS position; per operator, best-server RSRP per second (median per cell, as the data's README advises); check the operator attribution; decode SINR from the raw file if possible, otherwise map RSRP to SINR with a stated noise floor. Output: one SINR-per-second series per operator | Profile covers the full route with no gap > 5 s; the attribution method is written down; numbers stay outside the repo | none |
+| **M1** (done 2026-11-11, [results](#m1-results-2026-11-11)) | Profile builder [`infra/exp/exp17-profile.py`](../../infra/exp/exp17-profile.py) (data and output outside the repo): time from the recording's own clock, position from the nearest GPS fix; per operator, best carrier per second (median per carrier, then max); operator from the MCC/MNC in each record; RSRP mapped to SINR with a stated floor (no SINR in the record) | Profile covers the full route with no gap > 5 s; the attribution method is written down; numbers stay outside the repo | none |
 | **M2** | Replay on the cells: SINR series → noise setting on the OAI cell (EXP-00b curve); for the OCUDU cell, test the options of risk 1 | The cell follows a replayed step profile: CQI/MCS within one step of the EXP-00b curve, 3 repetitions | OAI noise setting (as EXP-00); OCUDU per risk 1 |
 | **M3** | Ship router: `wireguard-go` into both UE namespaces, policy routing, MPQUIC client on the Jetson, proxy on tiny (pick the MPQUIC stack: candidates with multipath support in user space, e.g. XQUIC, picoquic, a multipath quic-go fork) | Each path reachable on its own; each path's traffic leaves only through its own UE tunnel; MPQUIC uses both paths; cell and core gates unchanged (`ran.sh check`, `ran2.sh check`, `kpi.sh`) | Jetson user-space services; a WireGuard peer in each UE namespace; keys in Secrets, never committed |
 | **M4** | Baselines on the replayed voyage: single operator (each), Active-Standby, Smallest Delay, Load-Balancing, Priority-based, MPQUIC default scheduler | Every baseline runs the full voyage 3 times with the same result order; per-class metrics recorded | none new |
 | **M5** | Dataset: per path (RTT, loss, rate, outage) and per cell (SINR, CQI, MCS, BLER) at 1 s, aligned on the voyage clock, plus position | Dataset schema and README; no SIM values, keys or raw project data inside | none new |
 | **M6** | AI: predictor of path degradation 5-30 s ahead (gradient boosting first, then a small LSTM/TCN), input position + recent SINR/CQI/RTT; steering policy: predictive switch + split weights; FTRL-WRR reproduced as the learning baseline. Runs on the Jetson | Predictor beats "last value" on held-out route segments; inference fits a 100 ms control step on the Jetson; telemetry outage = 0 s on the replayed voyage, and lower outage than the best baseline for VoIP | model on the Jetson |
 | **M7** (later) | Satellite paths C/D: netem replay of LEO/GEO traces, added as a third/fourth MPQUIC path | As M3/M4 with 3-4 paths | netem on REDLAB/tiny |
+
+### M1 results (2026-11-11)
+Script: `python3 -I infra/exp/exp17-profile.py <recording .sqz or .mf> <output folder outside the repo> --ops <MCC-MNC>,<MCC-MNC>`. It refuses an
+output folder inside the repo. Numbers per operator are kept with the data, not here.
+
+| Check | Result |
+|---|---|
+| Gate: both ship operators covered, no gap > 5 s | **PASS**: about 99.5 % of the ~63 min with a reading, longest gap 2-3 s |
+| Operator attribution | Each per-carrier record (type 10951) carries MCC (uint16 at +22) and MNC (uint16 at +24) after the frequency anchor. Checked: the most frequent PLMNs are the country's four operators, plus a few foreign cells; every operator's carriers fall in that operator's bands. The `cells` value in the earlier per-operator summary is a grid-cell count, not a radio-cell count |
+| SINR / RSRQ | **Not in the record**: the bytes after RSRP hold the carrier bandwidth, flags and the PLMN. The record has **one value per carrier per operator** (one cell, no neighbour list), so interference cannot be computed from it. Other message types (e.g. 10528, the most frequent) are not decoded |
+| What the profiles show | Both ship operators keep a strong low-band (900 MHz) carrier along the whole route; with the default floor (-105 dBm), the mapped SINR never falls below 10 dB. **This route does not stress the links**, and the fixed-floor mapping ignores interference, so it is optimistic |
+
+Consequences for the next stages:
+1. A replay of this drive test alone will show little difference between policies. Stress comes from the volatile
+   events (fades, drops) that the client project models and sees on the live link, and from the higher bands
+   (2100-2600 MHz, n78), which do fall far below the low band offshore.
+2. Better input than the scanner for M2: **the ship gateway's own per-SIM log** on the real route (RTT, and per-SIM
+   RSRP/RSRQ/SINR from the cellular routers, as planned in the client project's drive-test plan), or a ROMES decode
+   of the scanner's PCI-level messages with SINR. Decision needed (D6).
 
 ## 6. Metrics
 | Metric | Per | Note |
