@@ -328,6 +328,11 @@ class State:
                 res.update(parse_amf(self.logs("core", amf["pod"], 3000)))
             except Exception as e:
                 res["errors"].append("AMF log: " + describe_error(e))
+        if res["gnbs"] is None:
+            # the "Number of gNBs" line can scroll out of the log window (cell-2 UE idle/resume lines fill it):
+            # fall back to the AMF's own gauge from the last core metrics scrape
+            _, last = PM.window(0)
+            res["gnbs"] = int(_sum(last, "amf", "gnb")) if last and _sum(last, "amf", "gnb") is not None else None
         if gnb:
             try:
                 stats = parse_gnb_stats(self.logs("ran", gnb["pod"], 400))
