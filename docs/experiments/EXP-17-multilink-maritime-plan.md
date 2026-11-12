@@ -1,6 +1,6 @@
 # Experiment 17 (plan): resilient multilink connectivity for a ship
 
-Status: **plan** (2026-11-11), **decisions D1-D6 taken, stage M1 done 2026-11-11 (PASS), D6 profiles built 2026-11-12 (PASS)**. Nothing on the bench has changed yet.
+Status: **plan** (2026-11-11), **decisions D1-D6 taken, stage M1 done 2026-11-11 (PASS), D6 profiles built 2026-11-12 (PASS), M2 on the OAI cell 2026-11-12: replay follows the curve, third repetition still open**. Nothing on the bench has changed yet.
 Every bench change below needs the user's OK first. Depends on [EXP-16](EXP-16-ocudu-second-gnb-feasibility.md)
 (second 5G cell on OCUDU, PR #39).
 
@@ -107,7 +107,7 @@ Each stage ends with a scripted test with PASS output, as for every experiment (
 |---|---|---|---|
 | **M0** | Decisions D1-D5 | Recorded in section 4 (done 2026-11-11) | none |
 | **M1** (done 2026-11-11, [results](#m1-results-2026-11-11); D6 gateway-log profiles 2026-11-12, [results](#d6-results-2026-11-12)) | Profile builder [`infra/exp/exp17-profile.py`](../../infra/exp/exp17-profile.py) (data and output outside the repo): time from the recording's own clock, position from the nearest GPS fix; per operator, best carrier per second (median per carrier, then max); operator from the MCC/MNC in each record; RSRP mapped to SINR with a stated floor (no SINR in the record) | Profile covers the full route with no gap > 5 s; the attribution method is written down; numbers stay outside the repo | none |
-| **M2** | Replay on the cells: SINR series → noise setting on the OAI cell (EXP-00b curve); for the OCUDU cell, test the options of risk 1 | The cell follows a replayed step profile: CQI/MCS within one step of the EXP-00b curve, 3 repetitions | OAI noise setting (as EXP-00); OCUDU per risk 1 |
+| **M2** (OAI cell 2026-11-12, [results](#m2-results-2026-11-12)) | Replay on the cells: SINR series → noise setting on the OAI cell (EXP-00b curve); for the OCUDU cell, test the options of risk 1 | The cell follows a replayed step profile: CQI/MCS within one step of the EXP-00b curve, 3 repetitions | OAI noise setting (as EXP-00); OCUDU per risk 1 |
 | **M3** | Ship router: `wireguard-go` into both UE namespaces, policy routing, MPQUIC client on the Jetson, proxy on tiny (pick the MPQUIC stack: candidates with multipath support in user space, e.g. XQUIC, picoquic, a multipath quic-go fork) | Each path reachable on its own; each path's traffic leaves only through its own UE tunnel; MPQUIC uses both paths; cell and core gates unchanged (`ran.sh check`, `ran2.sh check`, `kpi.sh`) | Jetson user-space services; a WireGuard peer in each UE namespace; keys in Secrets, never committed |
 | **M4** | Baselines on the replayed voyage: single operator (each), Active-Standby, Smallest Delay, Load-Balancing, Priority-based, MPQUIC default scheduler | Every baseline runs the full voyage 3 times with the same result order; per-class metrics recorded | none new |
 | **M5** | Dataset: per path (RTT, loss, rate, outage) and per cell (SINR, CQI, MCS, BLER) at 1 s, aligned on the voyage clock, plus position | Dataset schema and README; no SIM values, keys or raw project data inside | none new |
@@ -152,6 +152,42 @@ RSRP, RSRQ and **SINR as its modem sees them**, every 10-16 s, June to November 
 Consequence for M2: replay the **swap** windows first (they separate the policies) and one **joint** window (both
 paths degraded at once: how telemetry fares on two weak links). A real double link loss is rare in this log, so a
 profile of it, and the satellite path (M7), is tested by injection rather than replay.
+
+### M2 results (2026-11-12)
+Script: [`infra/exp/exp17-replay.sh`](../../infra/exp/exp17-replay.sh)
+(`PROFILE=<profile.csv> OUT=<folder outside the repo> START=<s> MODE=preview|run`). Output stays outside the repo.
+
+**Bench floor first** (the EXP-00b sweep script with `STEPS="-100 -3 -2 -1.5 -1 -0.5 0 -100"`, data in
+[`data/bench-floor-20261112T062657Z`](data/bench-floor-20261112T062657Z/curve.csv)): noise -2 dB is the last steady point
+(UE SINR 4.0 dB, CQI 4, MCS 4, 9.6 Mbit/s). From -1.5 to 0 dB the UE stays attached (no new UE context, one out-of-sync
+sample at 0 dB) but reports **CQI 0** and the MCS jumps (6, 5, 0, 0; BLER 9-51 %; 12 down to 1.9 Mbit/s). The ship's
+SINR is mostly below the bench's steady range (D6: below 0 dB a third to half of the time).
+
+**Mapping by CQI**, not by SINR value: ship SINR → the CQI a typical receiver reports there (the dashboard's table) →
+the noise at which the OAI UE reports that CQI. Same CQI means the same spectral efficiency, so the cell offers the rate
+the ship's modem would get. Ship CQI below 4 goes to an **edge zone** (noise -2 to 0 dB, ungraded); typical CQI 15 →
+noise off.
+
+Run: the best steering window (swap), the SIM with more variation, a 10 min slice in 10 s steps (60 steps, 38 % in the
+edge zone), noise -5 to -0.5 dB, one UDP flow above the link rate.
+
+| Check | Result |
+|---|---|
+| Noise applied and read back at every step | **PASS** (180 of 180) |
+| One UE context throughout | **PASS** |
+| DL MCS within the curve's change over ±1 dB of the expected MCS (graded steps) | **PASS: 74 of 74** (repetitions 1-2) |
+| Same MCS across repetitions | **PASS: 37 of 37** steps (repetitions 1-2) |
+| Reported CQI vs the ship's typical CQI (graded steps) | median +0.2 (p10 -0.4, p90 +0.7): the mapping holds |
+| Goodput along the replay | graded steps 9.6-23.5 Mbit/s (median 13.9); edge zone median 9.6, down to 3.1 |
+| **Gate: 3 repetitions** | **Open**: repetition 3 has no samples because the dashboard was redeployed (revision 34) near its end, which clears the 900 s in-memory history; the rerun stopped at step 2 because the OAI UE was restarted (scaled 0 → 1) by someone else. Both outside this script; bench restored (noise -100, pod deleted). Rerun on a quiet bench |
+
+Script fixes from the first attempts (now in the script): the noise column is read by name from `plan.csv`, a step whose
+noise is not applied stops the run, and the history is fetched after every repetition (the dashboard keeps 900 s).
+
+**OCUDU cell (risk 1).** The remote-control WebSocket rejects `tx_gain` ("Unknown command type"); the gNB binary has
+`tx_gain <port_id> <gain_dB>` only as a **console (stdin) command**. Option (a) therefore needs a pod-spec change (a
+stdin pipe to the gNB) and is not done without the owner's OK. Option (c), netem on path B from the same CQI → rate
+mapping, needs no change to the cell and is the fallback.
 
 ## 6. Metrics
 | Metric | Per | Note |
