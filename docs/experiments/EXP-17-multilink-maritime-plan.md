@@ -1,6 +1,6 @@
 # Experiment 17 (plan): resilient multilink connectivity for a ship
 
-Status: **plan** (2026-11-11), **decisions D1-D5 taken, stage M1 done 2026-11-11 (PASS; D6 open)**. Nothing on the bench has changed yet.
+Status: **plan** (2026-11-11), **decisions D1-D6 taken, stage M1 done 2026-11-11 (PASS), D6 profiles built 2026-11-12 (PASS)**. Nothing on the bench has changed yet.
 Every bench change below needs the user's OK first. Depends on [EXP-16](EXP-16-ocudu-second-gnb-feasibility.md)
 (second 5G cell on OCUDU, PR #39).
 
@@ -21,7 +21,7 @@ multilink and steering layer**, not the maritime radio channel itself.
 | Where | Operator 1: OAI cell (REDLAB). Operator 2: OCUDU cell (tiny). One Open5GS core (the two operators share it; enough for over-the-top multipath). **Ship router: the Jetson Orin NX**. Shore end: tiny |
 | Multipath layer | **Over the top**, in user space: the client project's own **application-level multipath proxy** (sub-streams pinned per path, in-order reassembly at the shore) is reused first; MPQUIC is the alternative. 3GPP ATSSS (MA-PDU session) is not needed now (D3) |
 | Relation to the client project | The project already runs a 2-SIM bonding gateway with a **learned split controller (contextual bandit) on the same Jetson**, evaluated so far on a calibrated simulation and on the live link. EXP-17 gives it what it lacks: **repeatable replays of measured maritime coverage with a real 5G stack in the loop**, to compare the learned controller with a reactive heuristic and a fixed split |
-| Coverage input | The project's shipborne **scanner drive test** (2026-11-05): RSRP per frequency along the GPS track, both operators measured at once. Kept outside this public repo (section 4) |
+| Coverage input | **The ship gateway's per-SIM log** (D6): serving-cell RSRP/RSRQ/SINR per SIM from the vessel's two routers, June-November 2026, cut into 1 h replay windows. The shipborne **scanner drive test** (2026-11-05) stays as the mild reference route. Both kept outside this public repo (section 4) |
 | AI part | Link-quality predictor (seconds ahead, from position + recent RSRP/SINR) + steering policy, on the Jetson |
 | Main metrics | Outage time of the critical class (engine/navigation telemetry), goodput, p99 latency, number of switches, prediction lead time |
 | Main gap closed | AI multilink steering with a **real 5G SA stack** in the loop (attach, RRC, PDU session, GTP-U), fed by **measured maritime coverage** |
@@ -86,7 +86,7 @@ driven by measured maritime coverage of the operators the ship actually uses.
 | D2 | Critical traffic | **Engine/navigation telemetry**: must never stop. Other classes are best effort, crew internet is cut first |
 | D3 | 3GPP ATSSS or over the top | **Over the top first** (no core change). ATSSS can follow; Open5GS has no MA-PDU session support |
 | D4 | Real voyage data | **Yes**: the project's shipborne scanner drive test of 2026-11-05 (see below) |
-| D6 (open, from M1) | Coverage input for M2: the scanner profiles of M1 (strong, little stress), the ship gateway's per-SIM log from the real route, or a ROMES decode with SINR? | The scanner record has no SINR and the surveyed route is not the ship's route |
+| D6 (from M1, 2026-11-12) | Coverage input for M2: the scanner profiles of M1 (strong, little stress), the ship gateway's per-SIM log from the real route, or a ROMES decode with SINR? | **The ship gateway's per-SIM log** ([results](#d6-results-2026-11-12)). The scanner profiles stay as the mild reference route |
 | D5 | Jetson kernel (checked 2026-11-11: L4T R35.5, kernel 5.10.192-tegra, 8 cores, 16 GB) has **no MPTCP, no WireGuard, no netem**; TUN yes | **User space on the Jetson**: MPQUIC + `wireguard-go`; netem on the REDLAB/tiny side. No kernel rebuild |
 
 **Drive-test data (D4).** Location: outside the repo, on REDLAB (the project folder of 2026-11-05). This repo is
@@ -106,7 +106,7 @@ Each stage ends with a scripted test with PASS output, as for every experiment (
 | Stage | Work | Gate (PASS) | Bench change |
 |---|---|---|---|
 | **M0** | Decisions D1-D5 | Recorded in section 4 (done 2026-11-11) | none |
-| **M1** (done 2026-11-11, [results](#m1-results-2026-11-11)) | Profile builder [`infra/exp/exp17-profile.py`](../../infra/exp/exp17-profile.py) (data and output outside the repo): time from the recording's own clock, position from the nearest GPS fix; per operator, best carrier per second (median per carrier, then max); operator from the MCC/MNC in each record; RSRP mapped to SINR with a stated floor (no SINR in the record) | Profile covers the full route with no gap > 5 s; the attribution method is written down; numbers stay outside the repo | none |
+| **M1** (done 2026-11-11, [results](#m1-results-2026-11-11); D6 gateway-log profiles 2026-11-12, [results](#d6-results-2026-11-12)) | Profile builder [`infra/exp/exp17-profile.py`](../../infra/exp/exp17-profile.py) (data and output outside the repo): time from the recording's own clock, position from the nearest GPS fix; per operator, best carrier per second (median per carrier, then max); operator from the MCC/MNC in each record; RSRP mapped to SINR with a stated floor (no SINR in the record) | Profile covers the full route with no gap > 5 s; the attribution method is written down; numbers stay outside the repo | none |
 | **M2** | Replay on the cells: SINR series → noise setting on the OAI cell (EXP-00b curve); for the OCUDU cell, test the options of risk 1 | The cell follows a replayed step profile: CQI/MCS within one step of the EXP-00b curve, 3 repetitions | OAI noise setting (as EXP-00); OCUDU per risk 1 |
 | **M3** | Ship router: `wireguard-go` into both UE namespaces, policy routing, MPQUIC client on the Jetson, proxy on tiny (pick the MPQUIC stack: candidates with multipath support in user space, e.g. XQUIC, picoquic, a multipath quic-go fork) | Each path reachable on its own; each path's traffic leaves only through its own UE tunnel; MPQUIC uses both paths; cell and core gates unchanged (`ran.sh check`, `ran2.sh check`, `kpi.sh`) | Jetson user-space services; a WireGuard peer in each UE namespace; keys in Secrets, never committed |
 | **M4** | Baselines on the replayed voyage: single operator (each), Active-Standby, Smallest Delay, Load-Balancing, Priority-based, MPQUIC default scheduler | Every baseline runs the full voyage 3 times with the same result order; per-class metrics recorded | none new |
@@ -131,7 +131,25 @@ Consequences for the next stages:
    (2100-2600 MHz, n78), which do fall far below the low band offshore.
 2. Better input than the scanner for M2: **the ship gateway's own per-SIM log** on the real route (RTT, and per-SIM
    RSRP/RSRQ/SINR from the cellular routers, as planned in the client project's drive-test plan), or a ROMES decode
-   of the scanner's PCI-level messages with SINR. Decision needed (D6).
+   of the scanner's PCI-level messages with SINR. Decided 2026-11-12 (D6): the gateway log.
+
+### D6 results (2026-11-12)
+Script: `python3 -I infra/exp/exp17-gwlog-profile.py <measurements export .csv[.gz]> <output folder outside the repo> --links <router A>,<router B>`.
+Input: the gateway's `measurements` table, exported read-only from the client project's server (data and output
+outside the repo; numbers per operator are kept with the data). Each cellular router (one SIM each) reports serving-cell
+RSRP, RSRQ and **SINR as its modem sees them**, every 10-16 s, June to November 2026.
+
+| Check | Result |
+|---|---|
+| Gate: at least one full 1 h window with both SIMs reporting, holding a joint outage | **PASS**: 828 full 1 h windows (1 s grid, a reading held at most 30 s) |
+| Stress, whole log | SINR below 0 dB on about **one third** of the readings of one SIM and **half** of the other; median SINR 3 dB and 0 dB. Far harsher than the scanner route (M1: never below 10 dB) |
+| Joint outage (both SIMs below 0 dB at once) | Under 5 % of the hour in 510 windows; over 50 % in 123 windows, with some full hours where both are down. Two cellular operators alone do not cover those hours: the case for the satellite path (M7) |
+| Windows written for M2 | Two rankings, the top 3 of each: **joint** (most seconds with both SIMs bad: the outage test) and **swap** (most changes of the better SIM, 3 dB hysteresis, while the other is bad: the steering test). The best steering window has the better SIM changing about 60 times in the hour, one SIM bad 84 % of the time, both bad 35 % |
+| Other findings | Near the border one SIM roams onto a neighbouring country's operators, and one router falls back to 2G/EDGE at times; both matter for path B's capacity mapping. GPS is in the log only for parts of the time (mostly one week of voyages), so most windows are a time series without position: M6's predictor cannot rely on position alone |
+| Limits | The first export was cut off in transfer (rows up to 2026-11-10 were read); the per-link RTT/loss table (`link_stats`) is not exported yet. The exporter (outside the repo) now compresses on the server and checks each file. SINR comes from each modem's own report (vendor-specific averaging), and a held reading can lag a real fade by up to 15 s |
+
+Consequence for M2: replay the **swap** windows first (they separate the policies) and one **joint** window (it
+measures how long telemetry stays up when both cellular paths are down).
 
 ## 6. Metrics
 | Metric | Per | Note |
