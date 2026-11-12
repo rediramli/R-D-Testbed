@@ -31,6 +31,8 @@ RADIO_MODE = os.environ.get("RADIO_MODE", "rfsim")
 SA_DIR = "/var/run/secrets/kubernetes.io/serviceaccount"
 CORE_NS = os.environ.get("CORE_NAMESPACE", "open5gs")
 RAN_NS = os.environ.get("RAN_NAMESPACE", "default")
+# Experiment 16: second cell (OCUDU gNB + OAI UE over ZMQ, one pod) in this namespace of the core cluster
+RAN2_NS = os.environ.get("RAN2_NAMESPACE", "ran2")
 CACHE_SECONDS = 2.0
 NAME_RE = re.compile(r"^[a-z0-9]([a-z0-9.-]{0,251}[a-z0-9])?$")
 
@@ -84,6 +86,8 @@ def make_clusters():
             out[name] = (build(), ns, None)
         except Exception as e:
             out[name] = (None, ns, f"client not configured: {e}")
+    if RAN2_NS:  # same API server and account as "core", other namespace
+        out["ran2"] = (out["core"][0], RAN2_NS, out["core"][2])
     return out
 
 
@@ -97,6 +101,20 @@ def role_of(cluster, pod_name):
     if "nr-ue" in pod_name or re.search(r"(^|-)ue(-|$)", pod_name):
         return "ue"
     return None
+
+
+def summarize_cell2(pod):
+    """The OCUDU cell runs gNB and UE as containers of one pod: one entry per container (role gnb / ue)."""
+    names = [c["name"] for c in pod.get("spec", {}).get("containers", [])]
+    if not {"gnb", "ue"} <= set(names):
+        return [dict(summarize("ran2", pod), role=None)]   # e.g. a temporary iperf3 server of an experiment
+    out = []
+    for c in ("gnb", "ue"):
+        st = next((x for x in pod.get("status", {}).get("containerStatuses") or [] if x["name"] == c), None)
+        e = summarize("ran2", dict(pod, status=dict(pod.get("status", {}), containerStatuses=[st] if st else [])))
+        e.update(role=c, container=c, cell="ocudu")
+        out.append(e)
+    return out
 
 
 def summarize(cluster, pod):
@@ -270,10 +288,15 @@ class State:
                 continue
             try:
                 items = cl.get(f"/api/v1/namespaces/{ns}/pods")["items"]
-                out["pods"] += [summarize(name, p) for p in items]
+                if name == "ran2":
+                    out["pods"] += [e for p in items for e in summarize_cell2(p)]
+                else:
+                    out["pods"] += [summarize(name, p) for p in items]
             except Exception as e:  # report per cluster, keep the other one
                 out["errors"][name] = describe_error(e)
         out["ran"] = self._ran_metrics(out["pods"])
+        if "ran2" in self.clusters:
+            out["ran2"] = cell2_metrics()
         out["controls"] = self._controls()
         return out
 
@@ -305,6 +328,11 @@ class State:
                 res.update(parse_amf(self.logs("core", amf["pod"], 3000)))
             except Exception as e:
                 res["errors"].append("AMF log: " + describe_error(e))
+        if res["gnbs"] is None:
+            # the "Number of gNBs" line can scroll out of the log window (cell-2 UE idle/resume lines fill it):
+            # fall back to the AMF's own gauge from the last core metrics scrape
+            _, last = PM.window(0)
+            res["gnbs"] = int(_sum(last, "amf", "gnb")) if last and _sum(last, "amf", "gnb") is not None else None
         if gnb:
             try:
                 stats = parse_gnb_stats(self.logs("ran", gnb["pod"], 400))
@@ -326,13 +354,13 @@ class State:
         res["cqiView"] = cqi_view(last.get("cqi"), last.get("mcsTableDl"), chan.get("sinrUe")) if last else None
         return res
 
-    def logs(self, cluster, pod, lines):
+    def logs(self, cluster, pod, lines, container=None):
         if MOCK:
-            return "\n".join(f"[MOCK] {pod} line {i}" for i in range(lines))
+            return "\n".join(f"[MOCK] {pod} {container or ''} line {i}" for i in range(lines))
         cl, ns, err = self.clusters[cluster]
         if err:
             raise RuntimeError(err)
-        q = urllib.parse.urlencode({"tailLines": lines})
+        q = urllib.parse.urlencode(dict({"tailLines": lines}, **({"container": container} if container else {})))
         return cl.get(f"/api/v1/namespaces/{ns}/pods/{pod}/log?{q}", raw=True)
 
 
@@ -376,7 +404,16 @@ def mock_state():
     ctl = {"enabled": True, "reason": None, "radioMode": RADIO_MODE,
            "targets": {t: {"want": n, "ready": n} for t, n in CONTROL.mock.items()},
            "noise": CONTROL.noise_state(), "profile": CONTROL.profile_state()} if "CONTROL" in globals() else {}
-    return {"time": now_iso(), "radioMode": RADIO_MODE, "pods": pods, "errors": {}, "ran": ran, "controls": ctl}
+    for role in ("gnb", "ue"):
+        pods.append({"cluster": "ran2", "pod": "ocudu-cell-58b766485f-jxldd", "role": role, "container": role, "cell": "ocudu",
+                     "state": "running", "reason": None, "ip": "10.244.0.104", "node": "fct0172-core", "restarts": 0,
+                     "started": "2026-11-06T09:48:39Z"})
+    w = math.sin(time.time() / 20)
+    ran2 = {"source": "prometheus", "up": True, "connected": True, "speed": 6.2 - 3.3 * max(0, w), "cpuPct": 230.0,
+            "memBytes": 2.86e9, "age": 0.4, "ueCount": 1, "error": None,
+            "ues": [{"rnti": "4602", "cqi": 15, "mcsDl": 28, "mcsUl": 27, "blerDl": 0.0, "blerUl": 0.0,
+                     "goodputDl": round(49.5 * max(0, w), 1), "goodputUl": 0.11, "snrPusch": 40.5, "snrPucch": 31.0}]}
+    return {"time": now_iso(), "radioMode": RADIO_MODE, "pods": pods, "errors": {}, "ran": ran, "ran2": ran2, "controls": ctl}
 
 
 CAPTURE_URL = os.environ.get("CAPTURE_URL", "http://10.0.129.7:8091").rstrip("/")
@@ -1409,13 +1446,58 @@ def bucket_step(seconds, minimum):
     return int(max(minimum, math.ceil(seconds / BUCKETS / 5) * 5))
 
 
-def prom_get(path, **params):
+def prom_get(path, timeout=8, **params):
     url = f"{PROM_URL}{path}?" + urllib.parse.urlencode(params)
-    with urllib.request.urlopen(url, timeout=8) as r:
+    with urllib.request.urlopen(url, timeout=timeout) as r:
         d = json.loads(r.read())
     if d.get("status") != "success":
         raise RuntimeError(d.get("error", "query failed"))
     return d["data"]["result"]
+
+
+CELL2_FIELDS = {  # Prometheus series of the OCUDU relay (infra/ran2/metrics-relay.py) -> ueStats-like keys, scale
+    "ocudu_ue_cqi": ("cqi", 1), "ocudu_ue_dl_mcs": ("mcsDl", 1), "ocudu_ue_ul_mcs": ("mcsUl", 1),
+    "ocudu_ue_dl_bler": ("blerDl", 1), "ocudu_ue_ul_bler": ("blerUl", 1),
+    "ocudu_ue_dl_brate_bps": ("goodputDl", 1e-6), "ocudu_ue_ul_brate_bps": ("goodputUl", 1e-6),   # Mbit/s, simulated time
+    "ocudu_ue_pusch_snr_db": ("snrPusch", 1), "ocudu_ue_pucch_snr_db": ("snrPucch", 1)}
+
+
+def cell2_metrics():
+    """Radio KPIs of the OCUDU cell (Experiment 16) from Prometheus, job ocudu-cell (the relay itself admits Prometheus only)."""
+    out = {"source": "prometheus", "up": False, "connected": False, "speed": None, "cpuPct": None, "memBytes": None,
+           "age": None, "ueCount": None, "ues": [], "error": None}
+    if MOCK:
+        return out
+    try:
+        res = prom_get("/api/v1/query", query='{job="ocudu-cell"}', timeout=3)
+    except Exception as e:
+        out["error"] = "Prometheus: " + describe_error(e)
+        return out
+    ues = {}
+    for r in res:
+        m, v = r["metric"], _num(r["value"][1])
+        name = m.get("__name__")
+        if name == "up":
+            out["up"] = v == 1
+        elif name == "ocudu_relay_connected":
+            out["connected"] = v == 1
+        elif name == "ocudu_sim_speed_ratio":
+            out["speed"] = v
+        elif name == "ocudu_app_cpu_usage_percent":
+            out["cpuPct"] = v
+        elif name == "ocudu_app_mem_bytes":
+            out["memBytes"] = v
+        elif name == "ocudu_relay_report_age_seconds":
+            out["age"] = v
+        elif name == "ocudu_cell_ues":   # 0 while the UE is RRC idle (released after inactivity, resumes with traffic)
+            out["ueCount"] = v
+        elif name in CELL2_FIELDS and m.get("rnti") and v is not None:
+            k, sc = CELL2_FIELDS[name]
+            ues.setdefault(m["rnti"], {"rnti": m["rnti"]})[k] = v * sc
+    out["ues"] = [ues[r] for r in sorted(ues)]
+    if not out["up"]:
+        out["error"] = "relay not scraped (job ocudu-cell down)" if res else "no ocudu-cell series in Prometheus"
+    return out
 
 
 def _range(query, seconds, step, offset=0):
@@ -1751,10 +1833,13 @@ class Handler(BaseHTTPRequestHandler):
                 lines = max(10, min(500, int((q.get("lines") or ["80"])[0])))
             except ValueError:
                 lines = 80
-            if cluster not in ("core", "ran") or not NAME_RE.match(pod):
-                return self.send(400, "Unknown cluster or invalid pod name", "text/plain")
+            container = (q.get("container") or [""])[0] or None
+            if cluster not in ("core", "ran", "ran2") or not NAME_RE.match(pod) or (container and not NAME_RE.match(container)):
+                return self.send(400, "Unknown cluster or invalid pod or container name", "text/plain")
+            if cluster == "ran2" and (not RAN2_NS or container not in ("gnb", "ue", None)):
+                return self.send(400, "Cell 2: container gnb or ue only", "text/plain")
             try:
-                return self.send(200, STATE.logs(cluster, pod, lines), "text/plain; charset=utf-8")
+                return self.send(200, STATE.logs(cluster, pod, lines, container), "text/plain; charset=utf-8")
             except Exception as e:
                 return self.send(502, describe_error(e), "text/plain")
         if url.path in ("/api/history", "/api/history.csv"):

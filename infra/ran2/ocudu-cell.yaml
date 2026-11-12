@@ -6,6 +6,8 @@
 # into the gNB config at start. No over-the-air radio: ZMQ only. Created by infra/ran2/ran2.sh (ConfigMaps, Secret).
 # Both softmodems are pinned to tiny's P-cores (CPUs 0-15); E-cores stay for the core. ZMQ devices cannot reconnect,
 # so a restart of one container needs a restart of the pod (ran2.sh MODE=restart).
+# Stage S4: a fourth container, metrics-relay, turns the JSON metrics into Prometheus text on :9105 (see the end of this file).
+# Its watchdog deletes the pod when the gNB stops reporting for 120 s (ZMQ stall, seen 2026-11-10 after 3.9 days).
 apiVersion: v1
 kind: Namespace
 metadata:
@@ -27,6 +29,8 @@ spec:
       annotations: {fct/config-hash: "CONFIG_HASH"}
     spec:
       terminationGracePeriodSeconds: 15
+      serviceAccountName: ocudu-cell-watchdog
+      automountServiceAccountToken: false   # the token is mounted into metrics-relay only (volume sa below)
       initContainers:
       - name: render
         image: docker.io/library/busybox:1.36
@@ -104,10 +108,137 @@ spec:
         resources:
           requests: {cpu: "1", memory: 256Mi}
           limits: {cpu: "1", memory: 256Mi}
+      - name: metrics-relay
+        # Stage S4: gNB JSON metrics (WebSocket 127.0.0.1:8001) -> Prometheus text on :9105 (metrics-relay.py, standard
+        # library only). The dashboard's image, non-root, read-only. Only Prometheus may connect (NetworkPolicy below).
+        image: docker.io/library/python:3.12-alpine3.20
+        imagePullPolicy: IfNotPresent
+        command: ["python", "/relay/metrics-relay.py"]
+        env:
+        - {name: PYTHONDONTWRITEBYTECODE, value: "1"}
+        - {name: WATCHDOG_SECONDS, value: "120"}   # slowest cell seen reports every 4.9 s; the gNB starts in about 10 s
+        - name: POD_NAME
+          valueFrom: {fieldRef: {fieldPath: metadata.name}}
+        ports:
+        - {name: metrics, containerPort: 9105}
+        readinessProbe:
+          httpGet: {path: /metrics, port: 9105}
+          periodSeconds: 10
+        securityContext:
+          runAsNonRoot: true
+          runAsUser: 65534
+          readOnlyRootFilesystem: true
+          allowPrivilegeEscalation: false
+          capabilities: {drop: ["ALL"]}
+        resources:
+          requests: {cpu: 50m, memory: 32Mi}
+          limits: {cpu: 200m, memory: 64Mi}
+        volumeMounts:
+        - {name: relay, mountPath: /relay, readOnly: true}
+        - {name: sa, mountPath: /var/run/secrets/kubernetes.io/serviceaccount, readOnly: true}
       volumes:
+      - name: sa
+        projected:
+          sources:
+          - serviceAccountToken: {path: token, expirationSeconds: 3600}
+          - configMap: {name: kube-root-ca.crt, items: [{key: ca.crt, path: ca.crt}]}
+          - downwardAPI: {items: [{path: namespace, fieldRef: {fieldPath: metadata.namespace}}]}
+      - name: relay
+        configMap: {name: ran2-relay}
       - name: tpl
         configMap: {name: ran2-templates}
       - name: uecap
         configMap: {name: ran2-uecap}
       - name: cfg
         emptyDir: {medium: Memory}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: ocudu-cell-metrics       # scraped by Prometheus in fct-dash (prom-core.yaml); ClusterIP only
+  namespace: ran2
+spec:
+  type: ClusterIP
+  selector: {app: ocudu-cell}
+  ports:
+  - {name: metrics, port: 9105, targetPort: 9105}
+---
+# The relay port is open to the Prometheus pod only. Selecting the pod for Ingress denies all other new inbound
+# connections, so the radio paths are listed too: N3 GTP-U from the UPF (10.42.0.2, host network). N2 is an SCTP
+# association the gNB opens itself (reply traffic is allowed by conntrack), and kube-router accepts traffic from the
+# node's own addresses (kubelet probes, host-network core pods) in any case.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: ocudu-cell-ingress
+  namespace: ran2
+spec:
+  podSelector: {matchLabels: {app: ocudu-cell}}
+  policyTypes: [Ingress]
+  ingress:
+  - from:
+    - namespaceSelector: {matchLabels: {kubernetes.io/metadata.name: fct-dash}}
+      podSelector: {matchLabels: {app: prometheus}}
+    ports:
+    - {protocol: TCP, port: 9105}
+  - from:
+    - ipBlock: {cidr: 10.42.0.2/32}
+    ports:
+    - {protocol: UDP, port: 2152}
+---
+# The dashboard (fct-dash/fct-dash-reader) lists the cell's pod and reads its gNB and UE logs. Read-only, no Secrets.
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: fct-dash-read
+  namespace: ran2
+rules:
+- apiGroups: [""]
+  resources: [pods, pods/log]
+  verbs: [get, list]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: fct-dash-read
+  namespace: ran2
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: fct-dash-read
+subjects:
+- kind: ServiceAccount
+  name: fct-dash-reader
+  namespace: fct-dash
+---
+# Watchdog of the metrics relay: it may delete pods in ran2 (only the cell's pod lives here), nothing else.
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: ocudu-cell-watchdog
+  namespace: ran2
+automountServiceAccountToken: false
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: ocudu-cell-watchdog
+  namespace: ran2
+rules:
+- apiGroups: [""]
+  resources: [pods]
+  verbs: [delete]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: ocudu-cell-watchdog
+  namespace: ran2
+roleRef:
+  apiGroup: rbac.authorization.k8s.io
+  kind: Role
+  name: ocudu-cell-watchdog
+subjects:
+- kind: ServiceAccount
+  name: ocudu-cell-watchdog
+  namespace: ran2

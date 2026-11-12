@@ -4,6 +4,7 @@
 # Run ON REDLAB from the repo root, as your user (no sudo; everything goes through ssh tiny + k3s kubectl):
 #   MODE=preview bash infra/ran2/ran2.sh   show what would change (default, changes nothing)
 #   MODE=apply   ConfigMaps + Secret ue2-sim (from tiny:~/testbed-secrets/ue2.env) + ocudu-cell.yaml, then check
+#                (S4: metrics-relay sidecar, Service ocudu-cell-metrics :9105, NetworkPolicy, dashboard read Role)
 #   MODE=check   tests only
 #   MODE=restart delete the pod (ZMQ devices cannot reconnect: gNB and UE always restart together), then check
 #   MODE=remove  delete namespace ran2 (the SIM file on tiny stays); needs CONFIRM=yes
@@ -17,7 +18,7 @@ NS=ran2; AMF=10.42.0.2; GNB_ID=3585
 T(){ ssh -o BatchMode=yes -o ConnectTimeout=5 tiny "$@"; }
 K(){ T "k3s kubectl -n $NS $*"; }
 F=0; ok(){ echo "  PASS  $1"; }; bad(){ echo "  FAIL  $1"; F=$((F+1)); }
-FILES="gnb.yml nr-ue2.yaml.tpl uecap_ports1.xml ocudu-cell.yaml"
+FILES="gnb.yml nr-ue2.yaml.tpl uecap_ports1.xml ocudu-cell.yaml metrics-relay.py"
 HASH=$(cd "$DIR" && cat $FILES | sha256sum | cut -c1-16)
 
 pre(){
@@ -78,9 +79,59 @@ check(){
   [ "${m##* }" -ge 1 ] 2>/dev/null && ok "masked [SIM] line present in the UE log" || echo "  note  masked [SIM] line not found (log may have rotated)"
   T "k3s kubectl -n open5gs get pods --no-headers --field-selector=status.phase!=Succeeded" 2>/dev/null | awk '$3!="Running"{n++} END{exit n>0}' \
     && ok "core: all open5gs pods Running" || bad "core: not all open5gs pods Running"
+  relay "$pod" "$pip"
   ss -HnS state established src 10.42.0.1 dst $AMF 2>/dev/null | grep -q ":38412" \
     && ok "OAI cell (REDLAB gNB): SCTP association to the AMF still established" || bad "OAI cell (REDLAB gNB): no SCTP association to the AMF"
   echo "RESULT: $([ $F = 0 ] && echo PASS || echo "FAIL ($F)")"
+}
+
+pm(){  # pm PROMQL -> first value of an instant query on the bench Prometheus (API server proxy), or "none"
+  enc=$(python3 -c 'import sys, urllib.parse; print(urllib.parse.quote(sys.argv[1], safe=""))' "$1")
+  T "k3s kubectl get --raw '/api/v1/namespaces/fct-dash/services/prometheus:9090/proxy/api/v1/query?query=$enc'" 2>/dev/null | python3 -c '
+import json, sys
+try:
+    r = json.load(sys.stdin)["data"]["result"]; print(r[0]["value"][1] if r else "none")
+except Exception:
+    print("none")'; }
+
+relay(){  # S4: metrics relay answers with the cell's KPIs; only Prometheus may reach it; Prometheus has the series
+  local pod=$1 pip=$2 m n
+  # BLER and PUSCH SNR exist only while the UE transmits: a short ping keeps DL and UL busy while the relay is read
+  K "exec $pod -c ue -- ping -I oaitun_ue1 -c 40 -i 0.1 -s 1000 10.45.0.1" >/dev/null 2>&1 &
+  for i in $(seq 1 20); do sleep 2; m=$(T "k3s kubectl get --raw /api/v1/namespaces/$NS/services/ocudu-cell-metrics:9105/proxy/metrics" 2>/dev/null)
+    echo "$m" | grep -q '^ocudu_ue_dl_bler{' && echo "$m" | grep -q '^ocudu_ue_pusch_snr_db{' && break; done
+  wait
+  echo "$m" | grep -q '^ocudu_relay_connected{cell="ocudu"} 1' && ok "metrics relay subscribed to the gNB remote control" || bad "metrics relay not connected to 127.0.0.1:8001"
+  n=$(for x in ocudu_ue_cqi ocudu_ue_dl_mcs ocudu_ue_ul_mcs ocudu_ue_dl_brate_bps ocudu_ue_ul_brate_bps ocudu_ue_dl_bler ocudu_ue_ul_bler \
+         ocudu_ue_pusch_snr_db ocudu_sim_speed_ratio ocudu_app_cpu_usage_percent; do echo "$m" | grep -q "^$x{cell=\"ocudu\"" && echo "$x"; done | wc -l)
+  [ "$n" = 10 ] && ok "relay :9105 serves the cell KPIs (CQI $(echo "$m" | awk '/^ocudu_ue_cqi\{/{print $2; exit}'), DL MCS $(echo "$m" | awk '/^ocudu_ue_dl_mcs\{/{print $2; exit}'), speed $(echo "$m" | awk '/^ocudu_sim_speed_ratio\{/{print $2; exit}')x)" \
+    || bad "relay serves $n of 10 KPI families (want all; UE attached?)"
+  [ "$(echo "$m" | awk '/^ocudu_relay_watchdog_seconds\{/{print $2}')" = 120 ] && ok "relay watchdog armed: pod is recreated after 120 s without a gNB report" \
+    || bad "relay watchdog not armed (WATCHDOG_SECONDS / POD_NAME)"
+  W=system:serviceaccount:$NS:ocudu-cell-watchdog
+  [ "$(T "k3s kubectl auth can-i delete pods -n $NS --as=$W" 2>/dev/null)" = yes ] && [ "$(T "k3s kubectl auth can-i get secrets -n $NS --as=$W" 2>/dev/null)" = no ] \
+    && [ "$(T "k3s kubectl auth can-i delete pods -n open5gs --as=$W" 2>/dev/null)" = no ] \
+    && ok "watchdog account may delete pods in $NS only (no Secrets, no other namespace)" || bad "watchdog RBAC not as expected"
+  mt=$(K "get pod $pod -o jsonpath='{.spec.automountServiceAccountToken}{range .spec.containers[*]}{\";\"}{.name}={.volumeMounts[*].name}{end}'" 2>/dev/null)
+  [ "${mt%%;*}" = false ] && [ "$(echo "$mt" | tr ';' '\n' | grep -w sa)" = "metrics-relay=relay sa" ] \
+    && ok "API token mounted in metrics-relay only" || bad "API token mounted in more containers than metrics-relay"
+  echo "$m" | grep -qiE 'imsi|supi|[0-9a-f]{32}' && bad "relay output contains an identity or key-like value" || ok "relay output has no IMSI/SUPI or key-like value"
+  [ "$(K "get networkpolicy ocudu-cell-ingress -o jsonpath='{.spec.ingress[0].ports[0].port}'" 2>/dev/null)" = 9105 ] \
+    && ok "NetworkPolicy ocudu-cell-ingress present" || bad "NetworkPolicy ocudu-cell-ingress missing"
+  # a pod that is not Prometheus (the dashboard in fct-dash) must not reach the relay; REDLAB has no route to pod IPs
+  r=$(T "k3s kubectl -n fct-dash exec deploy/fct-dash -- python -c \"import urllib.request as u
+try: u.urlopen('http://$pip:9105/metrics', timeout=4); print('open')
+except Exception as e: print('blocked', type(e).__name__)\"" 2>/dev/null)
+  case "$r" in blocked*) ok "relay not reachable from the dashboard pod ($r): only Prometheus may scrape";; *) bad "relay reachable from a non-Prometheus pod ('$r')";; esac
+  curl -s -m 3 "http://$pip:9105/metrics" >/dev/null 2>&1 && bad "relay reachable from REDLAB on $pip:9105" || ok "relay not reachable from REDLAB"
+  if T "k3s kubectl -n fct-dash get deploy prometheus" >/dev/null 2>&1; then
+    for i in $(seq 1 10); do v=$(pm 'max(max_over_time(ocudu_ue_cqi{cell="ocudu"}[5m]))'); [ "$v" != none ] && break; sleep 3; done
+    [ "$(pm 'up{job="ocudu-cell"}')" = 1 ] && [ "$v" != none ] && ok "Prometheus scrapes the relay (job ocudu-cell up, CQI $v)" \
+      || bad "Prometheus: job ocudu-cell up='$(pm 'up{job="ocudu-cell"}')', CQI '$v' (MODE=apply bash infra/dash/prom.sh)"
+  else echo "  info  Prometheus not installed: scrape check skipped"; fi
+  [ "$(T "k3s kubectl auth can-i get pods/log -n $NS --as=system:serviceaccount:fct-dash:fct-dash-reader" 2>/dev/null)" = yes ] \
+    && [ "$(T "k3s kubectl auth can-i get secrets -n $NS --as=system:serviceaccount:fct-dash:fct-dash-reader" 2>/dev/null)" = no ] \
+    && ok "dashboard reader may read pod logs in $NS, not Secrets" || bad "dashboard RBAC in $NS not as expected"
 }
 
 cm(){  # cm NAME FILE... -> ConfigMap manifest (JSON) for namespace ran2, built locally (no kubectl needed on REDLAB)
@@ -98,6 +149,7 @@ apply_all(){
     && echo "  Secret ue2-sim (from tiny:~/testbed-secrets/ue2.env, not shown)"
   cm ran2-templates gnb.yml nr-ue2.yaml.tpl | T "k3s kubectl apply -f -" >/dev/null && echo "  ConfigMap ran2-templates"
   cm ran2-uecap uecap_ports1.xml | T "k3s kubectl apply -f -" >/dev/null && echo "  ConfigMap ran2-uecap"
+  cm ran2-relay metrics-relay.py | T "k3s kubectl apply -f -" >/dev/null && echo "  ConfigMap ran2-relay"
   sed "s/CONFIG_HASH/$HASH/" "$DIR/ocudu-cell.yaml" | T "k3s kubectl apply -f -"
 }
 
@@ -105,8 +157,13 @@ case "$MODE" in
 preview)
   pre
   echo "== Would do"
-  echo "  namespace $NS; Secret ue2-sim from tiny:~/testbed-secrets/ue2.env (never shown); ConfigMaps ran2-templates, ran2-uecap"
+  echo "  namespace $NS; Secret ue2-sim from tiny:~/testbed-secrets/ue2.env (never shown); ConfigMaps ran2-templates, ran2-uecap, ran2-relay"
   echo "  Deployment ocudu-cell (config hash $HASH): gNB ID $GNB_ID (0xe01), PCI 1, n78 20 MHz, ZMQ on the pod loopback, N2/N3 from the pod IP to $AMF"
+  echo "  S4: sidecar metrics-relay (:9105), Service ocudu-cell-metrics (ClusterIP), NetworkPolicy ocudu-cell-ingress"
+  echo "      (9105 from the Prometheus pod only, GTP-U from $AMF), Role/RoleBinding fct-dash-read (pods, pods/log)"
+  echo "  relay watchdog: ServiceAccount ocudu-cell-watchdog (delete pods in $NS only, token in metrics-relay only);"
+  echo "      deletes the pod after 120 s without a gNB report (ZMQ stall), the Deployment recreates it"
+  echo "  pod template change: the cell restarts once (about 16 s, EXP-16 step 6)"
   echo "  undo: MODE=remove CONFIRM=yes bash infra/ran2/ran2.sh" ;;
 apply)
   pre; [ $F = 0 ] || { echo "STOP: preconditions failed"; exit 1; }
