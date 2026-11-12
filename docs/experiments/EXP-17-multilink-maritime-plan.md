@@ -143,13 +143,15 @@ RSRP, RSRQ and **SINR as its modem sees them**, every 10-16 s, June to November 
 |---|---|
 | Gate: at least one full 1 h window with both SIMs reporting, holding a joint outage | **PASS**: 828 full 1 h windows (1 s grid, a reading held at most 30 s) |
 | Stress, whole log | SINR below 0 dB on about **one third** of the readings of one SIM and **half** of the other; median SINR 3 dB and 0 dB. Far harsher than the scanner route (M1: never below 10 dB) |
-| Joint outage (both SIMs below 0 dB at once) | Under 5 % of the hour in 510 windows; over 50 % in 123 windows, with some full hours where both are down. Two cellular operators alone do not cover those hours: the case for the satellite path (M7) |
+| Joint outage (both SIMs below 0 dB at once) | By SINR: under 5 % of the hour in 510 windows; over 50 % in 123 windows, with some full hours where both are below 0 dB. **But SINR below 0 dB is not an outage**: see the link-level row |
 | Windows written for M2 | Two rankings, the top 3 of each: **joint** (most seconds with both SIMs bad: the outage test) and **swap** (most changes of the better SIM, 3 dB hysteresis, while the other is bad: the steering test). The best steering window has the better SIM changing about 60 times in the hour, one SIM bad 84 % of the time, both bad 35 % |
 | Other findings | Near the border one SIM roams onto a neighbouring country's operators, and one router falls back to 2G/EDGE at times; both matter for path B's capacity mapping. GPS is in the log only for parts of the time (mostly one week of voyages), so most windows are a time series without position: M6's predictor cannot rely on position alone |
-| Limits | The first export was cut off in transfer (rows up to 2026-11-10 were read); the per-link RTT/loss table (`link_stats`) is not exported yet. The exporter (outside the repo) now compresses on the server and checks each file. SINR comes from each modem's own report (vendor-specific averaging), and a held reading can lag a real fade by up to 15 s |
+| Link level (`link_stats`, the gateway's own health probe per link, Sept-Nov 2026) | One link was demoted or lost half its probes in about 14 % of the samples, the other almost never (under 0.5 %); **both at once in 0.08 %**. Median RTT 26 and 30 ms, p99 0.2 s and 1.2 s. So the two operators already cover each other almost always at link level, and the stress for steering is degraded capacity and RTT more than loss of both links: M2 must map SINR to rate (EXP-00b), not to an on/off outage |
+| Limits | The first `measurements` export was cut off in transfer (rows up to 2026-11-10 read, about 97 % of the table). The exporter (outside the repo) now compresses on the server and checks each file. SINR comes from each modem's own report (vendor-specific averaging), and a held reading can lag a real fade by up to 15 s |
 
-Consequence for M2: replay the **swap** windows first (they separate the policies) and one **joint** window (it
-measures how long telemetry stays up when both cellular paths are down).
+Consequence for M2: replay the **swap** windows first (they separate the policies) and one **joint** window (both
+paths degraded at once: how telemetry fares on two weak links). A real double link loss is rare in this log, so a
+profile of it, and the satellite path (M7), is tested by injection rather than replay.
 
 ## 6. Metrics
 | Metric | Per | Note |
