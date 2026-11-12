@@ -1,0 +1,66 @@
+# Experiment 1b stage G2, RAN cluster (REDLAB): grid relay for the dashboard's resource grid page.
+# Host network, so it can reach the gNB's T tracer on 127.0.0.1:2021 (on only after sudo MODE=on bash
+# infra/exp/exp01b-grid.sh, which also firewalls that port); it listens only on the bench LAN address 10.42.0.1:8094.
+# No Kubernetes API access (no service account token). grid-trace.py and grid-relay.py come from ConfigMap grid-relay-app.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: grid-relay
+  namespace: fct-dash
+spec:
+  replicas: 1
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      app: grid-relay
+  template:
+    metadata:
+      labels:
+        app: grid-relay
+      annotations:
+        fct-dash/code-hash: "CODE_HASH"
+    spec:
+      hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
+      automountServiceAccountToken: false
+      containers:
+      - name: relay
+        image: docker.io/library/alpine:3.20
+        command: ["sh", "-c", "apk add --no-cache python3 py3-numpy >/dev/null && exec python3 /app/grid-relay.py"]
+        env:
+        - name: RELAY_BIND
+          value: 10.42.0.1
+        - name: RELAY_PORT
+          value: "8094"
+        - name: PYTHONUNBUFFERED
+          value: "1"
+        readinessProbe:
+          httpGet:
+            host: 10.42.0.1
+            path: /healthz
+            port: 8094
+          initialDelaySeconds: 15
+          periodSeconds: 5
+        resources:
+          requests: {cpu: 10m, memory: 48Mi}
+          limits: {cpu: 1000m, memory: 512Mi}     # a capture reads up to ~200 MB from the tracer in a few seconds
+        securityContext:
+          allowPrivilegeEscalation: false
+        volumeMounts:
+        - name: app
+          mountPath: /app
+          readOnly: true
+        - name: token
+          mountPath: /etc/grid-relay
+          readOnly: true
+      volumes:
+      - name: app
+        configMap:
+          name: grid-relay-app
+      - name: token
+        secret:
+          secretName: grid-relay-token
+          items:
+          - key: token
+            path: token
