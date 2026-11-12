@@ -1,0 +1,16 @@
+  info  noise dB | UE SINR  CQI (typical)  DL MCS  BLER     MAC goodput | samples  out-of-sync
+  info   -100.0  |  44.1 dB   15 (15)      28    0.0000    87.5 Mbit/s |  12  0
+  info     -3.0  |   7.6 dB    5 ( 7)       6    0.0000    13.9 Mbit/s |  12  0
+  info     -2.0  |   4.0 dB    4 ( 5)       4    0.0000     9.6 Mbit/s |  12  0
+  info     -1.5  |   3.4 dB    0 ( 5)       6    0.1164    12.2 Mbit/s |  12  0
+  info     -1.0  |   1.8 dB    0 ( 4)       5    0.0893    10.8 Mbit/s |  11  0
+  info     -0.5  |   2.0 dB    0 ( 4)       0    0.1725     3.0 Mbit/s |  12  0
+  info      0.0  |  -1.5 dB    0 ( 3)       0    0.5065     1.9 Mbit/s |  12  1
+  info   -100.0  |  45.1 dB   15 (15)      28    0.0000    87.5 Mbit/s |  12  0
+  PASS  every step has >= 8 samples (min 11)
+  PASS  one UE context throughout: ['d736']
+  info  out-of-sync samples: 1 at 0 dB
+RESULT: PASS
+FINDING: UE SINR falls 2.68 dB per dB of added noise (fit over 6 steps with SINR < 30 dB; 1.00 expected for AWGN)
+FINDING: reported CQI minus typical CQI at the same SINR: median -3.5 (range -5 to -1, 6 steps below CQI 15)
+  info  UDP over the sweep: 200.0 Mbit/s received (wall clock), 75.6 % lost
