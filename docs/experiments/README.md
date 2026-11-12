@@ -45,7 +45,7 @@ Teaching material built on these experiments (theory, formulas, worked examples,
 | 13 | Network identity: PLMN, TAC and subscriber provisioning | PLMN yes; writing physical SIM cards needs hardware | Planned | |
 | 14 | Core network procedures end to end | yes | Planned | |
 | 15 | N2 control-plane flood and anomaly detection (isolated bench LAN only) | yes | Planned | |
-| 17 | Resilient multilink connectivity for a ship: AI steering over two cellular operators (OAI + OCUDU cells, replayed drive-test coverage), Jetson as ship router; satellite later | yes (OAI cell); OCUDU cell needs a coverage-replay method | Plan 2026-11-11; M1 coverage profiles PASS (scanner has no SINR, route mild); D6: ship gateway per-SIM log, profiles PASS 2026-11-12 (SINR < 0 dB a third to half of the time); M2 OAI-cell replay follows the curve 74/74 (2 of 3 repetitions; bench floor ~4 dB SINR) | [EXP-17](EXP-17-multilink-maritime-plan.md) |
+| 17 | Resilient multilink connectivity for a ship: AI steering over two cellular operators (OAI + OCUDU cells, replayed drive-test coverage), Jetson as ship router; satellite later | yes (OAI cell); OCUDU cell needs a coverage-replay method | Plan 2026-11-11; M1 coverage profiles PASS (scanner has no SINR, route mild); D6: ship gateway per-SIM log, profiles PASS 2026-11-12 (SINR < 0 dB a third to half of the time); M2 OAI-cell replay PASS (110/110 steps on the curve, 3 repetitions; bench floor ~4 dB SINR); next OCUDU replay (risk 1), then M3 | [EXP-17](EXP-17-multilink-maritime-plan.md) |
 
 The rfsim column is a first assessment, to be confirmed in each experiment's issue before work starts.
 Order (decided 2026-10-14): 0 (bench rerun), 0c, 0b, then 1 to 15 in order. Next: Experiment 2.

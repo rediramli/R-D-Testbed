@@ -1,6 +1,6 @@
 # Experiment 17 (plan): resilient multilink connectivity for a ship
 
-Status: **plan** (2026-11-11), **decisions D1-D6 taken, stage M1 done 2026-11-11 (PASS), D6 profiles built 2026-11-12 (PASS), M2 on the OAI cell 2026-11-12: replay follows the curve, third repetition still open**. Nothing on the bench has changed yet.
+Status: **plan** (2026-11-11), **decisions D1-D6 taken, stage M1 done 2026-11-11 (PASS), D6 profiles built 2026-11-12 (PASS), M2 on the OAI cell done 2026-11-12 (PASS: 110/110 steps on the curve, 3 repetitions); OCUDU cell open (risk 1)**. Nothing on the bench has changed yet.
 Every bench change below needs the user's OK first. Depends on [EXP-16](EXP-16-ocudu-second-gnb-feasibility.md)
 (second 5G cell on OCUDU, PR #39).
 
@@ -175,11 +175,16 @@ edge zone), noise -5 to -0.5 dB, one UDP flow above the link rate.
 |---|---|
 | Noise applied and read back at every step | **PASS** (180 of 180) |
 | One UE context throughout | **PASS** |
-| DL MCS within the curve's change over ±1 dB of the expected MCS (graded steps) | **PASS: 74 of 74** (repetitions 1-2) |
-| Same MCS across repetitions | **PASS: 37 of 37** steps (repetitions 1-2) |
+| **Gate: DL MCS within the curve's change over ±1 dB of the expected MCS, 3 repetitions** | **PASS: 110 of 110** graded steps with samples |
+| Same MCS across the 3 repetitions | **PASS: 37 of 37** steps |
+| Same goodput across the 3 repetitions | spread per step median 0.0, p90 0.7 Mbit/s |
 | Reported CQI vs the ship's typical CQI (graded steps) | median +0.2 (p10 -0.4, p90 +0.7): the mapping holds |
-| Goodput along the replay | graded steps 9.6-23.5 Mbit/s (median 13.9); edge zone median 9.6, down to 3.1 |
-| **Gate: 3 repetitions** | **Open**: repetition 3 has no samples because the dashboard was redeployed (revision 34) near its end, which clears the 900 s in-memory history; the rerun stopped at step 2 because the OAI UE was restarted (scaled 0 → 1) by someone else. Both outside this script; bench restored (noise -100, pod deleted). Rerun on a quiet bench |
+| Goodput along the replay | graded steps 9.6-23.5 Mbit/s (median 13.9); edge zone median 9.6, down to 3.0 |
+| Every step has dashboard samples | **FAIL (minor)**: steps 1-3 of repetition 1 (10-40 s) have none; the OAI UE had been started 15 s before the run (it was stopped by a dashboard deploy). 177 of 180 steps have samples |
+
+Run log: the first full run lost repetition 3 to a dashboard redeploy (which clears the 900 s in-memory history) and a
+second run stopped when the OAI UE was stopped by that deploy; the third run (on a quiet bench, UE started for it) is
+the result above. Bench restored after every run (noise -100 dB, preset Off, pod deleted).
 
 Script fixes from the first attempts (now in the script): the noise column is read by name from `plan.csv`, a step whose
 noise is not applied stops the run, and the history is fetched after every repetition (the dashboard keeps 900 s).
