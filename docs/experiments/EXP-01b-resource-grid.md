@@ -2,7 +2,7 @@
 
 Status: **G1 done** 2026-11-03 on the bench (branch `exp/01b-resource-grid`): the gNB's own T tracer shows the
 resource grid per slot. **G2 and G3 built** (grid relay, dashboard API and page, tested in mock mode); bench check pending.
-Next: G4 (training material). RF simulator mode only;
+**G4 done** (training module [Module 1b](../training/MOD-01b-resource-grid.md) with exercises). RF simulator mode only;
 nothing is transmitted. Requested by Prof. Pei: see a UE attach and which PRBs it occupies, including during random access.
 Background: [Module 1](../training/MOD-01-bandwidth.md), Section 3.2 (the resource grid).
 
@@ -128,8 +128,9 @@ Install on the bench (once): `sudo MODE=apply bash infra/dash/dash.sh` (page, AP
 `MODE=apply bash infra/dash/grid.sh` (relay). Live captures need the tracer: `sudo MODE=on bash infra/exp/exp01b-grid.sh`;
 `sudo MODE=off ...` when done. Without the tracer the page says so and shows nothing new.
 
-## Open (G4)
-- G4: training module and exercises (SSB position from the ARFCNs, RA timeline, PDSCH vs MCS, PDSCH around the SSB).
+## Open
+- G4 (training module [Module 1b](../training/MOD-01b-resource-grid.md) with exercises) is written; review and teaching
+  feedback pending.
 - Verify the SRS hypothesis for UL symbol 13 from the gNB configuration.
 - One capture (run 063157Z) had a `GNB_PHY_MIB` label in slot 656.0 whose grid held only CSI-RS; the SSB was in 658.0.
   Find out whether the MIB event and the DL grid can refer to different slots.
