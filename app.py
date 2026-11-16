@@ -1672,6 +1672,111 @@ CONTROL = Control()
 RESULTS = Results(os.environ.get("RESULTS_FILE", "/tmp/fct-dash-results.json" if MOCK else "/data/results.json"))
 
 
+# ---- Experiment 1b (G2): resource grid captures through the grid relay on the RAN host --------------------------------
+GRID_URL = os.environ.get("GRID_URL", "http://10.42.0.1:8094").rstrip("/")
+GRID_TOKEN_FILE = os.environ.get("GRID_TOKEN_FILE", "/etc/fct-dash/grid/token")
+# Mock mode answers with the bench captures of 2026-11-03 (stage G1) from the repository.
+GRID_MOCK = {"snapshot": "docs/experiments/data/bench-grid-20261103T064844Z/dl.json",
+             "dl": "docs/experiments/data/bench-grid-20261103T064844Z/dl.json",
+             "ul": "docs/experiments/data/bench-grid-20261103T064844Z/ul.json",
+             "idle": "docs/experiments/data/bench-grid-20261103T064844Z/idle.json",
+             "ra": "docs/experiments/data/bench-grid-ra-20261103T063206Z/ra.json"}
+
+
+class Grid:
+    """Snapshots and random-access captures of the gNB resource grid (PRB x symbol per slot)."""
+
+    def __init__(self):
+        self.mock_job = {"state": "idle", "kind": None, "error": None, "since": 0.0}
+        self.mock_last, self.mock_at = None, None
+
+    def prb(self):
+        """Carrier width from the profile relay, or None when it is not known (then no capture: 273 PRB aborts the gNB)."""
+        p = CONTROL.profile_state()
+        q = (p.get("profiles") or {}).get(p.get("current")) or {}
+        return q.get("prb")
+
+    def relay(self, path, body=None, timeout=3.0):
+        req = urllib.request.Request(GRID_URL + path)
+        if body is not None:
+            with open(GRID_TOKEN_FILE) as f:
+                token = f.read().strip()
+            req = urllib.request.Request(GRID_URL + path, data=json.dumps(body).encode(), method="POST",
+                                         headers={"Content-Type": "application/json", "X-Relay-Token": token})
+        with urllib.request.urlopen(req, timeout=timeout) as r:
+            return json.loads(r.read())
+
+    def status(self):
+        if MOCK:
+            j = self.mock_job
+            if j["state"] == "running" and time.time() - j["since"] > 1.5:
+                j.update(state="done"); self.mock_last = j["kind"]; self.mock_at = now_iso()
+            return {"available": True, "tracer": True, "reason": None, "prb": self.prb(), "mock": True,
+                    "job": {k: j[k] for k in ("state", "kind", "error")},
+                    "last": {"kind": self.mock_last, "time_utc": self.mock_at} if self.mock_last else None}
+        if not os.path.exists(GRID_TOKEN_FILE):
+            return {"available": False, "reason": "Grid relay token not installed (MODE=apply bash infra/dash/grid.sh)"}
+        try:
+            d = self.relay("/grid/status", timeout=1.5)
+        except Exception as e:
+            return {"available": False, "reason": "Grid relay: " + describe_error(e)}
+        return {"available": True, "tracer": d.get("tracer"), "reason": d.get("reason"), "prb": self.prb(),
+                "job": d.get("job"), "last": d.get("last")}
+
+    def start(self, action, slots):
+        """action snapshot | ra. Returns (ok, message). A random access capture starts the UE itself."""
+        ready = lambda role: any(p["cluster"] == "ran" and p["role"] == role and p["state"] == "running"
+                                 for p in STATE.snapshot()["pods"])
+        if action not in ("snapshot", "ra"):
+            raise ValueError("unknown grid action")
+        slots = max(20, min(80, int(slots)))
+        if self.prb() is None:
+            return False, "Carrier width unknown (profile relay not available or switching); no capture, it could abort the gNB above 106 PRB."
+        if action == "ra" and not MOCK:
+            if not ready("gnb"):
+                return False, "Start the gNB first."
+            if ready("ue") or any(p["cluster"] == "ran" and p["role"] == "ue" for p in STATE.snapshot()["pods"]):
+                return False, "Stop the UE first (UE Stop) and wait until it has gone; the capture then starts it and records its attach."
+        if MOCK:
+            self.mock_job.update(state="running", kind=action, error=None, since=time.time())
+            return True, "Capture running (mock: a bench capture of 2026-11-03)."
+        try:
+            self.relay("/grid/capture", {"kind": action, "slots": slots, "prb": self.prb(), "wait": 90}, timeout=5)
+        except urllib.error.HTTPError as e:
+            try:
+                why = json.loads(e.read()).get("error")
+            except Exception:
+                why = None
+            return False, {401: "Grid relay refused the dashboard token."}.get(e.code, f"Grid relay: {why or e.code}")
+        except Exception as e:
+            return False, "Grid relay not reachable: " + describe_error(e)
+        if action == "snapshot":
+            return True, f"Capturing {slots} slots ({slots // 2} ms of radio time)."
+        ok, msg = CONTROL.act("ue-start")
+        return ok, ("Capture armed; the UE is starting. Its random access appears within about 30 s." if ok
+                    else "Capture armed, but the UE did not start: " + msg)
+
+    def result(self):
+        if MOCK:
+            self.status()              # finishes a mock job that has run long enough
+            name = self.mock_last or "snapshot"
+            if name == "snapshot":     # the bench capture that matches the mock speed test now running
+                m = CONTROL.mock
+                f_name = "dl" if m.get("speedtest-dl-udp") or m.get("speedtest-dl") else "ul" if m.get("speedtest-ul-udp") or m.get("speedtest-ul") else "idle"
+            else:
+                f_name = name
+            with open(os.path.join(HERE, GRID_MOCK.get(f_name, GRID_MOCK["snapshot"].replace("dl.json", f_name + ".json")))) as f:
+                d = json.load(f)
+            d["kind"] = name
+            for g in d["grids"]:
+                g["db"] = [[int(round(v)) for v in r] for r in g["db"]]
+            return d
+        return self.relay("/grid/result", timeout=10)
+
+
+GRID = Grid()
+
+
 class Handler(BaseHTTPRequestHandler):
     server_version = "fct-dash/0.3"
 
@@ -1689,7 +1794,7 @@ class Handler(BaseHTTPRequestHandler):
 
     def do_POST(self):
         url = urllib.parse.urlparse(self.path)
-        if url.path not in ("/api/control", "/api/exp"):
+        if url.path not in ("/api/control", "/api/exp", "/api/grid"):
             return self.send(404, "Not found", "text/plain")
         try:
             length = min(int(self.headers.get("Content-Length") or 0), 4096)
@@ -1707,6 +1812,12 @@ class Handler(BaseHTTPRequestHandler):
             return self.send(200, json.dumps({"ok": True, "msg": "Controls unlocked"}), "application/json")
         if url.path == "/api/exp":
             return self.exp_post(body)
+        if url.path == "/api/grid":
+            try:
+                ok, msg = GRID.start(str(body.get("action", "")), body.get("slots", 40))
+            except (ValueError, TypeError):
+                return self.send(400, json.dumps({"ok": False, "msg": "Unknown grid action"}), "application/json")
+            return self.send(200 if ok else 409, json.dumps({"ok": ok, "msg": msg}), "application/json")
         try:
             ok, msg = CONTROL.act(str(body.get("action", "")))
         except ValueError:
@@ -1822,6 +1933,15 @@ class Handler(BaseHTTPRequestHandler):
                 return self.send(200, buf.getvalue(), "text/csv; charset=utf-8")
             return self.send(200, json.dumps({"persistent": RESULTS.persistent, "recordSeconds": RECORD_SECONDS,
                                               "rows": rows}), "application/json")
+        if url.path == "/api/grid/status":
+            return self.send(200, json.dumps(GRID.status()), "application/json")
+        if url.path == "/api/grid/result":
+            try:
+                return self.send(200, json.dumps(GRID.result()), "application/json")
+            except urllib.error.HTTPError as e:
+                return self.send(404 if e.code == 404 else 502, json.dumps({"error": "no capture yet" if e.code == 404 else f"relay {e.code}"}), "application/json")
+            except Exception as e:
+                return self.send(502, json.dumps({"error": describe_error(e)}), "application/json")
         if url.path == "/metrics":
             return self.send(200, metrics_text(), "text/plain; version=0.0.4; charset=utf-8")
         if url.path == "/healthz":

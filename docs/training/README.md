@@ -17,6 +17,7 @@ software and nothing is transmitted over the air. There is no spectrum licence f
 |---|---|---|---|
 | [0](MOD-00-link-adaptation.md) | 0, 0b, 0c | dB, SINR, Shannon, CQI/MCS tables, link adaptation, BLER, goodput vs throughput, TCP vs UDP | Ready (measured) |
 | [1](MOD-01-bandwidth.md) | 1 | PRB grid, numerology, NR-ARFCN, peak rate (TS 38.306), RIV, cost of bandwidth in CPU | Ready (measured) |
+| [1b](MOD-01b-resource-grid.md) | 1b | The resource grid live: SSB/PDSCH/PUSCH/CSI-RS placement, random access Msg1-4, energy-based occupancy | Ready (measured, stage G1) |
 | 2 | 2 | Carrier placement, GSCN/SSB raster, point A | Planned |
 | 3 | 3 | TDD frame, DL/UL split, latency | Planned |
 | 4 | 4 | FDD, duplex spacing | Planned |
