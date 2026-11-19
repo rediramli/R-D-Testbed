@@ -69,6 +69,36 @@ What has to exist so that a Translation is mostly "plug the model in". Each item
 | P7 | **Baselines**: the non-AI rule the paper compares against (OLLA, round robin, fixed thresholds, ATSSS modes) | Native gNB behaviour | Implemented or configured per Translation |
 | P8 | **Demo surface**: one screen showing conditions, AI decisions and KPIs live, AI on/off toggle | Dashboard | Demo view per Translation, AI on/off A/B switch |
 | P9 | **Data rules**: client data outside the public repo; SIM values in Secrets | Enforced (EXP-17) | Same rules for every Translation dataset |
+| P10 | **Core exposure**: the AI reads core events and analytics and asks the core for QoS through 3GPP service APIs (NWDAF, NEF, event exposure, policy authorization) | Open5GS 2.8.0 serves the core's own NF-to-NF services only (section 4.1); of the exposure APIs only `Npcf_PolicyAuthorization` exists | Decide D6: add an NWDAF/NEF from another open-source core next to Open5GS, move to a core that has them, or keep core data on Prometheus and the gNB side |
+
+### 4.1 Core API support (Open5GS 2.8.0, checked 2026-11-19)
+Checked against the 3GPP OpenAPI files collected in [jdegre/5GC_APIs](https://github.com/jdegre/5GC_APIs) (Rel-18,
+about 270 APIs), by reading the Open5GS v2.8.0 source: the services each NF registers with the NRF
+(`ogs_sbi_nf_service_build_default`) and the resources its state machine handles. Open5GS ships the 3GPP YAML files
+and generated C models for many more APIs than it serves; a model in the tree does not mean a service. **Not yet
+confirmed on the live core** (NRF query on tiny pending).
+
+| NF (deployed) | Served | Not served (examples) |
+|---|---|---|
+| NRF | `Nnrf_NFManagement`, `Nnrf_NFDiscovery` (TS 29.510) | `Nnrf_AccessToken` (OAuth2), `Nnrf_Bootstrapping` |
+| AMF | `Namf_Communication` (TS 29.518), partly: UE contexts, N1/N2 message transfer | `Namf_EventExposure`, `Namf_Location`, `Namf_MT`, MBS |
+| SMF | `Nsmf_PDUSession` (TS 29.502) | `Nsmf_EventExposure` (TS 29.508), `Nsmf_NIDD` |
+| AUSF | `Nausf_UEAuthentication` (TS 29.509: 5G-AKA, EAP-AKA') | `Nausf_SoRProtection`, `Nausf_UPUProtection` |
+| UDM | `Nudm_UEAU`, `Nudm_SDM`, `Nudm_UECM` (TS 29.503) | `Nudm_EE`, `Nudm_PP`, `Nudm_MT`, `Nudm_UEID` |
+| UDR | `Nudr_DR` (TS 29.504: subscription, authentication, context and policy data) | `Nudr_GroupIDmap`; application and exposure data (TS 29.519) |
+| PCF | `Npcf_AMPolicyControl` (29.507), `Npcf_SMPolicyControl` (29.512), `Npcf_PolicyAuthorization` (29.514, N5) | `Npcf_UEPolicyControl`, `Npcf_EventExposure`, `Npcf_BDTPolicyControl` |
+| BSF | `Nbsf_Management` (TS 29.521) | |
+| NSSF | `Nnssf_NSSelection` (TS 29.531) | `Nnssf_NSSAIAvailability` |
+| SCP | Indirect communication (routes the above) | |
+
+Not in Open5GS at all: NWDAF (TS 29.520: analytics, ML model provision/training), NEF and the northbound APIs
+(TS 29.522, 29.591, 29.551, 29.122 T8), CAPIF (TS 29.222), `Nupf_EventExposure` (TS 29.564), CHF, NSACF, LMF/GMLC,
+MBS, edge (TS 29.558), 5G-EIR, SMSF. Open5GS's SEPP (N32 handshake, TS 29.573) exists but is not deployed here.
+Outside the 3GPP APIs, Open5GS exposes Prometheus metrics (already scraped by the dashboard) and a WebUI for
+subscribers.
+
+For the PRD this means: an AF on the bench can ask for QoS on a flow through `Npcf_PolicyAuthorization` (a candidate
+actuation for AI-on-RAN, to be tested), but the analytics and event APIs an AI-native core would use are missing.
 
 ## 5. Paper screening (which papers to translate)
 Score each candidate 0-2 per criterion; translate those with total ≥ 10 and no 0 on T1 or T2.
@@ -171,5 +201,6 @@ stages land.
 | D3 | Compute for models | REDLAB CPU, the Jetson Orin NX GPU, or a separate GPU host |
 | D4 | First demo audience | Partner/client, internal, or students; sets the demo length and the story |
 | D5 | Where results go outside the lab | AI-RAN Alliance work items, conference demo/poster, open dataset |
+| D6 | Core exposure (P10) | Add an NWDAF/NEF from another open-source core beside Open5GS; move to a core that has them; or no core exposure for now (Prometheus + gNB data) |
 
 Template for a Translation: [TR-template.md](TR-template.md).
