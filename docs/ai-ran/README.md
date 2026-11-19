@@ -75,8 +75,8 @@ What has to exist so that a Translation is mostly "plug the model in". Each item
 Checked against the 3GPP OpenAPI files collected in [jdegre/5GC_APIs](https://github.com/jdegre/5GC_APIs) (Rel-18,
 about 270 APIs), by reading the Open5GS v2.8.0 source: the services each NF registers with the NRF
 (`ogs_sbi_nf_service_build_default`) and the resources its state machine handles. Open5GS ships the 3GPP YAML files
-and generated C models for many more APIs than it serves; a model in the tree does not mean a service. **Not yet
-confirmed on the live core** (NRF query on tiny pending).
+and generated C models for many more APIs than it serves; a model in the tree does not mean a service. **Confirmed on
+the live core** (2026-11-19, NRF on tiny): 10 NF instances, one each, registering exactly these 14 services.
 
 | NF (deployed) | Served | Not served (examples) |
 |---|---|---|
