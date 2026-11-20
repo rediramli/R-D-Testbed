@@ -10,6 +10,8 @@
 #   MODE=check    RIC on 127.0.0.1:36421/36422 only, one RIC on the host, E2 SETUP from the gNB accepted (KPM + RC),
 #                 relay on 10.42.0.1:8095 only with the token enforced, KPM indications flowing, a DL speed test through
 #                 the dashboard raises the KPM DL throughput, dashboard and Prometheus show the E2 state and KPM values
+#   After the RIC pod restarts (apply with a change, remove + apply) restart the gNB, then the UE: the gNB re-connects
+#   SCTP but does not repeat E2 SETUP, so the new RIC has no E2 node.
 #   MODE=remove   delete the RIC pod, its ConfigMap, the token Secret and the core copy (keeps the image; the gNB keeps
 #                 running, its E2 agent just has no RIC)
 set -u
@@ -66,7 +68,10 @@ check(){
   [ "${a:-0}" -ge 1 ] && ok "E2: $a SCTP association(s) on 127.0.0.1:36421 established" \
     || bad "no E2 association: the gNB E2 agent connects at start; restart the gNB (sudo MODE=apply bash infra/ran/ran.sh after scaling oai-gnb to 0, or the dashboard gNB Stop/Start)"
   rl=$($KC -n fct-dash logs deploy/flexric-ric -c ric 2>/dev/null)
-  echo "$rl" | grep -q "E2 SETUP-REQUEST rx from PLMN   1.70" && ok "RIC log: E2 SETUP-REQUEST from the gNB (PLMN 001/70)" || bad "RIC log: no E2 SETUP-REQUEST from PLMN 1.70"
+  # The OAI E2 agent re-connects SCTP to a restarted RIC but does not repeat E2 SETUP (bench, 2026-11-20): the new RIC
+  # then has 0 E2 nodes and drops the old subscriptions' indications. Only a gNB restart repeats E2 SETUP.
+  echo "$rl" | grep -q "E2 SETUP-REQUEST rx from PLMN   1.70" && ok "RIC log: E2 SETUP-REQUEST from the gNB (PLMN 001/70)" \
+    || bad "RIC log: no E2 SETUP-REQUEST from PLMN 1.70 since the RIC started$(echo "$rl" | grep -q 'but no xApp associated' && echo ' (gNB re-connected without E2 SETUP: restart the gNB, then the UE)')"
   echo "$rl" | grep -q "Accepting RAN function ID 2 with def = ORAN-E2SM-KPM" && echo "$rl" | grep -q "Accepting RAN function ID 3 with def = ORAN-E2SM-RC" \
     && ok "RIC accepted the gNB's KPM (2) and RC (3) RAN functions" || bad "RIC did not accept KPM and RC"
   $KC -n default logs deploy/oai-gnb 2>/dev/null | grep -q "E2 AGENT\]: nearRT-RIC IP Address = 127.0.0.1, PORT = 36421" \
