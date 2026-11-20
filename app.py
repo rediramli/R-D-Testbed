@@ -297,6 +297,7 @@ class State:
         out["ran"] = self._ran_metrics(out["pods"])
         if "ran2" in self.clusters:
             out["ran2"] = cell2_metrics()
+        out["ric"] = ric_state()
         out["controls"] = self._controls()
         return out
 
@@ -413,7 +414,8 @@ def mock_state():
             "memBytes": 2.86e9, "age": 0.4, "ueCount": 1, "error": None,
             "ues": [{"rnti": "4602", "cqi": 15, "mcsDl": 28, "mcsUl": 27, "blerDl": 0.0, "blerUl": 0.0,
                      "goodputDl": round(49.5 * max(0, w), 1), "goodputUl": 0.11, "snrPusch": 40.5, "snrPucch": 31.0}]}
-    return {"time": now_iso(), "radioMode": RADIO_MODE, "pods": pods, "errors": {}, "ran": ran, "ran2": ran2, "controls": ctl}
+    return {"time": now_iso(), "radioMode": RADIO_MODE, "pods": pods, "errors": {}, "ran": ran, "ran2": ran2, "ric": ric_state(),
+            "controls": ctl}
 
 
 CAPTURE_URL = os.environ.get("CAPTURE_URL", "http://10.0.129.7:8091").rstrip("/")
@@ -1752,6 +1754,44 @@ class Results:
 STATE = State()
 CONTROL = Control()
 RESULTS = Results(os.environ.get("RESULTS_FILE", "/tmp/fct-dash-results.json" if MOCK else "/data/results.json"))
+
+
+# ---- Experiment 12 (R1): FlexRIC nearRT-RIC on the RAN host; E2 state and KPM per UE through the relay ----------------
+RIC_URL = os.environ.get("RIC_URL", "http://10.42.0.1:8095").rstrip("/")
+RIC_TOKEN_FILE = os.environ.get("RIC_TOKEN_FILE", "/etc/fct-dash/ric/token")
+RIC_UE_KEYS = ("thpDlKbps", "thpUlKbps", "prbDlPct", "prbUlPct", "pdcpVolDlMb", "pdcpVolUlMb", "rlcDelayDlUs", "ageS")
+
+
+def ric_state():
+    """RIC, E2 and KPM state from the FlexRIC relay (infra/ric/ric-relay.py); the relay needs the token even to read."""
+    if MOCK:
+        w = math.sin(time.time() / 20)
+        return {"available": True, "listening": True, "loopbackOnly": True, "commit": "d7a71285",
+                "e2": {"associations": 1, "nodes": 1},
+                "xapp": {"running": True, "indications": int(time.time()) % 100000, "lastIndicationAgeS": 0.4,
+                         "latencyUs": 900, "error": None, "starts": 1},
+                "ues": [{"amfUeNgapId": "1", "thpDlKbps": max(0.0, 40000 * w), "thpUlKbps": 25.0, "prbDlPct": max(0, int(80 * w)),
+                         "prbUlPct": 9, "pdcpVolDlMb": 0.0, "pdcpVolUlMb": 0.0, "rlcDelayDlUs": 0.0, "ageS": 0.4}],
+                "cell": {"rrcConnMean": 1}}
+    if not os.path.exists(RIC_TOKEN_FILE):
+        return {"available": False, "reason": "RIC relay token not installed (MODE=apply bash infra/dash/ric.sh)"}
+    try:
+        with open(RIC_TOKEN_FILE) as f:
+            token = f.read().strip()
+        req = urllib.request.Request(RIC_URL + "/status", headers={"X-Relay-Token": token})
+        with urllib.request.urlopen(req, timeout=1.5) as r:
+            d = json.loads(r.read())
+    except urllib.error.HTTPError as e:
+        return {"available": False, "reason": "RIC relay refused the dashboard token" if e.code == 401 else f"RIC relay answered {e.code}"}
+    except Exception as e:
+        return {"available": False, "reason": "RIC relay: " + describe_error(e)}
+    ric, e2, x = d.get("ric") or {}, d.get("e2") or {}, d.get("xapp") or {}
+    return {"available": True, "listening": ric.get("listening"), "loopbackOnly": ric.get("loopbackOnly"),
+            "commit": (ric.get("commit") or "")[:8] or None,
+            "e2": {"associations": e2.get("associations"), "nodes": e2.get("nodes")},
+            "xapp": {k: x.get(k) for k in ("running", "indications", "lastIndicationAgeS", "latencyUs", "error", "starts")},
+            "ues": [{k: u.get(k) for k in ("amfUeNgapId",) + RIC_UE_KEYS} for u in d.get("ues") or []],
+            "cell": d.get("cell") or {}}
 
 
 # ---- Experiment 1b (G2): resource grid captures through the grid relay on the RAN host --------------------------------

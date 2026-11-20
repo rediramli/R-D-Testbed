@@ -5,7 +5,7 @@
 # Run ON REDLAB from the repo root as the login user (no sudo):   MODE=preview bash infra/dash/prom.sh
 #   MODE=preview  image tag exists, dashboard /metrics answers, storage class present, kubectl diff; changes nothing
 #   MODE=apply    apply prom-core.yaml, wait for Prometheus, collect 60 s, then check
-#   MODE=check    6 targets up (5 + the OCUDU cell relay, EXP-16 S4), retention 30d / 5GB, ClusterIP only and not reachable from REDLAB, RAN and core series
+#   MODE=check    6 targets up (5 + the OCUDU cell relay, EXP-16 S4; 7 with the FlexRIC relay, Experiment 12), retention 30d / 5GB, ClusterIP only and not reachable from REDLAB, RAN and core series
 #                 present, and the data survives a Prometheus restart
 #   MODE=remove   delete Prometheus and its Services/ConfigMap; KEEPS the data volume
 #   MODE=purge    remove + delete the data volume (all history; asks for confirmation)
@@ -54,7 +54,9 @@ import json, sys
 a = json.load(sys.stdin)["data"]["activeTargets"]
 for x in a: print(x["labels"].get("nf"), x["health"], (x.get("lastError") or "-")[:80])' 2>/dev/null)
   echo "$t" | sed 's/^/  info  target /'
-  [ "$(echo "$t" | grep -c ' up ')" = 6 ] && ok "6 targets up (amf, smf, upf, pcf, gnb via dashboard, gnb2 = OCUDU relay)" || bad "targets up: $(echo "$t" | grep -c ' up ') of 6"
+  # Experiment 12: the flexric target (FlexRIC relay on REDLAB) counts once ric.sh has installed its token on the core
+  if tk get secret fct-dash-ric >/dev/null 2>&1; then want=7; what="gnb2 = OCUDU relay, ric = FlexRIC relay"; else want=6; what="gnb2 = OCUDU relay; ric not installed"; fi
+  [ "$(echo "$t" | grep -c ' up ')" = $want ] && ok "$want targets up (amf, smf, upf, pcf, gnb via dashboard, $what)" || bad "targets up: $(echo "$t" | grep -c ' up ') of $want"
   # Flags as Prometheus reports them, and the retention it actually applies (runtime status).
   ret=$( { pq /api/v1/status/flags; echo; pq /api/v1/status/runtimeinfo; } | python3 -c '
 import json, sys

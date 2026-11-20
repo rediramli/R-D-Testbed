@@ -231,6 +231,9 @@ select, input { color: var(--ink); background: #ffffff; color-scheme: light; }
 .topo-legend i.p { border-top: 2px dashed #9aa5b1; } .topo-legend i.c { border-top: 3px solid #6d4fa3; }
 #topoInfo { font-size: 13.5px; padding: 6px 8px 4px; color: var(--ink); min-height: 1.5em; }
 #topoInfo b { color: #1b5fa8; }
+.ricue { border-collapse: collapse; margin-top: 6px; font-size: 12px; font-variant-numeric: tabular-nums; }
+.ricue th, .ricue td { padding: 2px 8px; text-align: right; border-bottom: 1px solid var(--line, #dde3ea); }
+.ricue th:first-child, .ricue td:first-child { text-align: left; }
 .pbox { cursor: pointer; } .pbox:hover .frame { stroke: #1b5fa8; stroke-width: 2; }
 .tile rect.body { fill: #f4f6f8; stroke: #b9c2cc; }
 .tile .name { font: 700 15px var(--cond); fill: var(--ink); }
@@ -609,7 +612,8 @@ aside#drawer pre { background: #fbfcfd; font-size: 11.5px; }
       <rect x="494" y="182" width="150" height="24" fill="#ffffff" stroke="#b7d6ba"/><text x="569" y="199" text-anchor="middle">KPM-RC xApp</text>
       <rect x="652" y="182" width="192" height="24" fill="#ffffff" stroke="#b7d6ba"/><text x="748" y="199" text-anchor="middle">IDS rules (Experiment 15, core)</text>
     </g>
-    <text x="590" y="234" text-anchor="middle" font-size="12.5" fill="#3d6e41">Near-Real-Time RIC (FlexRIC) · planned · Experiment 12</text>
+    <text id="ricKpm" x="590" y="224" text-anchor="middle" font-size="11.5" fill="#2f5e33"></text>
+    <text id="ricTitle" x="590" y="242" text-anchor="middle" font-size="12.5" fill="#3d6e41">Near-Real-Time RIC (FlexRIC) · planned · Experiment 12</text>
   </g>
   <g class="pbox" data-k="gnb">
     <rect class="frame" x="330" y="290" width="550" height="230" fill="#f1f6fc" stroke="#1b5fa8" stroke-width="1.2"/>
@@ -665,7 +669,7 @@ aside#drawer pre { background: #fbfcfd; font-size: 11.5px; }
     <path d="M900 90 H925 V210 H860" stroke="#9aa5b1" stroke-width="1.5" stroke-dasharray="6 4"/>
     <path d="M420 250 V290" stroke="#9aa5b1" stroke-width="1.5" stroke-dasharray="6 4"/>
     <path d="M790 250 V290" stroke="#9aa5b1" stroke-width="1.5" stroke-dasharray="6 4"/>
-    <path d="M605 250 V290" stroke="#9aa5b1" stroke-width="1.5" stroke-dasharray="6 4"/>
+    <path id="lE2" d="M605 250 V290" stroke="#9aa5b1" stroke-width="1.5" stroke-dasharray="6 4"/>
     <path d="M900 70 H950" stroke="#9aa5b1" stroke-width="1.5" stroke-dasharray="6 4"/>
     <path d="M560 400 H600" stroke="#8a96a3" stroke-width="1.2" stroke-dasharray="3 3"/>
     <path d="M560 470 H600" stroke="#8a96a3" stroke-width="1.2" stroke-dasharray="3 3"/>
@@ -684,6 +688,7 @@ aside#drawer pre { background: #fbfcfd; font-size: 11.5px; }
   </g>
   <circle id="dN3" r="3.5" fill="#2e8b3e" visibility="hidden"><animateMotion dur="1.6s" repeatCount="indefinite"><mpath href="#lN3"/></animateMotion></circle>
   <circle id="dN2" r="3.5" fill="#6d4fa3" visibility="hidden"><animateMotion dur="3.2s" repeatCount="indefinite"><mpath href="#lN2"/></animateMotion></circle>
+  <circle id="dE2" r="3.5" fill="#2e7d32" visibility="hidden"><animateMotion dur="1s" repeatCount="indefinite" keyPoints="1;0" keyTimes="0;1" calcMode="linear"><mpath href="#lE2"/></animateMotion></circle>
   <circle id="dUu" r="3.5" fill="#2e8b3e" visibility="hidden"><animateMotion dur="1.2s" repeatCount="indefinite"><mpath href="#lUu"/></animateMotion></circle>
 
   <g id="wires"></g>
@@ -1070,7 +1075,7 @@ const INFO = {
   cell2: "<b>Cell 2 (Experiment 16)</b>: OCUDU gNB 26.10 (own image with ZMQ) and an OAI nrUE 2026.w43 in one pod without host networking, on the P3 Tiny. Same core (N2/N3 from the pod IP), same PLMN and DNN. KPIs come from the gNB's JSON metrics through a relay and Prometheus; rates are MAC goodput in simulated time. Select the gNB or UE chip to read its log.",
   relay: "<b>Noise relay</b>: sets the UE's AWGN noise through the UE telnet on 127.0.0.1:9090. Needs a token; the DL channel buttons use it."
 };
-document.querySelectorAll(".pbox").forEach(g => g.addEventListener("click", () => { $("topoInfo").innerHTML = INFO[g.dataset.k] || ""; }));
+document.querySelectorAll(".pbox").forEach(g => g.addEventListener("click", () => { $("topoInfo").dataset.k = g.dataset.k; $("topoInfo").innerHTML = INFO[g.dataset.k] || ""; }));
 function drawWires() { /* links are static in the diagram markup */ }
 
 function drawTiles() {
@@ -1139,6 +1144,7 @@ function render(data) {
   const run = r => { const p = latest.pods.find(p => p.cluster === "ran" && p.role === r); return p && p.state === "running"; };
   $("dN2").setAttribute("visibility", run("gnb") ? "visible" : "hidden");
   for (const id of ["dN3", "dUu"]) $(id).setAttribute("visibility", run("gnb") && run("ue") ? "visible" : "hidden");
+  renderRic(data.ric);
   const s = $("summary");
   s.innerHTML = "";
   const part = (text, cls) => { const b = document.createElement("b"); b.textContent = text; b.className = cls; s.append(b); };
@@ -1150,6 +1156,7 @@ function render(data) {
     const off = !p && tg2 && tg2.want === 0;
     part(`${n.label}: ${p ? WORDS[p.state] : (off ? "off" : "not deployed")}`, ok ? "ok" : (p ? "mid" : (off ? "" : "bad")));
   }
+  if (data.ric && data.ric.available) part(`Near-RT RIC: ${ricUp(data.ric) ? "E2 up" : "no E2"}`, ricUp(data.ric) && data.ric.xapp.running ? "ok" : "mid");
   const u = document.createElement("span");
   u.className = "updated"; u.id = "updated";
   u.dataset.t = Date.parse(data.time);
@@ -2246,7 +2253,7 @@ function treeModel() {
       {k: "box:mec", l: "Jetson Orin NX · MEC", sv: "plan", dim: true}]},
     {k: "tools", l: "Tools", sv: worst(tools), kids: tools},
     {k: "box:smo", l: "SMO · Non-RT RIC (planned)", sv: "plan", dim: true},
-    {k: "box:ric", l: "Near-RT RIC (planned)", sv: "plan", dim: true}];
+    ricNode()];
   return [{k: "bench", l: "FCT bench (10.42.0.0/24)", sv: worst(bench.filter(x => !x.dim)), kids: bench},
           {k: "exps", l: "Experiments", sv: "warn", kids: exps}];
 }
@@ -2308,7 +2315,7 @@ function renderProps() {
       const pr = profNow(), q = (pr.profiles || {})[pr.current];
       rows.push(["Cell"], ["Band / SCS", "n78 · 30 kHz"], ["Bandwidth", q ? `${q.mhz} MHz · ${q.prb} PRB` : null], ["SSB ARFCN", q ? String(q.ssb) : null, 1],
                 ["Point A ARFCN", q ? String(q.pointA) : null, 1], ["TDD", "7 DL · 1 S · 2 UL"], ["Radio", latest && latest.radioMode === "rfsim" ? "RF simulator, no RF" : latest && latest.radioMode],
-                ["Interfaces"], ["N2", "NGAP to AMF 10.42.0.2:38412"], ["N3", "GTP-U on 10.42.0.1"], ["E2", "planned (Experiment 12)"]);
+                ["Interfaces"], ["N2", "NGAP to AMF 10.42.0.2:38412"], ["N3", "GTP-U on 10.42.0.1"], ["E2", ricE2Text()]);
     }
     if (n.role === "ue") {
       const u = lastUe(), ch = (latest && latest.ran && latest.ran.ueChan) || {}, nz = (latest && latest.controls && latest.controls.noise) || {};
@@ -2351,6 +2358,53 @@ function renderProps() {
   if (b) b.onclick = () => openLog(NODES.find(x => x.role === k.slice(3)));
   const b2 = $("propLog2");
   if (b2) b2.onclick = () => openLog(CELL2[k === "cell2" ? "gnb" : "ue"]);
+}
+// ---- Experiment 12: FlexRIC nearRT-RIC (relay on REDLAB): E2 state and KPM per UE --------------------------------------
+const RIC_PLANNED = INFO.ric;
+function ricUp(r) { return !!(r && r.available && r.listening && r.e2 && r.e2.associations >= 1); }
+function ricE2Text() {
+  const r = latest && latest.ric;
+  if (!r || !r.available) return "not connected (no RIC)";
+  return r.e2 && r.e2.associations >= 1 ? `E2 SETUP done · SCTP to the RIC on 127.0.0.1:36421` : "no E2 association (gNB started before the RIC?)";
+}
+function ricNode() {
+  const r = latest && latest.ric;
+  if (!r || !r.available) return {k: "box:ric", l: "Near-RT RIC (planned)", sv: "plan", dim: true};
+  const x = r.xapp || {};
+  return {k: "box:ric", l: "Near-RT RIC · FlexRIC", sv: !r.listening ? "crit" : ricUp(r) && x.running ? "clear" : "minor",
+          m: ricUp(r) ? `E2 ${r.e2.associations}` : "no E2"};
+}
+function kbps(v) { return typeof v !== "number" ? "–" : v >= 1000 ? fmt(v / 1000, 1) + " Mbit/s" : fmt(v, 0) + " kbit/s"; }
+function renderRic(r) {
+  const box = document.querySelector('.pbox[data-k="ric"] .frame'), up = ricUp(r);
+  const x = (r && r.xapp) || {}, u = r && r.ues && r.ues[0];
+  box.setAttribute("stroke-dasharray", r && r.available ? "none" : "6 4");
+  box.setAttribute("stroke", !r || !r.available ? "#9cc59f" : up ? "#2e7d32" : "#c98a00");
+  $("lE2").setAttribute("stroke", up ? "#2e7d32" : "#9aa5b1");
+  $("lE2").setAttribute("stroke-width", up ? "2.5" : "1.5");
+  $("lE2").setAttribute("stroke-dasharray", up ? "none" : "6 4");
+  $("dE2").setAttribute("visibility", up && x.running && x.lastIndicationAgeS != null && x.lastIndicationAgeS < 5 ? "visible" : "hidden");
+  if (!r || !r.available) {
+    $("ricTitle").textContent = "Near-Real-Time RIC (FlexRIC) · planned · Experiment 12";
+    $("ricKpm").textContent = r && r.reason && r.reason.indexOf("not installed") < 0 ? r.reason : "";
+    INFO.ric = RIC_PLANNED + (r && r.reason ? `<br>Relay: ${esc(r.reason)}` : "");
+    return;
+  }
+  $("ricTitle").textContent = `Near-RT RIC · FlexRIC ${r.commit || ""} · ` + (!r.listening ? "RIC not listening"
+    : up ? `E2 up · ${r.e2.associations} E2 node` + (r.e2.associations > 1 ? "s" : "") : "no E2 node");
+  $("ricKpm").textContent = !x.running ? (x.error || "KPM xApp not running")
+    : u ? `KPM UE ${u.amfUeNgapId}: DL ${kbps(u.thpDlKbps)} · UL ${kbps(u.thpUlKbps)} · PRB DL ${fmt(u.prbDlPct, 0)} % / UL ${fmt(u.prbUlPct, 0)} %`
+    : "KPM xApp subscribed · no UE reported";
+  const rows = (r.ues || []).map(v => `<tr><td>${esc(v.amfUeNgapId)}</td><td>${kbps(v.thpDlKbps)}</td><td>${kbps(v.thpUlKbps)}</td>` +
+    `<td>${fmt(v.prbDlPct, 0)} / ${fmt(v.prbUlPct, 0)} %</td><td>${fmt(v.pdcpVolDlMb, 1)} / ${fmt(v.pdcpVolUlMb, 1)} Mbit</td><td>${fmt(v.rlcDelayDlUs, 0)} µs</td></tr>`).join("");
+  INFO.ric = `<b>Near-RT RIC (FlexRIC ${esc(r.commit || "")})</b>: nearRT-RIC in pod flexric-ric on REDLAB, E2 (36421) and E42 (36422) on ` +
+    `${r.loopbackOnly ? "127.0.0.1 only" : "<b>not only 127.0.0.1</b>"}. E2AP v3, KPM v3, the FlexRIC commit inside the OAI 2026.w40 gNB image. ` +
+    `E2 associations: ${r.e2.associations}. KPM monitor xApp: ${x.running ? "running" : "stopped"}, ${x.indications} indications` +
+    (x.lastIndicationAgeS != null ? `, last ${fmt(x.lastIndicationAgeS, 1)} s ago` : "") + (x.error ? ` (${esc(x.error)})` : "") +
+    `. Reports every 1000 ms (TS 28.552 names); throughput as the gNB measures it (simulated time).` +
+    (rows ? `<table class="ricue"><tr><th>UE (AMF UE NGAP ID)</th><th>DRB.UEThpDl</th><th>DRB.UEThpUl</th><th>RRU.PrbTot DL/UL</th><th>PDCP SDU vol. DL/UL</th><th>RLC SDU delay DL</th></tr>${rows}</table>` : "");
+  const t = $("topoInfo");
+  if (t && t.innerHTML && t.dataset.k === "ric") t.innerHTML = INFO.ric;
 }
 function renderShell(data) {
   let up = 0, all = 0;

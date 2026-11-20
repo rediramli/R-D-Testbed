@@ -191,6 +191,12 @@ security:
   drb_ciphering: yes
   drb_integrity: no
 
+# Experiment 12: E2 agent towards the FlexRIC nearRT-RIC on this host (E2AP v3, KPM v3; SCTP 127.0.0.1:36421 only).
+# The service models are the ones built into the image (/usr/local/lib/flexric).
+e2_agent:
+  near_ric_ip_addr: "127.0.0.1"
+  sm_dir: "/usr/local/lib/flexric/"
+
 log_config:
   global_log_level: info
   hw_log_level: info

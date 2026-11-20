@@ -108,6 +108,7 @@ spec:
         - {name: noise, mountPath: /etc/fct-dash/noise, readOnly: true}
         - {name: profile, mountPath: /etc/fct-dash/profile, readOnly: true}
         - {name: grid, mountPath: /etc/fct-dash/grid, readOnly: true}
+        - {name: ric, mountPath: /etc/fct-dash/ric, readOnly: true}
         - {name: results, mountPath: /data}
       volumes:
       - {name: app, configMap: {name: fct-dash-app}}
@@ -117,4 +118,5 @@ spec:
       - {name: noise, secret: {secretName: fct-dash-noise, optional: true}}
       - {name: profile, secret: {secretName: fct-dash-profile, optional: true}}
       - {name: grid, secret: {secretName: fct-dash-grid, optional: true}}
+      - {name: ric, secret: {secretName: fct-dash-ric, optional: true}}
       - {name: results, persistentVolumeClaim: {claimName: fct-dash-results}}

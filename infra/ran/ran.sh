@@ -85,7 +85,8 @@ check(){
   # SIM masking: scan every log file of the running UE pod on disk, rotated and gzipped ones included.
   $KC get deploy oai-nr-ue -o jsonpath='{.spec.template.spec.containers[0].args}' | grep -q "K masked" \
     && ok "UE Deployment runs the key-masking filter" || bad "UE Deployment has no key-masking filter"
-  uid=$($KC get pod -l app=oai-nr-ue -o jsonpath='{.items[0].metadata.uid}' 2>/dev/null)
+  # Running pod only: a Failed or Succeeded pod of an earlier ReplicaSet stays listed (first in the list) until it is deleted.
+  uid=$($KC get pod -l app=oai-nr-ue --field-selector=status.phase=Running -o jsonpath='{.items[0].metadata.uid}' 2>/dev/null)
   files=$(ls /var/log/pods/default_oai-nr-ue-*_"$uid"/nr-ue/* 2>/dev/null)
   [ -n "$uid" ] && [ -n "$files" ] && ok "UE log files on disk: $(echo "$files" | wc -l)" || bad "no UE log files found for pod uid '$uid'"
   for v in IMSI KI OPC; do val=$(grep -o "^$v=.*" "$SECRETS" 2>/dev/null | cut -d= -f2)
@@ -131,7 +132,7 @@ apply)
   $KC rollout status deploy/oai-gnb --timeout=180s; sleep 10
   $KC rollout status deploy/oai-nr-ue --timeout=180s
   # The UE must attach to the gNB that is running now: if the gNB pod is newer, restart the UE once.
-  gs=$($KC get pods -l app=oai-gnb -o jsonpath='{.items[0].status.startTime}'); us=$($KC get pods -l app=oai-nr-ue -o jsonpath='{.items[0].status.startTime}')
+  gs=$($KC get pods -l app=oai-gnb --field-selector=status.phase=Running -o jsonpath='{.items[0].status.startTime}'); us=$($KC get pods -l app=oai-nr-ue --field-selector=status.phase=Running -o jsonpath='{.items[0].status.startTime}')
   if [[ "$us" < "$gs" ]]; then echo "UE started before the current gNB: restarting the UE"
     $KC rollout restart deploy/oai-nr-ue; $KC rollout status deploy/oai-nr-ue --timeout=180s; sleep 10; fi
   F=0; check ;;
