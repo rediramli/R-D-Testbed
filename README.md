@@ -108,6 +108,7 @@ Goodput is reported in simulated time. rfsim runs about 1.88x faster than real t
 | `infra/dash/capture.sh`, `capture-ran.yaml` | Stage 4c: N2 capture on REDLAB |
 | `infra/dash/noise.sh`, `noise-ran.yaml` | Stage 4d: noise relay on REDLAB |
 | `infra/dash/prom.sh`, `prom-core.yaml` | P1a: Prometheus for the KPI history (preview / apply / check / remove keeps the data / purge) |
+| `infra/dash/ric.sh`, `ric-ran.yaml`, `infra/ric/` | Experiment 12: FlexRIC nearRT-RIC pod (RIC on 127.0.0.1:36421/36422) and KPM relay on `10.42.0.1:8095` with a token (image / preview / apply / check / remove) |
 | `infra/dash/kpi.sh` | K4: degradation test (DL speed test with presets off / poor / off; the UE and RAN KPIs must turn bad and back, with the right root cause) |
 | `exp-power.sh` | Read-only observation of UL power control (PH, PCMAX, PUSCH/PUCCH SNR vs target) over idle / UL / DL phases |
 | `capture.py`, `n2-capture.yaml` | N2 capture service on the RAN host (tshark on SCTP 38412, JSON over HTTP on port 8091) |

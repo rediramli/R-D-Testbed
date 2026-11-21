@@ -42,7 +42,7 @@ Teaching material built on these experiments (theory, formulas, worked examples,
 | 9 | Uplink channel decoding (LDPC) and UL errors | yes | Planned | |
 | 10 | User-plane traffic inspection (GTP-U and application flows) | yes | Planned | |
 | 11 | NAS and AS security: keys, ciphering, integrity | yes | Planned | |
-| 12 | Near-RT RIC: E2 monitoring (KPM), slice control and closed loop (RC) | needs a near-RT RIC (FlexRIC) | Planned | |
+| 12 | Near-RT RIC: E2 monitoring (KPM), slice control and closed loop (RC) | yes, FlexRIC pod on REDLAB | R1 done 2026-11-20: FlexRIC d7a71285 (E2AP v3 as in the gNB image), E2 SETUP from the gNB, KPM monitor xApp, E2 state and KPM per UE on the dashboard and in Prometheus; KPM DL throughput 62.7 Mbit/s during a DL test. R2-R3 (slicing, closed loop) next | [EXP-12](EXP-12-near-rt-ric.md) |
 | 13 | Network identity: PLMN, TAC and subscriber provisioning | PLMN yes; writing physical SIM cards needs hardware | Planned | |
 | 14 | Core network procedures end to end | yes | Planned | |
 | 15 | N2 control-plane flood and anomaly detection (isolated bench LAN only) | yes | Planned | |
