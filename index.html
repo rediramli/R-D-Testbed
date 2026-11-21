@@ -579,6 +579,7 @@ aside#drawer pre { background: #fbfcfd; font-size: 11.5px; }
     <text x="46" y="208" font-size="14" fill="#1d2733" font-weight="600">REDLAB</text>
     <text x="46" y="228" font-size="12" fill="#5d6b7a">k3s RAN · 10.42.0.1</text>
     <text x="46" y="246" font-size="12" fill="#5d6b7a">Core Ultra 9 285 · 30 GiB</text>
+    <text x="46" y="266" font-size="12" fill="#5d6b7a">gNB-1 · near-RT RIC</text>
     <rect x="30" y="292" width="186" height="92" fill="#ffffff" stroke="#9aa5b1"/><rect x="30" y="292" width="5" height="92" fill="#2e8b3e"/>
     <text x="46" y="314" font-size="14" fill="#1d2733" font-weight="600">P3 Tiny</text>
     <text x="46" y="334" font-size="12" fill="#5d6b7a">k3s core · 10.42.0.2</text>
@@ -1063,7 +1064,7 @@ function el(tag, attrs, text) {
 }
 function path(d, cls) { return el("path", {d, class: "wire " + (cls || "")}); }
 const INFO = {
-  infra: "<b>Bench infrastructure</b>: two single-node k3s clusters on their own LAN (10.42.0.0/24, no link to the lab network). REDLAB runs the RAN, the P3 Tiny the core and this dashboard. The Jetson is reserved for MEC / AI.",
+  infra: "<b>Bench infrastructure</b>: two single-node k3s clusters on their own LAN (10.42.0.0/24, no link to the lab network). REDLAB runs the RAN (gNB-1, UE) and the near-RT RIC (FlexRIC pod, Experiment 12), the P3 Tiny the core, cell 2 and this dashboard. The Jetson is reserved for MEC / AI.",
   smo: "<b>SMO / Non-RT RIC</b>: not deployed. Planned after Experiment 12, when there is a Near-RT RIC to give A1 policies to.",
   mec: "<b>MEC app server</b>: planned on the Jetson (10.42.0.3), reached through the UPF.",
   ric: "<b>Near-RT RIC (FlexRIC)</b>: not deployed. Experiment 12 adds FlexRIC, the E2 agent in the gNB, a KPM monitor xApp, slice control and the KPM-RC closed loop.",
@@ -2345,7 +2346,7 @@ function renderProps() {
   } else if (k.startsWith("host:")) {
     const r = k === "host:redlab";
     title = r ? "REDLAB" : "P3 Tiny";
-    html = propRows([["Host"], ["Role", r ? "RAN cluster (k3s)" : "core cluster (k3s) and this dashboard"], ["Address", r ? "10.42.0.1" : "10.42.0.2", 1],
+    html = propRows([["Host"], ["Role", r ? "RAN cluster (k3s): gNB-1, UE, near-RT RIC (FlexRIC)" : "core cluster (k3s) and this dashboard"], ["Address", r ? "10.42.0.1" : "10.42.0.2", 1],
                      ["CPU / RAM", r ? "Core Ultra 9 285 · 30 GiB" : "i9-14900 · 30 GiB"], ["API", latest && latest.errors && latest.errors[r ? "ran" : "core"] ? latest.errors[r ? "ran" : "core"] : "reachable"]]);
   } else {
     const key = k.startsWith("box:") ? k.slice(4) : {core: "core", ran: "gnb", bench: "infra", tools: "n2"}[k];
