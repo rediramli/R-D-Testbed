@@ -42,7 +42,11 @@ check(){
   [ "$(id -u)" = 0 ] && [ -n "${SUDO_USER:-}" ] || { echo "STOP: run with sudo as your login user: sudo MODE=$MODE bash infra/dash/dash.sh"; exit 1; }
   tiny 'k3s kubectl -n fct-dash rollout status deploy/fct-dash --timeout=120s' >/dev/null 2>&1 && ok "fct-dash running on the core" || bad "fct-dash not running"
   [ "$(curl -s -m 5 $URL/healthz)" = ok ] && ok "$URL/healthz answers from REDLAB" || bad "$URL/healthz does not answer"
-  for i in $(seq 1 15); do st=$(curl -s -m 8 $URL/api/state); echo "$st" | python3 -c 'import json,sys; d=json.load(sys.stdin); sys.exit(0 if d["ran"]["ueStats"] else 1)' 2>/dev/null && break; sleep 2; done
+  # cell 2's UE goes RRC idle without traffic (no per-UE KPIs then): a light ping keeps it connected during the checks
+  tiny 'k3s kubectl get ns ran2' >/dev/null 2>&1 && { tiny "k3s kubectl -n ran2 exec deploy/ocudu-cell -c ue -- ping -I oaitun_ue1 -c 300 -i 0.2 10.45.0.1" >/dev/null 2>&1 & }
+  for i in $(seq 1 15); do st=$(curl -s -m 8 $URL/api/state); echo "$st" | python3 -c '
+import json,sys; d=json.load(sys.stdin); c2 = d.get("ran2") or {}
+sys.exit(0 if d["ran"]["ueStats"] and (not c2.get("up") or c2.get("ues")) else 1)' 2>/dev/null && break; sleep 2; done
   echo "$st" | python3 -c '
 import json, sys
 d = json.load(sys.stdin); fail = 0
@@ -60,6 +64,18 @@ s = m["ueStats"][-1] if m["ueStats"] else {}
 r(all(s.get(k) is not None for k in ("cqi", "mcsDl", "goodputDl")),
   "KPIs from the gNB log: RNTI %s CQI %s DL MCS %s DL goodput %s" % (s.get("rnti"), s.get("cqi"), s.get("mcsDl"), s.get("goodputDl")))
 r(not m["errors"], "KPI parser errors: %s" % (m["errors"] or "none"))
+# Experiment 16 S4: cell 2 (OCUDU, namespace ran2 on the core) when it is deployed
+c2 = {p["role"]: p for p in d["pods"] if p["cluster"] == "ran2" and p.get("cell") == "ocudu"}
+if c2 or d.get("ran2", {}).get("up"):
+    r({"gnb", "ue"} <= set(c2) and all(c2[x]["state"] == "running" for x in ("gnb", "ue")),
+      "cell 2 pod listed (ran2): %s" % ", ".join("%s %s" % (k, v["state"]) for k, v in sorted(c2.items())))
+    m2 = d.get("ran2") or {}; u2 = (m2.get("ues") or [{}])[-1]
+    r(m2.get("up") and all(u2.get(k) is not None for k in ("cqi", "mcsDl", "mcsUl", "goodputDl", "goodputUl")),   # BLER: only with traffic
+      "cell 2 KPIs from Prometheus: RNTI %s CQI %s DL MCS %s DL BLER %s DL goodput %s Mbit/s (sim), speed %sx%s" % (
+      u2.get("rnti"), u2.get("cqi"), u2.get("mcsDl"), u2.get("blerDl"), u2.get("goodputDl") and round(u2["goodputDl"], 1),
+      m2.get("speed") and round(m2["speed"], 2), (", error " + m2["error"]) if m2.get("error") else ""))
+else:
+    print("  info  cell 2 (ran2) not deployed: its checks are skipped")
 v = m.get("cqiView") or {}; rows = v.get("rows") or []
 r(len(rows) == 15 and all(abs(x["qm"] * x["rate"] / 1024 - x["eff"]) < 0.0006 for x in rows)
   and all(rows[i]["eff"] < rows[i + 1]["eff"] for i in range(14)),
@@ -78,7 +94,8 @@ sys.exit(fail)' || F=$((F+$?))
   sn=$(curl -s -m 5 "$URL/api/history?seconds=60" | python3 -c 'import json,sys; print(sum(r.get("sinrUe") is not None for r in json.load(sys.stdin)["rows"]))' 2>/dev/null)
   [ "${sn:-0}" -ge 10 ] && ok "UE SINR in the history: $sn samples in the last 60 s" || bad "UE SINR in the history: '${sn:-none}' samples (want >= 10)"
   [ "${rows:-0}" -ge 10 ] && ok "KPI history: $rows samples in the last 60 s" || bad "KPI history: '${rows:-none}' samples in the last 60 s (want >= 10)"
-  # K1: core KPIs from the Open5GS counters
+  # K1: core KPIs from the Open5GS counters. gNBs at the AMF: the OAI cell, plus cell 2 (EXP-16) when it runs.
+  export WANT_GNBS=$(( 1 + $(echo "$st" | python3 -c 'import json,sys; print(int(any(p["cluster"] == "ran2" and p["role"] == "gnb" and p["state"] == "running" for p in json.load(sys.stdin)["pods"])))' 2>/dev/null || echo 0) ))
   for i in $(seq 1 12); do kp=$(curl -s -m 8 "$URL/api/kpi?seconds=900"); echo "$kp" | python3 -c 'import json,sys; sys.exit(0 if json.load(sys.stdin)["samples"] >= 2 else 1)' 2>/dev/null && break; sleep 5; done
   echo "$kp" | python3 -c '
 import json, sys
@@ -87,7 +104,8 @@ def r(good, msg):
     global fail; fail += not good; print(("  PASS  " if good else "  FAIL  ") + msg)
 r(not d["errors"], "core metrics scraped from AMF, SMF, UPF, PCF (errors: %s)" % (d["errors"] or "none"))
 r(len(k) == 17, "%d core KPIs computed (want 17)" % len(k))
-r(k["gnb"]["value"] == 1 and k["pfcp_peers"]["value"] == 1, "gauges: gNBs %s, PFCP peers %s" % (k["gnb"]["value"], k["pfcp_peers"]["value"]))
+import os; ng = int(os.environ.get("WANT_GNBS", "1"))
+r(k["gnb"]["value"] == ng and k["pfcp_peers"]["value"] == 1, "gauges: gNBs %s (want %d), PFCP peers %s" % (k["gnb"]["value"], ng, k["pfcp_peers"]["value"]))
 r((k["pdu_sessions"]["value"] or 0) >= 1, "active PDU sessions: %s" % k["pdu_sessions"]["value"])
 bad = [x["name"] for x in d["kpis"] if x["status"] == "bad"]
 r(not bad, "no KPI below target: %s" % (", ".join(bad) or "none"))
@@ -136,7 +154,8 @@ kp = {x["id"]: x for x in cp["kpis"]}; km = {x["id"]: x for x in cm["kpis"]}; kr
 r(cp["source"] == "prometheus" and len(kp) == 17 and "prometheus" not in cp["errors"],
   "core KPIs over 1 h from Prometheus: %d KPIs, %d samples" % (len(kp), cp["samples"]))
 g = [p[1] for p in cp["series"].get("gnb", []) if p[1] is not None]
-r(len(g) >= min(10, cp["samples"] - 1) and len(g) >= 3 and g[-1] == 1,
+import os
+r(len(g) >= min(10, cp["samples"] - 1) and len(g) >= 3 and g[-1] == int(os.environ.get("WANT_GNBS", "1")),
   "core trend: %d gNB points (of %d buckets with data), last %s" % (len(g), cp["samples"] - 1, g[-1] if g else None))
 same = [i for i in ("gnb", "pfcp_peers", "pdu_sessions", "reg_subs") if kp[i]["value"] == km[i]["value"]]
 r(len(same) == 4, "memory and Prometheus agree on the gauges: %s" % ", ".join("%s %s/%s" % (i, kp[i]["value"], km[i]["value"]) for i in ("gnb", "pfcp_peers", "pdu_sessions", "reg_subs")))
@@ -150,19 +169,27 @@ sys.exit(fail)' "${t7:-99}" || F=$((F+$?))
     echo "  info  Prometheus not installed: P1b checks skipped (MODE=apply bash infra/dash/prom.sh)"
   fi
   # Every pod log the dashboard serves must be free of SIM keys.
-  pods=$(echo "$st" | python3 -c 'import json,sys; [print(p["cluster"], p["pod"]) for p in json.load(sys.stdin)["pods"]]' 2>/dev/null)
+  pods=$(echo "$st" | python3 -c 'import json,sys; [print(p["cluster"], p["pod"], p.get("container") or "-") for p in json.load(sys.stdin)["pods"]]' 2>/dev/null)
   n=0; hit=0
-  while read -r cl pod; do [ -n "$pod" ] || continue; n=$((n+1))
-    txt=$(curl -s -m 10 "$URL/api/logs?cluster=$cl&pod=$pod&lines=500")
+  while read -r cl pod ct; do [ -n "$pod" ] || continue; n=$((n+1))
+    q="cluster=$cl&pod=$pod&lines=500"; [ "$ct" != - ] && q="$q&container=$ct"
+    txt=$(curl -s -m 10 "$URL/api/logs?$q")
     for v in KI OPC; do val=$(grep -o "^$v=.*" "$SECRETS" 2>/dev/null | cut -d= -f2)
       [ -n "$val" ] && echo "$txt" | grep -qiF -- "$val" && { hit=$((hit+1)); echo "  FAIL  $v found in the log of $cl/$pod"; }; done
+    # cell 2's SIM (ue2) stays on tiny: compare there
+    if [ "$cl" = ran2 ]; then
+      c=$(tiny "set -a; . ~/testbed-secrets/ue2.env 2>/dev/null; set +a; [ -n \"\$KI\" ] || { echo nosim; exit; }; t=\$(curl -s -m 10 '$URL/api/logs?$q'); n=0; for v in \"\$IMSI\" \"\$KI\" \"\$OPC\"; do [ -n \"\$v\" ] && printf '%s' \"\$t\" | grep -qiF -- \"\$v\" && n=\$((n+1)); done; echo \$n" 2>/dev/null)
+      [ "${c:-x}" = 0 ] || { hit=$((hit+1)); echo "  FAIL  ue2 SIM value(s) in the log of $cl/$pod/$ct ('${c:-no answer}')"; }
+    fi
   done <<< "$pods"
   [ -f "$SECRETS" ] || bad "cannot read $SECRETS for the key check"
   [ $n -ge 14 ] && [ $hit = 0 ] && ok "no SIM key in the logs of $n pods served by the dashboard" || { [ $hit = 0 ] && bad "only $n pod logs checked (want >= 14)"; F=$((F+hit)); }
   # Read-only and no Secrets, on both clusters.
   for q in "create pods" "get secrets" "patch deployments"; do
     [ "$($KC auth can-i $q -n default --as=$SA 2>/dev/null)" = no ] && ok "RAN reader may not $q (default)" || bad "RAN reader MAY $q in default"
-    [ "$(tiny "k3s kubectl auth can-i $q -n open5gs --as=$SA" 2>/dev/null)" = no ] && ok "core reader may not $q (open5gs)" || bad "core reader MAY $q in open5gs"; done
+    [ "$(tiny "k3s kubectl auth can-i $q -n open5gs --as=$SA" 2>/dev/null)" = no ] && ok "core reader may not $q (open5gs)" || bad "core reader MAY $q in open5gs"
+    if tiny 'k3s kubectl get ns ran2' >/dev/null 2>&1; then
+      [ "$(tiny "k3s kubectl auth can-i $q -n ran2 --as=$SA" 2>/dev/null)" = no ] && ok "core reader may not $q (ran2)" || bad "core reader MAY $q in ran2"; fi; done
   # Reachable only on the bench LAN address.
   others=$(tiny "ip -4 -o addr | awk '{print \$4}' | cut -d/ -f1 | grep -vE '^(127\.|$CORE$)'" 2>/dev/null | tr '\n' ' ')
   open=""; for ip in $others; do tiny "curl -s -m 3 -o /dev/null http://$ip:$PORT/healthz" >/dev/null 2>&1 && open="$open $ip"; done
@@ -204,7 +231,7 @@ apply)
   sleep 5; F=0; check ;;
 check) check ;;
 remove)
-  tiny 'k3s kubectl delete namespace fct-dash --ignore-not-found; k3s kubectl -n open5gs delete role,rolebinding fct-dash-read --ignore-not-found'
+  tiny 'k3s kubectl delete namespace fct-dash --ignore-not-found; k3s kubectl -n open5gs delete role,rolebinding fct-dash-read --ignore-not-found; k3s kubectl -n ran2 delete role,rolebinding fct-dash-read --ignore-not-found 2>/dev/null; true'
   $KC delete -f "$DIR/dash-ran.yaml" --ignore-not-found ;;
 *) echo "MODE must be preview, apply, check or remove"; exit 1 ;;
 esac

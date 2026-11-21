@@ -1,0 +1,62 @@
+# Experiment 12, RAN cluster (REDLAB): FlexRIC nearRT-RIC and the KPM relay, one pod.
+# Image docker.io/fct/flexric:d7a71285-e2ap3 (infra/ric/Dockerfile.flexric), built with docker and imported into k3s by
+# ric.sh: the same FlexRIC commit and E2AP v3 / KPM v3 as the E2 agent inside the OAI 2026.w40 gNB image.
+# Host network: the gNB's E2 agent (gnb.yaml e2_agent) connects to 127.0.0.1:36421. The RIC binds E2 (36421) and E42 (36422)
+# to NEAR_RIC_IP = 127.0.0.1 only; the relay listens only on the bench LAN address 10.42.0.1:8095 and needs a token.
+# Both containers run as nobody, read-only root, no Kubernetes API access. ConfigMap flexric-ric-app comes from ric.sh.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: flexric-ric
+  namespace: fct-dash
+  labels: {app: flexric-ric}
+spec:
+  replicas: 1
+  strategy: {type: Recreate}
+  selector: {matchLabels: {app: flexric-ric}}
+  template:
+    metadata:
+      labels: {app: flexric-ric}
+      annotations: {fct-dash/code-hash: "CODE_HASH"}
+    spec:
+      hostNetwork: true
+      dnsPolicy: ClusterFirstWithHostNet
+      automountServiceAccountToken: false
+      securityContext: {runAsUser: 65534, runAsGroup: 65534, runAsNonRoot: true}
+      containers:
+      - name: ric
+        image: docker.io/fct/flexric:d7a71285-e2ap3
+        imagePullPolicy: Never
+        # line-buffered: printf to a pipe is block-buffered, and the E2 SETUP lines would not reach the pod log
+        command: ["stdbuf", "-oL", "-eL", "/usr/local/bin/nearRT-RIC", "-c", "/etc/flexric/flexric.conf", "-p", "/usr/local/lib/flexric/"]
+        resources:
+          requests: {cpu: 20m, memory: 32Mi}
+          limits: {cpu: "1", memory: 256Mi}
+        securityContext: {allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, capabilities: {drop: ["ALL"]}}
+        volumeMounts:
+        - {name: app, mountPath: /etc/flexric/flexric.conf, subPath: flexric.conf, readOnly: true}
+        - {name: tmp, mountPath: /tmp}
+      - name: kpm-relay
+        image: docker.io/fct/flexric:d7a71285-e2ap3
+        imagePullPolicy: Never
+        command: ["python3", "-u", "/app/ric-relay.py"]
+        env:
+        - {name: RELAY_BIND, value: 10.42.0.1}
+        - {name: RELAY_PORT, value: "8095"}
+        readinessProbe:
+          httpGet: {host: 10.42.0.1, path: /healthz, port: 8095}
+          initialDelaySeconds: 3
+          periodSeconds: 5
+        resources:
+          requests: {cpu: 20m, memory: 32Mi}
+          limits: {cpu: 500m, memory: 256Mi}
+        securityContext: {allowPrivilegeEscalation: false, readOnlyRootFilesystem: true, capabilities: {drop: ["ALL"]}}
+        volumeMounts:
+        - {name: app, mountPath: /app/ric-relay.py, subPath: ric-relay.py, readOnly: true}
+        - {name: app, mountPath: /etc/flexric/flexric.conf, subPath: flexric.conf, readOnly: true}
+        - {name: token, mountPath: /etc/ric-relay, readOnly: true}
+        - {name: tmp, mountPath: /tmp}
+      volumes:
+      - {name: app, configMap: {name: flexric-ric-app}}
+      - {name: token, secret: {secretName: ric-relay-token, items: [{key: token, path: token}]}}
+      - {name: tmp, emptyDir: {sizeLimit: 64Mi}}

@@ -31,6 +31,7 @@ Teaching material built on these experiments (theory, formulas, worked examples,
 | 0b | SINR to CQI/MCS curve (noise sweep) | yes | Done 2026-10-14: SINR falls 2 dB per dB of the noise setting; CQI 1-2 below typical under 18 dB | [EXP-00, part 0b](EXP-00-downlink-noise.md#experiment-0b-sinr-to-cqimcs-curve-noise-sweep-2026-10-14) |
 | 0c | Link capacity vs single-flow TCP throughput | yes | Done 2026-10-14: the link carries 87.5 Mbit/s at MCS 28, one TCP flow 50-55 | [EXP-00, part 0c](EXP-00-downlink-noise.md#experiment-0c-link-capacity-vs-single-flow-tcp-2026-10-14) |
 | 1 | Carrier bandwidth (PRB count) and capacity | yes | Done 2026-10-14: 24/51/106/273 PRB carry 18.1/43.3/87.5/226.5 Mbit/s; proportional from 51 PRB up | [EXP-01](EXP-01-bandwidth.md) |
+| 1b | Resource grid, live: occupied PRBs and symbols per slot, random access | yes | G1 done 2026-11-03: SSB at the predicted PRB 43-62, PDSCH/PUSCH match the labels, Msg1-Msg4 seen; G2-G3 (relay, dashboard page) built, bench check pending; G4 next | [EXP-01b](EXP-01b-resource-grid.md) |
 | 2 | Carrier placement: ARFCN and centre frequency | yes (configuration only) | Planned | |
 | 3 | TDD DL/UL pattern and the throughput split | yes | Planned | |
 | 4 | Paired spectrum (FDD) operation | yes (FDD band configuration) | Planned | |
@@ -41,10 +42,11 @@ Teaching material built on these experiments (theory, formulas, worked examples,
 | 9 | Uplink channel decoding (LDPC) and UL errors | yes | Planned | |
 | 10 | User-plane traffic inspection (GTP-U and application flows) | yes | Planned | |
 | 11 | NAS and AS security: keys, ciphering, integrity | yes | Planned | |
-| 12 | Near-RT RIC: E2 monitoring (KPM), slice control and closed loop (RC) | needs a near-RT RIC (FlexRIC) | Planned | |
+| 12 | Near-RT RIC: E2 monitoring (KPM), slice control and closed loop (RC) | yes, FlexRIC pod on REDLAB | R1 done 2026-11-20: FlexRIC d7a71285 (E2AP v3 as in the gNB image), E2 SETUP from the gNB, KPM monitor xApp, E2 state and KPM per UE on the dashboard and in Prometheus; KPM DL throughput 62.7 Mbit/s during a DL test. R2-R3 (slicing, closed loop) next | [EXP-12](EXP-12-near-rt-ric.md) |
 | 13 | Network identity: PLMN, TAC and subscriber provisioning | PLMN yes; writing physical SIM cards needs hardware | Planned | |
 | 14 | Core network procedures end to end | yes | Planned | |
 | 15 | N2 control-plane flood and anomaly detection (isolated bench LAN only) | yes | Planned | |
+| 16 | Second gNB on OCUDU (ZMQ virtual radio, own UE) next to the OAI cell on the same core | no rfsim (ZMQ); on tiny in k3s | Done 2026-11-06, OCUDU cell live on tiny: attach, isolation (both cells loaded, within 2.3 %), 51 PRB DL 49.5 Mbit/s at 64QAM (OAI 43.3), 65.0 at 256QAM | [EXP-16](EXP-16-ocudu-second-gnb-feasibility.md) |
 
 The rfsim column is a first assessment, to be confirmed in each experiment's issue before work starts.
 Order (decided 2026-10-14): 0 (bench rerun), 0c, 0b, then 1 to 15 in order. Next: Experiment 2.

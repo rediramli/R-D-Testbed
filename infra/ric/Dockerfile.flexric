@@ -1,0 +1,40 @@
+# FlexRIC nearRT-RIC + KPM monitor xApp for the bench (Experiment 12). Built on REDLAB with docker, imported into k3s by
+# infra/dash/ric.sh. Pinned to the FlexRIC commit that the OAI 2026.w40 gNB image was built with (openair2/E2AP/flexric
+# submodule, github duranta-project/flexric d7a71285) and to the same E2AP/KPM versions (Dockerfile.build.ubuntu ARGs):
+# a RIC with another E2AP version cannot decode the gNB's E2 SETUP. asn1c is the commit FlexRIC's own Dockerfile uses.
+#   docker build -t docker.io/fct/flexric:d7a71285-e2ap3 -f infra/ric/Dockerfile.flexric infra/ric
+ARG BASE_IMAGE=ubuntu:24.04
+FROM $BASE_IMAGE AS build
+ARG FLEXRIC_COMMIT=d7a71285f3720fbc1487e9a86309eec5fb61a408
+ARG ASN1C_COMMIT=940dd5fa9f3917913fd487b13dfddfacd0ded06e
+ARG E2AP_VERSION=E2AP_V3
+ARG KPM_VERSION=KPM_V3_00
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install --yes --no-install-recommends \
+      build-essential ca-certificates git cmake ninja-build libsctp-dev libsqlite3-dev \
+      autoconf automake libtool m4 bison flex python3 && rm -rf /var/lib/apt/lists/*
+RUN git clone https://github.com/mouse07410/asn1c /tmp/asn1c && cd /tmp/asn1c && git checkout $ASN1C_COMMIT && \
+    autoreconf -iv && ./configure --prefix /opt/asn1c && make -j"$(nproc)" && make install && rm -rf /tmp/asn1c
+# The KPM xApp reads its measurement list from the build directory (path compiled in): keep the build in /flexric/build.
+# The xApp library writes every indication to SQLite under /tmp (about 165 kB/s on the bench, no limit) and this commit
+# has no XAPP_DB=NONE_XAPP code: the one write call is removed (the build stops if it is not there).
+RUN git clone https://github.com/duranta-project/flexric.git /flexric && cd /flexric && git checkout $FLEXRIC_COMMIT && \
+    grep -q '^ *write_db_xapp(&xapp->db, &ans.val.e2_node, &msg_disp.rd);' src/xApp/msg_handler_xapp.c && \
+    sed -i 's|^\( *\)write_db_xapp(&xapp->db, &ans.val.e2_node, &msg_disp.rd);|\1/* bench: no SQLite copy of each indication */|' src/xApp/msg_handler_xapp.c && \
+    mkdir build && cd build && \
+    cmake -GNinja -DCMAKE_BUILD_TYPE=Release -DE2AP_VERSION=$E2AP_VERSION -DKPM_VERSION=$KPM_VERSION \
+          -DASN1C_EXEC_PATH=/opt/asn1c/bin/asn1c .. && \
+    ninja nearRT-RIC xapp_kpm_moni $(ninja -t targets all | grep -oE '^src/sm/[a-z_]+/[^:]*lib[a-z_]+_sm\.so' | sort -u) && \
+    mkdir -p /out/lib && cp $(find src/sm -name '*_sm.so') /out/lib/ && \
+    cp examples/ric/nearRT-RIC examples/xApp/c/monitor/xapp_kpm_moni /out/ && \
+    git -C /flexric rev-parse HEAD > /out/FLEXRIC_COMMIT
+
+FROM $BASE_IMAGE
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install --yes --no-install-recommends \
+      libsctp1 libsqlite3-0 python3 && rm -rf /var/lib/apt/lists/*
+COPY --from=build /out/lib/ /usr/local/lib/flexric/
+COPY --from=build /out/nearRT-RIC /out/xapp_kpm_moni /usr/local/bin/
+COPY --from=build /out/FLEXRIC_COMMIT /usr/local/share/flexric/FLEXRIC_COMMIT
+COPY --from=build /flexric/build/28_552_kpm_meas.txt /flexric/build/28_552_kpm_meas.txt
+RUN ldd /usr/local/bin/nearRT-RIC /usr/local/bin/xapp_kpm_moni /usr/local/lib/flexric/*.so | grep -v 'not found' >/dev/null && \
+    ! ldd /usr/local/bin/nearRT-RIC /usr/local/bin/xapp_kpm_moni /usr/local/lib/flexric/*.so | grep 'not found'
+USER 65534:65534

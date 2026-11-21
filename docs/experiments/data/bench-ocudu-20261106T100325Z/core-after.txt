@@ -1,0 +1,13 @@
+open5gs-amf-5f646965d5-p5vvq       1m    1474Mi   
+open5gs-ausf-f445cbd98-6j8lp       1m    25Mi     
+open5gs-bsf-679fbdddf4-sgd7n       1m    25Mi     
+open5gs-mongodb-7f78cb47b9-2zhxw   3m    73Mi     
+open5gs-nrf-57bfc6cb9f-lkszm       1m    43Mi     
+open5gs-nssf-84d957f66f-pm4xp      1m    24Mi     
+open5gs-pcf-96ffd6b49-82cdf        1m    26Mi     
+open5gs-scp-64df956547-ffkc8       1m    136Mi    
+open5gs-smf-56f5dfc7b6-rhwpg       1m    59Mi     
+open5gs-udm-5c94fbb8b9-j6mfr       1m    25Mi     
+open5gs-udr-5d6b9556b5-zthsr       1m    26Mi     
+open5gs-upf-5589445c95-whp7v       39m   34Mi     
+fctlab-thinkstation-p3-tiny   3313m   10%   7140Mi   22%   

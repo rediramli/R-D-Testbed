@@ -1,0 +1,74 @@
+# OCUDU gNB (26.10, own image with ZMQ), second cell of the bench (Experiment 16), on tiny's k3s. ZMQ virtual radio only.
+# Based on the OCUDU OAI-UE tutorial config (docs/tutorials/oaiue/assets/gnb_zmq.yaml); changed: AMF 10.42.0.2,
+# PLMN 001/70, TAC 1, gNB ID 0xe01 (the OAI cell is 0xe00), TDD pattern as the OAI cell, tx_gain -12 (OAI UE FFT),
+# N2/N3 bound to the pod IP (__POD_IP__ is filled at pod start), metrics/remote control on the pod loopback only.
+# n78, 20 MHz (51 PRB), 30 kHz SCS, TDD, dl_arfcn 632628 = 3489.42 MHz, SSB ARFCN 632256.
+gnb_id: 3585                  # 0xe01
+gnb_id_bit_length: 22
+ran_node_name: ocudu-zmq
+
+cu_cp:
+  amf:
+    addrs: 10.42.0.2
+    port: 38412
+    bind_addrs: __POD_IP__
+    supported_tracking_areas:
+      - tac: 1
+        plmn_list:
+          - plmn: "00170"
+            tai_slice_support_list:
+              - sst: 1
+
+cu_up:
+  ngu:
+    socket:
+      - bind_addr: __POD_IP__
+
+ru_sdr:
+  device_driver: zmq
+  # gNB TX binds 127.0.0.1:4556, RX connects to the UE on 127.0.0.1:4557 (pod loopback only)
+  device_args: tx_port=tcp://127.0.0.1:4556,rx_port=tcp://127.0.0.1:4557
+  srate: 23.04
+  tx_gain: -12                # OCUDU sends full-scale samples (12 dB crest factor); the OAI UE's fixed-point FFT saturates otherwise
+  rx_gain: 0
+
+cell_cfg:
+  dl_arfcn: 632628
+  band: 78
+  channel_bandwidth_MHz: 20
+  common_scs: 30
+  plmn: "00170"
+  tac: 1
+  pci: 1
+  # 5 ms period as the OAI cell: 7 DL slots + 6 DL symbols, 2 UL slots + 4 UL symbols
+  tdd_ul_dl_cfg:
+    dl_ul_tx_period: 10
+    nof_dl_slots: 7
+    nof_dl_symbols: 6
+    nof_ul_slots: 2
+    nof_ul_symbols: 4
+  # OCUDU defaults to the 256QAM PDSCH MCS table; the OAI cell uses 64QAM. qam64 keeps the comparison like for like
+  # (EXP-16 S3: 65.0 Mbit/s with qam256 vs 43.3 for OAI at 51 PRB). Set qam256 to show the gain.
+  pdsch:
+    mcs_table: qam64
+  csi:
+    csi_rs_enabled: true
+  pucch:
+    nof_cell_csi_res: 1
+
+metrics:
+  enable_json: true           # JSON reports over the remote-control WebSocket (127.0.0.1:8001): metrics_subscribe
+  layers:
+    enable_sched: true        # per-UE CQI, MCS, bit rates, HARQ ok/nok (simulated time; Experiment 16 steps 3-5)
+    enable_mac: true
+    enable_app_usage: true
+  periodicity:
+    du_report_period: 1000    # ms
+remote_control:
+  enabled: true
+  bind_addr: 127.0.0.1        # no authentication: pod loopback only (the docs use 0.0.0.0)
+  port: 8001
+
+log:
+  filename: stdout
+  all_level: warning

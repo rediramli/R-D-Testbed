@@ -1,0 +1,41 @@
+# OCUDU gNB with the ZMQ virtual radio, for the second cell on tiny (Experiment 16, stage S1b). rfsim-style use only:
+# ZMQ, no UHD, no DPDK, no over-the-air radio. The published OCUDU images are built with -DENABLE_ZEROMQ=OFF
+# (checked 2026-11-04), so this image builds the gnb target from the signed release tag with ZeroMQ on.
+# Build on REDLAB (Docker):  nice -n 19 docker build -f infra/ran2/Dockerfile.ocudu --build-arg NUM_JOBS=2 \
+#                              -t fct/ocudu-gnb:26.10-zmq infra/ran2
+# The build context is unused (the source is cloned at the pinned tag and commit below).
+# SPDX-License-Identifier: BSD-3-Clause-Open-MPI (OCUDU); this file follows the repo's terms.
+
+ARG UBUNTU=ubuntu:24.04@sha256:fe81560990fae86dc4743202b2cb4d3df98d0bcf949173cecef15ce1127ef852
+
+FROM ${UBUNTU} AS builder
+ARG OCUDU_TAG=release_26_10
+ARG OCUDU_COMMIT=e0db566a
+ARG NUM_JOBS=2
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+      ca-certificates git cmake make gcc g++ pkg-config \
+      libfftw3-dev libmbedtls-dev libsctp-dev libyaml-cpp-dev libzmq3-dev \
+    && rm -rf /var/lib/apt/lists/*
+RUN git clone --depth 1 --branch ${OCUDU_TAG} https://gitlab.com/ocudu/ocudu.git /src \
+    && test "$(git -C /src rev-parse --short=8 HEAD)" = "${OCUDU_COMMIT}" \
+    || { echo "OCUDU tag ${OCUDU_TAG} is not commit ${OCUDU_COMMIT}" >&2; exit 1; }
+# x86-64-v3 = AVX2 (tiny: i9-14900, no AVX-512). Radios other than ZMQ off; tests off.
+RUN cmake -S /src -B /build -DCMAKE_BUILD_TYPE=Release -DMARCH=x86-64-v3 \
+      -DENABLE_ZEROMQ=ON -DENABLE_UHD=OFF -DENABLE_DPDK=OFF -DENABLE_SIDEKIQ=OFF -DENABLE_DIFI=OFF \
+      -DENABLE_PLUGINS=OFF -DBUILD_TESTING=OFF -DENABLE_WERROR=OFF \
+    && grep -q "ENABLE_ZEROMQ:BOOL=ON" /build/CMakeCache.txt \
+    && cmake --build /build --target gnb -j${NUM_JOBS} \
+    && strip /build/apps/gnb/gnb \
+    && { ldd /build/apps/gnb/gnb | grep -q libzmq || { echo "gnb is not linked to libzmq" >&2; exit 1; }; }
+
+FROM ${UBUNTU}
+RUN apt-get update && DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+      libfftw3-single3 libsctp1 libyaml-cpp0.8 libmbedcrypto7t64 libzmq5 libcap2-bin \
+    && rm -rf /var/lib/apt/lists/*
+COPY --from=builder /build/apps/gnb/gnb /usr/local/bin/gnb
+COPY --from=builder /src/LICENSE /usr/share/doc/ocudu/LICENSE
+# Same file capabilities as the upstream images: the pod must grant SYS_NICE, IPC_LOCK and PERFMON or exec fails.
+RUN setcap cap_ipc_lock,cap_sys_nice,cap_perfmon=ep /usr/local/bin/gnb \
+    && useradd -u 1001 -g 0 -M -s /usr/sbin/nologin ocudu
+USER 1001
+ENTRYPOINT ["/usr/local/bin/gnb"]
